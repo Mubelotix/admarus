@@ -18,4 +18,6 @@ async fn main() {
     let mut index = DocumentIndex::<125000>::new();
     index.add_documents(documents);
     println!("{:#?} {} words", index.index, index.index.len());
+    index.update_filter();
+    println!("{:.04}%", index.filter.load()*100.0);
 }

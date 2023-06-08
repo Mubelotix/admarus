@@ -1,24 +1,35 @@
 use crate::prelude::*;
 
 pub struct DocumentIndex<const N: usize> {
-    filter: Filter<N>,
-    filter_need_update: bool,
+    pub filter: Filter<N>,
+    filter_needs_update: bool,
 
     /// cid -> document
     documents: HashMap<String, Document>,
 
     /// word -> [cid -> frequency]
-    pub index: HashMap<String, HashMap<String, f64>>,
+    pub index: HashMap<String, HashMap<String, f64>>, // FIXME: no field should be public
 }
 
 impl<const N: usize> DocumentIndex<N> {
     pub fn new() -> DocumentIndex<N> {
         DocumentIndex {
             filter: Filter::new(),
-            filter_need_update: false,
+            filter_needs_update: false,
             documents: HashMap::new(),
             index: HashMap::new(),
         }
+    }
+
+    pub fn update_filter(&mut self) {
+        if !self.filter_needs_update {
+            return;
+        }
+        self.filter = Filter::new();
+        for word in self.index.keys() {
+            self.filter.add_word::<Self>(word);
+        }
+        self.filter_needs_update = false;
     }
 
     pub fn remove_document(&mut self, cid: &str) {
@@ -29,19 +40,18 @@ impl<const N: usize> DocumentIndex<N> {
         let previous_len = self.index.len();
         self.index.retain(|_, frequencies| !frequencies.is_empty());
         if previous_len != self.index.len() {
-            self.filter_need_update = true;
+            self.filter_needs_update = true;
         }
     }
 
     pub fn add_document(&mut self, document: Document) {
-        self.remove_document(&document.link.cid);
         let word_count = document.words().count() as f64;
         for word in document.words() {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
             *frequencies.entry(document.link.cid.clone()).or_insert(0.) += 1. / word_count;
+            self.filter.add_word::<Self>(word);
         }
         self.documents.insert(document.link.cid.clone(), document);
-        self.filter_need_update = true;
     }
 
     pub fn add_documents(&mut self, documents: Vec<Document>) {
@@ -71,7 +81,7 @@ impl<const N: usize> Store<N> for DocumentIndex<N> {
         self.filter.clone()
     }
 
-    fn search(&self,words:Vec<String> ,min_matching:usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<Self::SearchResult> > +Send+Sync+'static> >  {
+    fn search(&self, words:Vec<String>, min_matching:usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<Self::SearchResult> > +Send+Sync+'static> >  {
         todo!()
     }
 }
