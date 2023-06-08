@@ -21,10 +21,10 @@ pub async fn list_pinned() -> Vec<String> {
 
 #[derive(Debug)]
 pub struct Link {
-    cid: String,
-    path: Vec<String>,
-    name: Option<String>,
-    size: Option<u64>,
+    pub cid: String,
+    pub path: Vec<String>,
+    pub name: Option<String>,
+    pub size: Option<u64>,
 }
 
 pub async fn explore_all(cids: Vec<String>) -> Vec<Link> {
@@ -96,10 +96,8 @@ pub async fn fetch_document(link: Link) -> Option<Document> {
     let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/cat?arg={}&length={MAX_HTML_LENGTH}", link.cid), ()).await.unwrap();
     let rep: Vec<u8> = rep.bytes().await.unwrap();
 
-    // Fixme: use http range
-
     if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
-        return Some(Document::Html(HtmlDocument::new(String::from_utf8_lossy(&rep).to_string())));
+        return Some(Document::html(link, HtmlDocument::init(String::from_utf8_lossy(&rep).to_string())));
     }
 
     None

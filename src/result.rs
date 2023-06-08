@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-struct DocumentResult {
+pub struct DocumentResult {
     cid: String,
     icon_cid: Option<String>,
     domain: Option<String>,
