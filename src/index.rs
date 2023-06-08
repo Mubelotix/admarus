@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::prelude::*;
 
 pub struct DocumentIndex<const N: usize> {
@@ -81,7 +83,21 @@ impl<const N: usize> Store<N> for DocumentIndex<N> {
         self.filter.clone()
     }
 
-    fn search(&self, words:Vec<String>, min_matching:usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<Self::SearchResult> > +Send+Sync+'static> >  {
-        todo!()
+    fn search(&self, words: Vec<String>, min_matching: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<Self::SearchResult> > +Send+Sync+'static> >  {
+        if words.iter().filter(|w| self.filter.get_word::<Self>(w)).count() < min_matching {
+            return Box::pin(async move { vec![] });
+        }
+
+        let mut matching_documents = HashMap::new();
+        for word in words {
+            for (document, _freqency) in self.index.get(&word).into_iter().flatten() {
+                *matching_documents.entry(document).or_insert(0) += 1;
+            }
+        }
+        matching_documents.retain(|_,c| *c>=min_matching);
+
+        Box::pin(async move {
+            todo!()
+        })
     }
 }
