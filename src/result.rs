@@ -2,11 +2,11 @@ use crate::prelude::*;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentResult {
-    cid: String,
-    icon_cid: Option<String>,
-    domain: Option<String>,
-    title: String,
-    description: String,
+    pub cid: String,
+    pub icon_cid: Option<String>,
+    pub domain: Option<String>,
+    pub title: String,
+    pub description: String,
 }
 
 impl SearchResult for DocumentResult {

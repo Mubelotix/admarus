@@ -1,13 +1,11 @@
-use std::collections::HashSet;
-
+use std::sync::Arc;
 use crate::prelude::*;
 
 pub struct DocumentIndex<const N: usize> {
     pub filter: Filter<N>,
     filter_needs_update: bool,
 
-    /// cid -> document
-    documents: HashMap<String, Document>,
+    links: HashMap<String, Link>,
 
     /// word -> [cid -> frequency]
     pub index: HashMap<String, HashMap<String, f64>>, // FIXME: no field should be public
@@ -18,7 +16,7 @@ impl<const N: usize> DocumentIndex<N> {
         DocumentIndex {
             filter: Filter::new(),
             filter_needs_update: false,
-            documents: HashMap::new(),
+            links: HashMap::new(),
             index: HashMap::new(),
         }
     }
@@ -35,7 +33,6 @@ impl<const N: usize> DocumentIndex<N> {
     }
 
     pub fn remove_document(&mut self, cid: &str) {
-        self.documents.remove(cid);
         for frequencies in self.index.values_mut() {
             frequencies.remove(cid);
         }
@@ -46,19 +43,18 @@ impl<const N: usize> DocumentIndex<N> {
         }
     }
 
-    pub fn add_document(&mut self, document: Document) {
+    pub fn add_document(&mut self, document: Document, link: Link) {
         let word_count = document.words().count() as f64;
         for word in document.words() {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
-            *frequencies.entry(document.link.cid.clone()).or_insert(0.) += 1. / word_count;
+            *frequencies.entry(link.cid.clone()).or_insert(0.) += 1. / word_count;
             self.filter.add_word::<Self>(word);
         }
-        self.documents.insert(document.link.cid.clone(), document);
     }
 
-    pub fn add_documents(&mut self, documents: Vec<Document>) {
-        for document in documents {
-            self.add_document(document);
+    pub fn add_documents(&mut self, documents: Vec<(Document, Link)>) {
+        for (document, link) in documents {
+            self.add_document(document, link);
         }
     }
 }
@@ -91,13 +87,23 @@ impl<const N: usize> Store<N> for DocumentIndex<N> {
         let mut matching_documents = HashMap::new();
         for word in words {
             for (document, _freqency) in self.index.get(&word).into_iter().flatten() {
-                *matching_documents.entry(document).or_insert(0) += 1;
+                *matching_documents.entry(document.to_owned()).or_insert(0) += 1;
             }
         }
         matching_documents.retain(|_,c| *c>=min_matching);
 
         Box::pin(async move {
-            todo!()
+            let mut results = Vec::new();
+            for (cid, _) in matching_documents {
+                results.push(DocumentResult {
+                    cid,
+                    icon_cid: None,
+                    domain: None,
+                    title: "".to_string(),
+                    description: "".to_string(),
+                })
+            }
+            results
         })
     }
 }

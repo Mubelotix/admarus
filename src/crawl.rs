@@ -19,7 +19,7 @@ pub async fn list_pinned() -> Vec<String> {
     pinned
 }
 
-#[derive(Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct Link {
     pub cid: String,
     pub path: Vec<String>,
@@ -79,25 +79,25 @@ pub async fn explore_dag(link: &Link) -> Option<Vec<Link>> {
     Some(links)
 }
 
-pub async fn collect_documents(mut links: Vec<Link>) -> Vec<Document> {
+pub async fn collect_documents(mut links: Vec<Link>) -> Vec<(Document, Link)> {
     links.sort_by_key(|l| !l.path.last().map(|p| p.ends_with(".html")).unwrap_or(false));
 
     let mut documents = Vec::new();
     for link in links {
-        if let Some(document) = fetch_document(link).await {
-            documents.push(document);
+        if let Some(document) = fetch_document(&link).await {
+            documents.push((document, link));
         }
     }
 
     documents
 }
 
-pub async fn fetch_document(link: Link) -> Option<Document> {
+pub async fn fetch_document(link: &Link) -> Option<Document> {
     let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/cat?arg={}&length={MAX_HTML_LENGTH}", link.cid), ()).await.unwrap();
     let rep: Vec<u8> = rep.bytes().await.unwrap();
 
     if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
-        return Some(Document::html(link, HtmlDocument::init(String::from_utf8_lossy(&rep).to_string())));
+        return Some(Document::Html(HtmlDocument::init(String::from_utf8_lossy(&rep).to_string())));
     }
 
     None

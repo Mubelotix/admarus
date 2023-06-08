@@ -2,30 +2,20 @@ use scraper::Selector;
 
 use crate::prelude::*;
 
-pub struct Document {
-    pub link: Link,
-    pub document: DocumentContent,
-}
-
-impl Document {
-    pub fn html(link: Link, document: HtmlDocument) -> Document {
-        Document {
-            link,
-            document: DocumentContent::Html(document),
-        }
-    }
-
-    pub fn words(&self) -> impl Iterator<Item = &String> {
-        match &self.document {
-            DocumentContent::Html(document) => document.words(),
-        }
-    }
-}
-
-pub enum DocumentContent {
+#[derive(Serialize, Deserialize)]
+pub enum Document {
     Html(HtmlDocument),
 }
 
+impl Document {
+    pub fn words(&self) -> impl Iterator<Item = &String> {
+        match self {
+            Document::Html(html) => html.words(),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize)]
 pub struct HtmlDocument {
     raw: String,
     words: Vec<String>,
