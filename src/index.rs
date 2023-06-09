@@ -6,6 +6,7 @@ const REFRESH_PINNED_INTERVAL: u64 = 120;
 struct DocumentIndexInner<const N: usize> {
     pub filter: Filter<N>,
     filter_needs_update: bool,
+    ipfs_rpc: String,
 
     metadata: HashMap<String, Metadata>,
 
@@ -14,10 +15,11 @@ struct DocumentIndexInner<const N: usize> {
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
-    pub fn new() -> DocumentIndexInner<N> {
+    pub fn new(ipfs_rpc: String) -> DocumentIndexInner<N> {
         DocumentIndexInner {
             filter: Filter::new(),
             filter_needs_update: false,
+            ipfs_rpc,
             metadata: HashMap::new(),
             index: HashMap::new(),
         }
@@ -77,7 +79,7 @@ impl<const N: usize> DocumentIndexInner<N> {
 
         let mut results = Vec::new();
         for (cid, _) in matching_cids {
-            let document = fetch_document(&cid).await.unwrap();
+            let document = fetch_document(&self.ipfs_rpc, &cid).await.unwrap();
             let metadata = self.metadata.get(&cid).unwrap().to_owned();
             results.push(document.into_result(cid, metadata));
         }
@@ -89,24 +91,33 @@ impl<const N: usize> DocumentIndexInner<N> {
 #[derive(Clone)]
 pub struct DocumentIndex<const N: usize> {
     inner: Arc<RwLock<DocumentIndexInner<N>>>,
+    ipfs_rpc: Arc<String>,
 }
 
 impl <const N: usize> DocumentIndex<N> {
-    pub fn new() -> DocumentIndex<N> {
+    pub fn new(ipfs_rpc: String) -> DocumentIndex<N> {
         DocumentIndex {
-            inner: Arc::new(RwLock::new(DocumentIndexInner::new())),
+            inner: Arc::new(RwLock::new(DocumentIndexInner::new(ipfs_rpc.clone()))),
+            ipfs_rpc: Arc::new(ipfs_rpc),
         }
     }
 
     pub async fn run(&self) {
         let mut already_explored = HashSet::new();
         loop {
-            let mut pinned = list_pinned().await;
+            let mut pinned = match list_pinned(&self.ipfs_rpc).await {
+                Ok(pinned) => pinned,
+                Err(e) => {
+                    error!("Error while listing pinned elements: {:?}", e);
+                    sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
+                    continue;
+                }
+            };
             pinned.retain(|cid| already_explored.insert(cid.clone()));
             debug!("{} new pinned elements", pinned.len());
             
-            let pinned_files = explore_all(pinned).await;
-            let documents = collect_documents(pinned_files).await;
+            let pinned_files = explore_all(&self.ipfs_rpc, pinned).await;
+            let documents = collect_documents(&self.ipfs_rpc, pinned_files).await;
             debug!("{} new documents", documents.len());
 
             self.add_documents(documents).await;

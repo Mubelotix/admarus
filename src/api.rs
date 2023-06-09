@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use libp2p::PeerId;
 use warp::{Filter, http::Response};
-use std::convert::Infallible;
+use std::{convert::Infallible, net::SocketAddr};
 
 #[derive(Deserialize, Serialize)]
 struct SearchUrlQuery {
@@ -63,7 +63,7 @@ async fn fetch_results((query, search_park): (FetchResultsQuery, Arc<SearchPark>
     Ok(Response::builder().header("Content-Type", "application/json").body(serde_json::to_string(&search_results).unwrap()).unwrap())
 }
 
-pub async fn serve_api<const N: usize>(index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: Arc<KamilataController>) {
+pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: Arc<KamilataController>) {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
 
     let local_search = warp::get()
@@ -92,5 +92,5 @@ pub async fn serve_api<const N: usize>(index: DocumentIndex<N>, search_park: Arc
             .or(fetch_result)
     );
 
-    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
+    warp::serve(routes).run(api_addr.parse::<SocketAddr>().unwrap()).await;
 }

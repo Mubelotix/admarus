@@ -5,7 +5,9 @@ pub use crate::{
     documents::*,
     api::*,
     kamilata::*,
+    clap::*,
 };
+pub use clap::Parser;
 pub use log::{info, warn, error, debug, trace};
 pub use kamilata::prelude::*;
 pub use serde::{Serialize, Deserialize};

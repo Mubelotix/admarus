@@ -1,5 +1,5 @@
 use crate::prelude::*;
-use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent}, identity::Keypair, PeerId, tcp, Transport, core::{transport::OrTransport, upgrade}, mplex::MplexConfig, noise::{NoiseConfig, self}};
+use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent}, identity::Keypair, PeerId, tcp, Transport, core::{transport::OrTransport, upgrade}, mplex::MplexConfig, noise::{NoiseConfig, self}, Multiaddr};
 use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 use futures::{StreamExt, future};
 
@@ -10,7 +10,7 @@ pub struct KamilataNode {
 }
 
 impl KamilataNode {
-    pub async fn init(index: DocumentIndex<FILTER_SIZE>) -> KamilataNode {
+    pub async fn init(addr: String, index: DocumentIndex<FILTER_SIZE>) -> KamilataNode {
         let local_key = Keypair::generate_ed25519();
         let peer_id = PeerId::from(local_key.public());
 
@@ -27,7 +27,7 @@ impl KamilataNode {
             .boxed();
         
         let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
-        swarm.listen_on("/ip4/127.0.0.1/tcp/4002".parse().unwrap()).unwrap();
+        swarm.listen_on(addr.parse().unwrap()).unwrap();
 
         KamilataNode {
             swarm,
@@ -45,7 +45,17 @@ impl KamilataNode {
                         ClientCommand::Search { queries, config, sender } => {
                             let controller = self.swarm.behaviour_mut().search_with_config(queries, config).await;
                             let _ = sender.send(controller);
-                        }
+                        },
+                        ClientCommand::Dial { addr } => {
+                            self.swarm.dial(addr).unwrap();
+                        },
+                        ClientCommand::LeechFromAll => {
+                            let peer_ids = self.swarm.connected_peers().cloned().collect::<Vec<_>>();
+                            for peer_id in peer_ids {
+                                trace!("Leeching from {:?}", peer_id);
+                                self.swarm.behaviour_mut().leech_from(peer_id);
+                            }
+                        },
                     },
                     future::Either::Left((None, _)) => break,
                     future::Either::Right((event, _)) => match event {
@@ -74,7 +84,11 @@ enum ClientCommand {
         queries: SearchQueries,
         config: SearchConfig,
         sender: OneshotSender<OngoingSearchController<DocumentResult>>,
-    }
+    },
+    Dial {
+        addr: Multiaddr,
+    },
+    LeechFromAll,
 }
 
 pub struct KamilataController {
@@ -90,5 +104,15 @@ impl KamilataController {
             sender,
         }).await;
         receiver.await.unwrap()
+    }
+
+    pub async fn dial(&self, addr: Multiaddr) {
+        let _ = self.sender.send(ClientCommand::Dial {
+            addr,
+        }).await;
+    }
+
+    pub async fn leech_from_all(&self) {
+        let _ = self.sender.send(ClientCommand::LeechFromAll).await;
     }
 }
