@@ -11,7 +11,7 @@ use crate::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    println!("Hello, world!");
+    env_logger::init();
     let index = DocumentIndex::<125000>::new();
     let kamilata = KamilataNode::init(index.clone()).await;
     let kamilata = Arc::new(kamilata.run());

@@ -49,9 +49,16 @@ impl KamilataNode {
                     },
                     future::Either::Left((None, _)) => break,
                     future::Either::Right((event, _)) => match event {
-                        SwarmEvent::Behaviour(e) => println!("Produced behavior event {e:?}"),
-                        SwarmEvent::NewListenAddr { listener_id, address } => println!("Listening on {address:?} (listener id: {listener_id:?})"),
-                        _ => ()
+                        SwarmEvent::Behaviour(e) => debug!("Produced behavior event {e:?}"),
+                        SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address:?} (listener id: {listener_id:?})"),
+                        SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => debug!("Connection established with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
+                        SwarmEvent::ConnectionClosed { peer_id, endpoint, num_established, .. } => debug!("Connection closed with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
+                        SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error:?}"),
+                        SwarmEvent::ExpiredListenAddr { listener_id, address } => debug!("Expired listen addr {address:?} (listener id: {listener_id:?})"),
+                        SwarmEvent::ListenerClosed { listener_id, addresses, reason } => debug!("Listener closed (listener id: {listener_id:?}, addresses: {addresses:?}, reason: {reason:?})"),
+                        SwarmEvent::ListenerError { listener_id, error } => debug!("Listener error (listener id: {listener_id:?}, error: {error:?})"),
+                        SwarmEvent::Dialing(peer_id) => debug!("Dialing {peer_id:?}"),
+                        _ => (),
                     },
                 }
             }

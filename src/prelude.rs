@@ -6,6 +6,7 @@ pub use crate::{
     api::*,
     kamilata::*,
 };
+pub use log::{info, warn, error, debug, trace};
 pub use kamilata::prelude::*;
 pub use serde::{Serialize, Deserialize};
 pub use async_trait::async_trait;

@@ -103,13 +103,15 @@ impl <const N: usize> DocumentIndex<N> {
         loop {
             let mut pinned = list_pinned().await;
             pinned.retain(|cid| already_explored.insert(cid.clone()));
+            debug!("{} new pinned elements", pinned.len());
             
             let pinned_files = explore_all(pinned).await;
             let documents = collect_documents(pinned_files).await;
-            println!("{} documents", documents.len());
+            debug!("{} new documents", documents.len());
+
             self.add_documents(documents).await;
             self.update_filter().await;
-            println!("{:.04}%", self.get_filter().await.load()*100.0);
+            debug!("Filter filled at {:.04}%", self.get_filter().await.load()*100.0);
 
             sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
         }
