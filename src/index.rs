@@ -35,6 +35,7 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     pub fn remove_document(&mut self, cid: &str) {
+        self.metadata.remove(cid);
         for frequencies in self.index.values_mut() {
             frequencies.remove(cid);
         }
@@ -46,6 +47,7 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     pub fn add_document(&mut self, cid: String, document: Document, metadata: Metadata) {
+        self.metadata.insert(cid.clone(), metadata);
         let word_count = document.words().count() as f64;
         for word in document.words() {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
@@ -65,23 +67,19 @@ impl<const N: usize> DocumentIndexInner<N> {
             return Vec::new();
         }
 
-        let mut matching_documents = HashMap::new();
+        let mut matching_cids = HashMap::new();
         for word in words {
             for (document, _freqency) in self.index.get(&word).into_iter().flatten() {
-                *matching_documents.entry(document.to_owned()).or_insert(0) += 1;
+                *matching_cids.entry(document.to_owned()).or_insert(0) += 1;
             }
         }
-        matching_documents.retain(|_,c| *c>=min_matching);
+        matching_cids.retain(|_,c| *c>=min_matching);
 
         let mut results = Vec::new();
-        for (cid, _) in matching_documents {
-            results.push(DocumentResult {
-                cid,
-                icon_cid: None,
-                domain: None,
-                title: "".to_string(),
-                description: "".to_string(),
-            })
+        for (cid, _) in matching_cids {
+            let document = fetch_document(&cid).await.unwrap();
+            let metadata = self.metadata.get(&cid).unwrap().to_owned();
+            results.push(document.into_result(cid, metadata));
         }
         results
     }

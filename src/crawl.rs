@@ -1,11 +1,12 @@
-use isahc::prelude::*;
+use reqwest::Client;
 use crate::prelude::*;
 
 const RPC_URL: &str = "http://localhost:5001";
 const MAX_HTML_LENGTH: usize = 15_000_000;
 
 pub async fn list_pinned() -> Vec<String> {
-    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/pin/ls"), ()).await.unwrap();
+    let client = Client::new();
+    let rep = client.post(format!("{RPC_URL}/api/v0/pin/ls")).send().await.unwrap();
     let rep = rep.text().await.unwrap();
     let data = serde_json::from_str::<serde_json::Value>(&rep).unwrap();
     let keys = data.get("Keys").unwrap().as_object().unwrap();
@@ -49,7 +50,8 @@ pub async fn explore_all(mut cids: Vec<String>) -> HashMap<String, Metadata> {
 }
 
 pub async fn explore_dag(cid: String, metadata: Metadata) -> Option<Vec<(String, Metadata)>> {
-    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/dag/get?arg={cid}"), ()).await.unwrap();
+    let client = Client::new();
+    let rep = client.post(format!("{RPC_URL}/api/v0/dag/get?arg={cid}")).send().await.unwrap();
     let rep = rep.text().await.unwrap();
     let rep = serde_json::from_str::<serde_json::Value>(&rep).unwrap();
     
@@ -82,7 +84,7 @@ pub async fn collect_documents(links: HashMap<String, Metadata>) -> Vec<(String,
 
     let mut documents = Vec::new();
     for (cid, metadata) in links {
-        if let Some(document) = fetch_document(&cid, &metadata).await {
+        if let Some(document) = fetch_document(&cid).await {
             documents.push((cid, document, metadata));
         }
     }
@@ -90,9 +92,10 @@ pub async fn collect_documents(links: HashMap<String, Metadata>) -> Vec<(String,
     documents
 }
 
-pub async fn fetch_document(cid: &String, metadata: &Metadata) -> Option<Document> {
-    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}"), ()).await.unwrap();
-    let rep: Vec<u8> = rep.bytes().await.unwrap();
+pub async fn fetch_document(cid: &String) -> Option<Document> {
+    let client = Client::new();
+    let rep = client.post(format!("{RPC_URL}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}")).send().await.unwrap();
+    let rep: Vec<u8> = rep.bytes().await.unwrap().to_vec();
 
     if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
         return Some(Document::Html(HtmlDocument::init(String::from_utf8_lossy(&rep).to_string())));
