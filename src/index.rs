@@ -5,7 +5,7 @@ struct DocumentIndexInner<const N: usize> {
     pub filter: Filter<N>,
     filter_needs_update: bool,
 
-    links: HashMap<String, Link>,
+    links: HashMap<String, Metadata>,
 
     /// word -> [cid -> frequency]
     pub index: HashMap<String, HashMap<String, f64>>, // FIXME: no field should be public
@@ -43,18 +43,18 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
     }
 
-    pub fn add_document(&mut self, document: Document, link: Link) {
+    pub fn add_document(&mut self, cid: String, document: Document, metadata: Metadata) {
         let word_count = document.words().count() as f64;
         for word in document.words() {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
-            *frequencies.entry(link.cid.clone()).or_insert(0.) += 1. / word_count;
+            *frequencies.entry(cid.clone()).or_insert(0.) += 1. / word_count;
             self.filter.add_word::<DocumentIndex<N>>(word);
         }
     }
 
-    pub fn add_documents(&mut self, documents: Vec<(Document, Link)>) {
-        for (document, link) in documents {
-            self.add_document(document, link);
+    pub fn add_documents(&mut self, documents: Vec<(String, Document, Metadata)>) {
+        for (cid, document, link) in documents {
+            self.add_document(cid, document, link);
         }
     }
 
@@ -112,11 +112,11 @@ impl <const N: usize> DocumentIndex<N> {
         }
     }
 
-    pub async fn add_document(&self, document: Document, link: Link) {
-        self.inner.write().await.add_document(document, link);
+    pub async fn add_document(&self, cid: String, document: Document, link: Metadata) {
+        self.inner.write().await.add_document(cid, document, link);
     }
 
-    pub async fn add_documents(&self, documents: Vec<(Document, Link)>) {
+    pub async fn add_documents(&self, documents: Vec<(String, Document, Metadata)>) {
         self.inner.write().await.add_documents(documents);
     }
 

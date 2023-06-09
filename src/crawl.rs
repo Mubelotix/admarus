@@ -19,38 +19,37 @@ pub async fn list_pinned() -> Vec<String> {
     pinned
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Link {
-    pub cid: String,
-    pub path: Vec<String>,
-    pub name: Option<String>,
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct Metadata {
+    pub pathes: Vec<Vec<String>>,
     pub size: Option<u64>,
 }
 
-pub async fn explore_all(cids: Vec<String>) -> Vec<Link> {
-    let mut links = Vec::new();
-    for cid in cids {
-        links.push(Link {
-            cid: cid.clone(),
-            path: vec![cid],
-            name: None,
-            size: None,
-        })
+impl Metadata {
+    fn merge(&mut self, other: Metadata) {
+        self.pathes.extend(other.pathes);
+        self.size = self.size.or(other.size);
     }
+}
 
-    let mut files = Vec::new();
-    while let Some(link) = links.pop() {
-        match explore_dag(&link).await {
-            Some(mut new_links) => links.append(&mut new_links),
-            None => files.push(link)
+pub async fn explore_all(mut cids: Vec<String>) -> HashMap<String, Metadata> {
+    let mut metadatas: HashMap<String, Metadata> = HashMap::new();
+    while let Some(cid) = cids.pop() {
+        let metadata = metadatas.entry(cid.clone()).or_default().to_owned();
+
+        if let Some(new_links) = explore_dag(cid, metadata).await {
+            for (cid, metadata) in new_links {
+                cids.push(cid.clone());
+                metadatas.entry(cid).or_default().merge(metadata);
+            }
         }
     }
 
-    files
+    metadatas
 }
 
-pub async fn explore_dag(link: &Link) -> Option<Vec<Link>> {
-    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/dag/get?arg={}", link.cid), ()).await.unwrap();
+pub async fn explore_dag(cid: String, metadata: Metadata) -> Option<Vec<(String, Metadata)>> {
+    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/dag/get?arg={cid}"), ()).await.unwrap();
     let rep = rep.text().await.unwrap();
     let rep = serde_json::from_str::<serde_json::Value>(&rep).unwrap();
     
@@ -65,35 +64,34 @@ pub async fn explore_dag(link: &Link) -> Option<Vec<Link>> {
         let hash = new_link.get("Hash").unwrap().get("/").unwrap().as_str().unwrap();
         let name = new_link.get("Name").unwrap().as_str().unwrap();
         let size = new_link.get("Tsize").unwrap().as_u64().unwrap();
-        let mut path = link.path.clone();
-        path.push(name.to_owned());
+        let mut pathes = metadata.pathes.clone();
+        pathes.iter_mut().for_each(|p| p.push(name.to_owned()));
 
-        links.push(Link {
-            cid: hash.to_owned(),
-            path,
-            name: Some(name.to_owned()), // Todo none
+        links.push((hash.to_owned(), Metadata {
+            pathes,
             size: Some(size),
-        });
+        }));
     }
 
     Some(links)
 }
 
-pub async fn collect_documents(mut links: Vec<Link>) -> Vec<(Document, Link)> {
-    links.sort_by_key(|l| !l.path.last().map(|p| p.ends_with(".html")).unwrap_or(false));
+pub async fn collect_documents(links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
+    let mut links = links.into_iter().collect::<Vec<_>>();
+    links.sort_by_key(|(_,metadata)| !metadata.pathes.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)));
 
     let mut documents = Vec::new();
-    for link in links {
-        if let Some(document) = fetch_document(&link).await {
-            documents.push((document, link));
+    for (cid, metadata) in links {
+        if let Some(document) = fetch_document(&cid, &metadata).await {
+            documents.push((cid, document, metadata));
         }
     }
 
     documents
 }
 
-pub async fn fetch_document(link: &Link) -> Option<Document> {
-    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/cat?arg={}&length={MAX_HTML_LENGTH}", link.cid), ()).await.unwrap();
+pub async fn fetch_document(cid: &String, metadata: &Metadata) -> Option<Document> {
+    let mut rep = isahc::post_async(format!("{RPC_URL}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}"), ()).await.unwrap();
     let rep: Vec<u8> = rep.bytes().await.unwrap();
 
     if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
