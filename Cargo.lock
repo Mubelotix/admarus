@@ -23,6 +23,7 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "kamilata",
+ "libp2p",
  "reqwest",
  "scraper",
  "serde",

@@ -4,6 +4,7 @@ mod prelude;
 mod crawl;
 mod documents;
 mod api;
+mod kamilata;
 
 use crate::prelude::*;
 
@@ -12,6 +13,7 @@ use crate::prelude::*;
 async fn main() {
     println!("Hello, world!");
     let index = DocumentIndex::<125000>::new();
+    let kamilata_node = KamilataNode::init(index.clone()).await;
 
     let f1 = serve_api(index.clone());
     let f2 = index.run();

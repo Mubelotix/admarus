@@ -4,6 +4,7 @@ pub use crate::{
     crawl::*,
     documents::*,
     api::*,
+    kamilata::*,
 };
 pub use kamilata::prelude::*;
 pub use serde::{Serialize, Deserialize};
