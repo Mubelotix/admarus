@@ -14,7 +14,6 @@ async fn search<const N: usize>((query, index): (SearchUrlQuery, DocumentIndex<N
     Ok(Response::builder().header("Content-Type", "application/json").body(serde_json::to_string(&results).unwrap()).unwrap())
 }
 
-
 pub async fn serve_api<const N: usize>(index: DocumentIndex<N>) {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
 

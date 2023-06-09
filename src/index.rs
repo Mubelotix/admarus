@@ -98,6 +98,20 @@ impl <const N: usize> DocumentIndex<N> {
         }
     }
 
+    pub async fn run(&self) {
+        loop {
+            let pinned = list_pinned().await;
+            let pinned_files = explore_all(pinned).await;
+            let documents = collect_documents(pinned_files).await;
+            println!("{} documents", documents.len());
+            self.add_documents(documents).await;
+            self.update_filter().await;
+            println!("{:.04}%", self.get_filter().await.load()*100.0);
+
+            sleep(Duration::from_secs(60)).await;
+        }
+    }
+
     pub async fn add_document(&self, document: Document, link: Link) {
         self.inner.write().await.add_document(document, link);
     }
