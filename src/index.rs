@@ -1,11 +1,13 @@
-use std::sync::Arc;
+use std::{sync::Arc, collections::HashSet};
 use crate::prelude::*;
+
+const REFRESH_PINNED_INTERVAL: u64 = 120;
 
 struct DocumentIndexInner<const N: usize> {
     pub filter: Filter<N>,
     filter_needs_update: bool,
 
-    links: HashMap<String, Metadata>,
+    metadata: HashMap<String, Metadata>,
 
     /// word -> [cid -> frequency]
     pub index: HashMap<String, HashMap<String, f64>>, // FIXME: no field should be public
@@ -16,7 +18,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         DocumentIndexInner {
             filter: Filter::new(),
             filter_needs_update: false,
-            links: HashMap::new(),
+            metadata: HashMap::new(),
             index: HashMap::new(),
         }
     }
@@ -99,8 +101,11 @@ impl <const N: usize> DocumentIndex<N> {
     }
 
     pub async fn run(&self) {
+        let mut already_explored = HashSet::new();
         loop {
-            let pinned = list_pinned().await;
+            let mut pinned = list_pinned().await;
+            pinned.retain(|cid| already_explored.insert(cid.clone()));
+            
             let pinned_files = explore_all(pinned).await;
             let documents = collect_documents(pinned_files).await;
             println!("{} documents", documents.len());
@@ -108,7 +113,7 @@ impl <const N: usize> DocumentIndex<N> {
             self.update_filter().await;
             println!("{:.04}%", self.get_filter().await.load()*100.0);
 
-            sleep(Duration::from_secs(60)).await;
+            sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
         }
     }
 
