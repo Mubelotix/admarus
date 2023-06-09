@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use crate::prelude::*;
 
-pub struct DocumentIndex<const N: usize> {
+struct DocumentIndexInner<const N: usize> {
     pub filter: Filter<N>,
     filter_needs_update: bool,
 
@@ -11,9 +11,9 @@ pub struct DocumentIndex<const N: usize> {
     pub index: HashMap<String, HashMap<String, f64>>, // FIXME: no field should be public
 }
 
-impl<const N: usize> DocumentIndex<N> {
-    pub fn new() -> DocumentIndex<N> {
-        DocumentIndex {
+impl<const N: usize> DocumentIndexInner<N> {
+    pub fn new() -> DocumentIndexInner<N> {
+        DocumentIndexInner {
             filter: Filter::new(),
             filter_needs_update: false,
             links: HashMap::new(),
@@ -27,7 +27,7 @@ impl<const N: usize> DocumentIndex<N> {
         }
         self.filter = Filter::new();
         for word in self.index.keys() {
-            self.filter.add_word::<Self>(word);
+            self.filter.add_word::<DocumentIndex<N>>(word);
         }
         self.filter_needs_update = false;
     }
@@ -48,7 +48,7 @@ impl<const N: usize> DocumentIndex<N> {
         for word in document.words() {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
             *frequencies.entry(link.cid.clone()).or_insert(0.) += 1. / word_count;
-            self.filter.add_word::<Self>(word);
+            self.filter.add_word::<DocumentIndex<N>>(word);
         }
     }
 
@@ -57,10 +57,66 @@ impl<const N: usize> DocumentIndex<N> {
             self.add_document(document, link);
         }
     }
+
+    pub async fn search(&self, words: Vec<String>, min_matching: usize) -> Vec<DocumentResult> {
+        if words.iter().filter(|w| self.filter.get_word::<DocumentIndex<N>>(w)).count() < min_matching {
+            return Vec::new();
+        }
+
+        let mut matching_documents = HashMap::new();
+        for word in words {
+            for (document, _freqency) in self.index.get(&word).into_iter().flatten() {
+                *matching_documents.entry(document.to_owned()).or_insert(0) += 1;
+            }
+        }
+        matching_documents.retain(|_,c| *c>=min_matching);
+
+        let mut results = Vec::new();
+        for (cid, _) in matching_documents {
+            results.push(DocumentResult {
+                cid,
+                icon_cid: None,
+                domain: None,
+                title: "".to_string(),
+                description: "".to_string(),
+            })
+        }
+        results
+    }
+
+}
+
+#[derive(Clone)]
+pub struct DocumentIndex<const N: usize> {
+    inner: Arc<RwLock<DocumentIndexInner<N>>>,
+}
+
+impl <const N: usize> DocumentIndex<N> {
+    pub fn new() -> DocumentIndex<N> {
+        DocumentIndex {
+            inner: Arc::new(RwLock::new(DocumentIndexInner::new())),
+        }
+    }
+
+    pub async fn add_document(&self, document: Document, link: Link) {
+        self.inner.write().await.add_document(document, link);
+    }
+
+    pub async fn add_documents(&self, documents: Vec<(Document, Link)>) {
+        self.inner.write().await.add_documents(documents);
+    }
+
+    pub async fn remove_document(&self, cid: &str) {
+        self.inner.write().await.remove_document(cid);
+    }
+
+    pub async fn update_filter(&self) {
+        self.inner.write().await.update_filter();
+    }
 }
 
 #[async_trait]
-impl<const N: usize> Store<N> for DocumentIndex<N> {
+impl <const N: usize> Store<N> for DocumentIndex<N> {
     type SearchResult = DocumentResult;
 
     fn hash_word(word: &str) -> Vec<usize>  {
@@ -76,34 +132,13 @@ impl<const N: usize> Store<N> for DocumentIndex<N> {
     }
 
     async fn get_filter(&self) -> Filter<N> {
-        self.filter.clone()
+        self.inner.read().await.filter.clone()
     }
 
     fn search(&self, words: Vec<String>, min_matching: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<Self::SearchResult> > +Send+Sync+'static> >  {
-        if words.iter().filter(|w| self.filter.get_word::<Self>(w)).count() < min_matching {
-            return Box::pin(async move { vec![] });
-        }
-
-        let mut matching_documents = HashMap::new();
-        for word in words {
-            for (document, _freqency) in self.index.get(&word).into_iter().flatten() {
-                *matching_documents.entry(document.to_owned()).or_insert(0) += 1;
-            }
-        }
-        matching_documents.retain(|_,c| *c>=min_matching);
-
+        let inner2 = Arc::clone(&self.inner);
         Box::pin(async move {
-            let mut results = Vec::new();
-            for (cid, _) in matching_documents {
-                results.push(DocumentResult {
-                    cid,
-                    icon_cid: None,
-                    domain: None,
-                    title: "".to_string(),
-                    description: "".to_string(),
-                })
-            }
-            results
+            inner2.read().await.search(words, min_matching).await
         })
     }
 }
