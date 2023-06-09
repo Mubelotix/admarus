@@ -13,3 +13,5 @@ async-trait = "0.1"
 scraper = "0.16"
 warp = {version="0.3", default-features = false}
 reqwest = {version="0.11", default-features = false}
+futures = "0.3"
+rand = "0.8"
