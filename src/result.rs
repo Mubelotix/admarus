@@ -11,6 +11,7 @@ pub struct DocumentResult {
 
 impl SearchResult for DocumentResult {
     type Cid = String;
+    type ParsingError = serde_json::Error;
 
     fn cid(&self) -> Self::Cid {
         self.cid.clone()
@@ -20,7 +21,7 @@ impl SearchResult for DocumentResult {
         serde_json::to_vec(&self).unwrap()
     }
 
-    fn from_bytes(bytes: &[u8]) -> Self {
-        serde_json::from_slice(bytes).unwrap()
+    fn from_bytes(bytes: &[u8]) -> Result<Self, Self::ParsingError> {
+        serde_json::from_slice(bytes)
     }
 }
