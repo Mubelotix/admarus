@@ -21,14 +21,20 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
+          /usr/local/bin
+          /home/runner/.ipfs
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/rust.yml') }}
     - name: Install Kubo
       run: |
-        wget https://github.com/ipfs/kubo/releases/download/v0.20.0/kubo_v0.20.0_linux-amd64.tar.gz
-        tar -xzf kubo_v0.20.0_linux-amd64.tar.gz
-        sudo ./kubo/install.sh
-        ipfs init
+        if ipfs; then
+          echo Kubo is already installed
+        else
+          wget https://github.com/ipfs/kubo/releases/download/v0.20.0/kubo_v0.20.0_linux-amd64.tar.gz
+          tar -xzf kubo_v0.20.0_linux-amd64.tar.gz
+          sudo ./kubo/install.sh
+          ipfs init
+        fi
     - name: Install protoc
       run: sudo apt install protobuf-compiler
     - name: Build
