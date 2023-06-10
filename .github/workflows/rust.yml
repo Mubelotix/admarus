@@ -37,6 +37,10 @@ jobs:
         fi
     - name: Install protoc
       run: sudo apt install protobuf-compiler
+    - name: Install Kamilata
+      run: |
+        cd /home/runner/work
+        git clone https://github.com/Mubelotix/kamilata
     - name: Build
       run: cargo build
     - name: Launch Kubo
