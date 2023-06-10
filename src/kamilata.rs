@@ -1,12 +1,39 @@
 use crate::prelude::*;
-use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent}, identity::Keypair, PeerId, tcp, Transport, core::{transport::OrTransport, upgrade}, mplex::MplexConfig, noise::{NoiseConfig, self}, Multiaddr};
+use kamilata::behavior::KamilataEvent;
+use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour}, identity::Keypair, PeerId, tcp, Transport, core::upgrade, mplex::MplexConfig, noise::{NoiseConfig, self}, Multiaddr};
+use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 use futures::{StreamExt, future};
 
 const FILTER_SIZE: usize = 125000;
 
+#[derive(NetworkBehaviour)]
+#[behaviour(out_event = "Event")]
+struct AdmarusBehavior {
+    kamilata: KamilataBehavior<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>,
+    identify: IdentifyBehaviour,
+}
+
+#[derive(Debug)]
+enum Event {
+    Identify(Box<IdentifyEvent>),
+    Kamilata(KamilataEvent),
+}
+
+impl From<IdentifyEvent> for Event {
+    fn from(event: IdentifyEvent) -> Self {
+        Self::Identify(Box::new(event))
+    }
+}
+  
+impl From<KamilataEvent> for Event {
+    fn from(event: KamilataEvent) -> Self {
+        Self::Kamilata(event)
+    }
+}
+
 pub struct KamilataNode {
-    swarm: Swarm<KamilataBehavior<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>>,
+    swarm: Swarm<AdmarusBehavior>,
 }
 
 impl KamilataNode {
@@ -14,7 +41,14 @@ impl KamilataNode {
         let local_key = Keypair::generate_ed25519();
         let peer_id = PeerId::from(local_key.public());
 
-        let behaviour = KamilataBehavior::new_with_store(peer_id, index);
+        let kamilata = KamilataBehavior::new_with_store(peer_id, index);
+        let identify = IdentifyBehaviour::new(
+            IdentifyConfig::new(String::from("admarus/0.1.0"), local_key.public())
+        );
+        let behavior = AdmarusBehavior {
+            kamilata,
+            identify,
+        };
         
         let tcp_transport = tcp::tokio::Transport::new(tcp::Config::new());
 
@@ -26,7 +60,7 @@ impl KamilataNode {
             .multiplex(MplexConfig::default())
             .boxed();
         
-        let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
+        let mut swarm = SwarmBuilder::with_tokio_executor(transport, behavior, peer_id).build();
         swarm.listen_on(addr.parse().unwrap()).unwrap();
 
         KamilataNode {
@@ -43,7 +77,7 @@ impl KamilataNode {
                 match value {
                     future::Either::Left((Some(command), _)) => match command {
                         ClientCommand::Search { queries, config, sender } => {
-                            let controller = self.swarm.behaviour_mut().search_with_config(queries, config).await;
+                            let controller = self.swarm.behaviour_mut().kamilata.search_with_config(queries, config).await;
                             let _ = sender.send(controller);
                         },
                         ClientCommand::Dial { addr } => {
@@ -53,13 +87,19 @@ impl KamilataNode {
                             let peer_ids = self.swarm.connected_peers().cloned().collect::<Vec<_>>();
                             for peer_id in peer_ids {
                                 trace!("Leeching from {:?}", peer_id);
-                                self.swarm.behaviour_mut().leech_from(peer_id);
+                                self.swarm.behaviour_mut().kamilata.leech_from(peer_id);
                             }
                         },
                     },
                     future::Either::Left((None, _)) => break,
                     future::Either::Right((event, _)) => match event {
-                        SwarmEvent::Behaviour(e) => debug!("Produced behavior event {e:?}"),
+                        SwarmEvent::Behaviour(Event::Identify(event)) => match *event {
+                            IdentifyEvent::Received { peer_id, info } => /*info.listen_addrs.into_iter().for_each(|addr| self.swarm.behaviour_mut().kamilata.add_address(peer_id, addr))*/(),
+                            IdentifyEvent::Sent { peer_id } => trace!("Sent identify request to {peer_id:?}"),
+                            IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id:?}"),
+                            IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id:?}: {error:?}"),
+                        },
+                        SwarmEvent::Behaviour(Event::Kamilata(e)) => debug!("Produced behavior event {e:?}"),
                         SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address:?} (listener id: {listener_id:?})"),
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => debug!("Connection established with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
                         SwarmEvent::ConnectionClosed { peer_id, endpoint, num_established, .. } => debug!("Connection closed with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
