@@ -1,0 +1,37 @@
+name: Rust
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ '**' ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  Tests:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: actions/cache@v3
+      with:
+        path: |
+          ~/.cargo/bin/
+          ~/.cargo/registry/index/
+          ~/.cargo/registry/cache/
+          ~/.cargo/git/db/
+          target/
+        key: ${{ runner.os }}-cargo-${{ hashFiles('**/rust.yml') }}
+    - name: Install Kubo
+      run: |
+        wget https://github.com/ipfs/kubo/releases/download/v0.20.0/kubo_v0.20.0_linux-amd64.tar.gz
+        tar -xzf kubo_v0.20.0_linux-amd64.tar.gz
+        sudo ./kubo/install.sh
+        ipfs init
+    - name: Install protoc
+      run: sudo apt install protobuf-compiler
+    - name: Build
+      run: cargo build
+    - name: Launch Kubo
+      run: ipfs daemon &
