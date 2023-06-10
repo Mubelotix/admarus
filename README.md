@@ -1,4 +1,15 @@
-# Admarus
+<h1 align="center">Admarus</h1>
+
+<p align="center">
+    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"></a>
+    <img alt="Lines of code" src="https://img.shields.io/tokei/lines/github/Mubelotix/admarus-daemon">
+    <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/Mubelotix/admarus-daemon?color=%23347d39" alt="last commit badge">
+    <img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/Mubelotix/admarus-daemon?color=%23347d39" alt="closed issues badge">
+</p>
+
+<p align="center">A Peer-to-Peer Search Engine for IPFS</p>
+
+## Abstract
 
 Admarus is a peer-to-peer search engine for IPFS. It is based on the [Kamilata](https://github.com/mubelotix/kamilata) protocol.
 
