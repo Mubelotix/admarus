@@ -21,7 +21,7 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          /usr/local/bin
+          /usr/local/bin/kubo
           /home/runner/.ipfs
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/rust.yml') }}
@@ -43,5 +43,7 @@ jobs:
         git clone https://github.com/Mubelotix/kamilata
     - name: Build
       run: cargo build
-    - name: Launch Kubo
-      run: ipfs daemon &
+    - name: Run Kubo
+      run: | 
+        ipfs daemon &
+        ipfs pin add /ipns/ipfs.tech
