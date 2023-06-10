@@ -4,29 +4,45 @@ use crate::prelude::*;
 const MAX_HTML_LENGTH: usize = 15_000_000;
 
 #[derive(Debug)]
-pub enum CrawlingError {
+pub enum FetchingError {
     ReqwestError(reqwest::Error),
+    InvalidJson(serde_json::Error),
+    InvalidResponse(&'static str),
 }
 
-impl From<reqwest::Error> for CrawlingError {
+impl From<reqwest::Error> for FetchingError {
     fn from(e: reqwest::Error) -> Self {
-        CrawlingError::ReqwestError(e)
+        FetchingError::ReqwestError(e)
     }
 }
 
-pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, CrawlingError> {
+impl From<serde_json::Error> for FetchingError {
+    fn from(e: serde_json::Error) -> Self {
+        FetchingError::InvalidJson(e)
+    }
+}
+
+use FetchingError::InvalidResponse;
+
+pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, FetchingError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/ls")).send().await?;
-    let rep = rep.text().await.unwrap();
-    let data = serde_json::from_str::<serde_json::Value>(&rep).unwrap();
-    let keys = data.get("Keys").unwrap().as_object().unwrap();
+    let rep = rep.text().await?;
+    let data = serde_json::from_str::<serde_json::Value>(&rep)?;
+    let keys = data
+        .get("Keys").ok_or(InvalidResponse("Keys expected on data"))?
+        .as_object().ok_or(InvalidResponse("Keys expected to be an object"))?;
+
     let mut pinned = Vec::new();
     for (key, value) in keys.into_iter() {
-        let ty = value.get("Type").unwrap().as_str().unwrap();
+        let ty = value
+            .get("Type").ok_or(InvalidResponse("Type expected on value"))?
+            .as_str().ok_or(InvalidResponse("Type expected to be a string"))?;
         if ty != "indirect" {
             pinned.push(key.clone());
         }
     }
+
     Ok(pinned)
 }
 
@@ -48,34 +64,53 @@ pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<Strin
     while let Some(cid) = cids.pop() {
         let metadata = metadatas.entry(cid.clone()).or_default().to_owned();
 
-        if let Some(new_links) = explore_dag(ipfs_rpc, cid, metadata).await {
-            for (cid, metadata) in new_links {
+        match explore_dag(ipfs_rpc, cid, metadata).await {
+            Ok(Some(new_links)) => for (cid, metadata) in new_links {
                 cids.push(cid.clone());
                 metadatas.entry(cid).or_default().merge(metadata);
             }
+            Ok(None) => (),
+            Err(e) => warn!("Error while exploring dag: {e:?}"),
         }
     }
 
     metadatas
 }
 
-pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Option<Vec<(String, Metadata)>> {
+pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Result<Option<Vec<(String, Metadata)>>, FetchingError> {
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/get?arg={cid}")).send().await.unwrap();
-    let rep = rep.text().await.unwrap();
-    let rep = serde_json::from_str::<serde_json::Value>(&rep).unwrap();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/get?arg={cid}")).send().await?;
+    let rep = rep.text().await?;
+    let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
     
-    let data = rep.get("Data").unwrap_or(&rep).get("/").unwrap().get("bytes").unwrap().as_str().unwrap();
+    let data = rep
+        .get("Data").unwrap_or(&rep)
+        .get("/").ok_or(InvalidResponse("/ expected on Data"))?
+        .get("bytes").ok_or(InvalidResponse("bytes expected on /"))?
+        .as_str().ok_or(InvalidResponse("bytes expected to be a string"))?;
+
     if data != "CAE" {
-        return None;
+        return Ok(None);
     }
 
-    let links_json = rep.get("Links").map(|l| l.as_array().unwrap().to_owned()).unwrap_or_default();
+    let links_json = rep
+        .get("Links")
+        .and_then(|l| l.as_array())
+        .map(|l| l.to_owned())
+        .unwrap_or_default();
+
     let mut links = Vec::new();
     for new_link in links_json {
-        let hash = new_link.get("Hash").unwrap().get("/").unwrap().as_str().unwrap();
-        let name = new_link.get("Name").unwrap().as_str().unwrap();
-        let size = new_link.get("Tsize").unwrap().as_u64().unwrap();
+        let hash = new_link
+            .get("Hash").ok_or(InvalidResponse("Hash expected on link"))?
+            .get("/").ok_or(InvalidResponse("/ expected on Hash"))?
+            .as_str().ok_or(InvalidResponse("Hash expected to be a string"))?;
+        let name = new_link
+            .get("Name").ok_or(InvalidResponse("Name expected on link"))?
+            .as_str().ok_or(InvalidResponse("Name expected to be a string"))?;
+        let size = new_link
+            .get("Tsize").ok_or(InvalidResponse("Tsize expected on link"))?
+            .as_u64().ok_or(InvalidResponse("Tsize expected to be a u64"))?;
         let mut pathes = metadata.pathes.clone();
         pathes.iter_mut().for_each(|p| p.push(name.to_owned()));
 
@@ -85,7 +120,7 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Opt
         }));
     }
 
-    Some(links)
+    Ok(Some(links))
 }
 
 pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
@@ -94,22 +129,24 @@ pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>)
 
     let mut documents = Vec::new();
     for (cid, metadata) in links {
-        if let Some(document) = fetch_document(ipfs_rpc, &cid).await {
-            documents.push((cid, document, metadata));
+        match fetch_document(ipfs_rpc, &cid).await {
+            Ok(Some(document)) => documents.push((cid, document, metadata)),
+            Ok(None) => (),
+            Err(e) => warn!("Error while fetching document: {e:?}"),
         }
     }
 
     documents
 }
 
-pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Option<Document> {
+pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Document>, FetchingError> {
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}")).send().await.unwrap();
-    let rep: Vec<u8> = rep.bytes().await.unwrap().to_vec();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}")).send().await?;
+    let rep: Vec<u8> = rep.bytes().await?.to_vec();
 
     if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
-        return Some(Document::Html(HtmlDocument::init(String::from_utf8_lossy(&rep).to_string())));
+        return Ok(Some(Document::Html(HtmlDocument::init(String::from_utf8_lossy(&rep).to_string()))));
     }
 
-    None
+    Ok(None)
 }

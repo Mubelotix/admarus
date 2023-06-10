@@ -79,9 +79,9 @@ impl<const N: usize> DocumentIndexInner<N> {
 
         let mut results = Vec::new();
         for (cid, _) in matching_cids {
-            let document = fetch_document(&self.ipfs_rpc, &cid).await.unwrap();
-            let metadata = self.metadata.get(&cid).unwrap().to_owned();
-            results.push(document.into_result(cid, metadata));
+            let Ok(Some(document)) = fetch_document(&self.ipfs_rpc, &cid).await else {continue};
+            let Some(metadata) = self.metadata.get(&cid) else {continue};
+            results.push(document.into_result(cid, metadata.to_owned()));
         }
         results
     }
