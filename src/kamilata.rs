@@ -79,7 +79,7 @@ impl KamilataState {
 }
 
 impl KamilataState {
-    pub async fn role_counts(&self) -> (usize, usize, usize) {
+    pub async fn class_counts(&self) -> (usize, usize, usize) {
         let mut first_class_count = 0;
         let mut second_class_count = 0;
         let mut transient_count = 0;
@@ -92,12 +92,12 @@ impl KamilataState {
     }
 
     pub async fn first_class_slot_available(&self) -> bool {
-        let seeder_count = self.role_counts().await.0;
+        let seeder_count = self.class_counts().await.0;
         seeder_count < self.config.seeders
     }
 
     pub async fn second_class_slot_available(&self) -> bool {
-        let leecher_count = self.role_counts().await.1;
+        let leecher_count = self.class_counts().await.1;
         leecher_count < self.config.leechers
     }
 
