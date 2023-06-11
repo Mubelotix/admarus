@@ -4,9 +4,9 @@ use crate::prelude::*;
 const REFRESH_PINNED_INTERVAL: u64 = 120;
 
 struct DocumentIndexInner<const N: usize> {
+    config: Arc<Args>,
     pub filter: Filter<N>,
     filter_needs_update: bool,
-    ipfs_rpc: String,
 
     metadata: HashMap<String, Metadata>,
 
@@ -15,11 +15,11 @@ struct DocumentIndexInner<const N: usize> {
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
-    pub fn new(ipfs_rpc: String) -> DocumentIndexInner<N> {
+    pub fn new(config: Arc<Args>) -> DocumentIndexInner<N> {
         DocumentIndexInner {
+            config,
             filter: Filter::new(),
             filter_needs_update: false,
-            ipfs_rpc,
             metadata: HashMap::new(),
             index: HashMap::new(),
         }
@@ -79,7 +79,7 @@ impl<const N: usize> DocumentIndexInner<N> {
 
         let mut results = Vec::new();
         for (cid, _) in matching_cids {
-            let Ok(Some(document)) = fetch_document(&self.ipfs_rpc, &cid).await else {continue};
+            let Ok(Some(document)) = fetch_document(&self.config.ipfs_rpc, &cid).await else {continue};
             let Some(metadata) = self.metadata.get(&cid) else {continue};
             results.push(document.into_result(cid, metadata.to_owned()));
         }
@@ -90,22 +90,22 @@ impl<const N: usize> DocumentIndexInner<N> {
 
 #[derive(Clone)]
 pub struct DocumentIndex<const N: usize> {
+    config: Arc<Args>,
     inner: Arc<RwLock<DocumentIndexInner<N>>>,
-    ipfs_rpc: Arc<String>,
 }
 
 impl <const N: usize> DocumentIndex<N> {
-    pub fn new(ipfs_rpc: String) -> DocumentIndex<N> {
+    pub fn new(config: Arc<Args>) -> DocumentIndex<N> {
         DocumentIndex {
-            inner: Arc::new(RwLock::new(DocumentIndexInner::new(ipfs_rpc.clone()))),
-            ipfs_rpc: Arc::new(ipfs_rpc),
+            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config)))),
+            config,
         }
     }
 
     pub async fn run(&self) {
         let mut already_explored = HashSet::new();
         loop {
-            let mut pinned = match list_pinned(&self.ipfs_rpc).await {
+            let mut pinned = match list_pinned(&self.config.ipfs_rpc).await {
                 Ok(pinned) => pinned,
                 Err(e) => {
                     error!("Error while listing pinned elements: {:?}", e);
@@ -116,8 +116,8 @@ impl <const N: usize> DocumentIndex<N> {
             pinned.retain(|cid| already_explored.insert(cid.clone()));
             debug!("{} new pinned elements", pinned.len());
             
-            let pinned_files = explore_all(&self.ipfs_rpc, pinned).await;
-            let documents = collect_documents(&self.ipfs_rpc, pinned_files).await;
+            let pinned_files = explore_all(&self.config.ipfs_rpc, pinned).await;
+            let documents = collect_documents(&self.config.ipfs_rpc, pinned_files).await;
             debug!("{} new documents", documents.len());
 
             self.add_documents(documents).await;

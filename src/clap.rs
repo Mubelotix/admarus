@@ -19,4 +19,12 @@ pub struct Args {
     /// Address on which the API will listen
     #[arg(long, default_value_t = String::from("127.0.0.1:3030"))]
     pub api_addr: String,
+
+    /// Number of seeders to connect to
+    #[arg(long, default_value = "8")]
+    pub seeders: usize,
+
+    /// Number of leechers to allow to connect
+    #[arg(long, default_value = "50")]
+    pub leechers: usize,
 }

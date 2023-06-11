@@ -34,11 +34,8 @@ impl From<KamilataEvent> for Event {
     }
 }
 
-const SEEDER_TARGET: usize = 8;
-const MAX_LEECHERS: usize = 50;
-
-#[derive(Default)]
 struct KamilataState {
+    config: Arc<Args>,
     known_peers: RwLock<HashMap<PeerId, PeerInfo>>,
 
     seeders: RwLock<HashSet<PeerId>>,
@@ -47,14 +44,26 @@ struct KamilataState {
 }
 
 impl KamilataState {
+    pub fn new(config: Arc<Args>) -> KamilataState {
+        KamilataState {
+            config,
+            known_peers: RwLock::new(HashMap::new()),
+            seeders: RwLock::new(HashSet::new()),
+            leechers: RwLock::new(HashSet::new()),
+            transient_peers: RwLock::new(HashSet::new()),
+        }
+    }
+}
+
+impl KamilataState {
     pub async fn seeder_available(&self) -> bool {
         let seeders = self.seeders.read().await;
-        seeders.len() < SEEDER_TARGET
+        seeders.len() < self.config.seeders
     }
 
     pub async fn leecher_available(&self) -> bool {
         let leechers = self.leechers.read().await;
-        leechers.len() < MAX_LEECHERS
+        leechers.len() < self.config.leechers
     }
 
     pub async fn is_seeder(&self, peer_id: &PeerId) -> bool {
@@ -64,7 +73,7 @@ impl KamilataState {
 
     pub async fn add_seeder(&self, peer_id: PeerId) -> Result<(), TooManySeeders> {
         let mut seeders = self.seeders.write().await;
-        if seeders.len() >= SEEDER_TARGET {
+        if seeders.len() >= self.config.seeders {
             return Err(TooManySeeders{});
         }
         let mut leechers = self.leechers.write().await;
@@ -81,7 +90,7 @@ impl KamilataState {
             return Ok(());
         }
         let mut leechers = self.leechers.write().await;
-        if leechers.len() >= MAX_LEECHERS {
+        if leechers.len() >= self.config.leechers {
             return Err(TooManyLeechers{});
         }
         let mut transient_peers = self.transient_peers.write().await;
@@ -134,11 +143,11 @@ struct PeerInfo {
 }
 
 impl KamilataNode {
-    pub async fn init(addr: String, index: DocumentIndex<FILTER_SIZE>) -> KamilataNode {
+    pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> KamilataNode {
         let local_key = Keypair::generate_ed25519();
         let peer_id = PeerId::from(local_key.public());
 
-        let kam_state = Arc::new(KamilataState::default());
+        let kam_state = Arc::new(KamilataState::new(Arc::clone(&config)));
         let kam_state2 = Arc::clone(&kam_state);
         let approve_leecher = move |peer_id: PeerId| -> Pin<Box<dyn Future<Output = bool> + Send>> {
             let kam_state3 = Arc::clone(&kam_state2);
@@ -172,7 +181,7 @@ impl KamilataNode {
             .boxed();
         
         let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
-        swarm.listen_on(addr.parse().unwrap()).unwrap();
+        swarm.listen_on(config.kam_addr.parse().unwrap()).unwrap();
 
         KamilataNode {
             swarm,
