@@ -6,6 +6,65 @@ pub enum Event {
 
 pub struct Behaviour {
     db: Arc<Db>,
+    events_to_dispatch: Vec<(PeerId, HandlerInEvent)>,
+}
+
+#[derive(Debug, Clone)]
+pub struct PeerListQuery {
+    peer_id: PeerId,
+    protocol_version: Option<String>,
+    agent_version: Option<String>,
+    protocols: Option<Vec<String>>,
+    metadata: Option<Vec<u8>>,
+}
+
+impl PeerListQuery {
+    pub fn new(peer_id: PeerId) -> PeerListQuery {
+        PeerListQuery {
+            peer_id,
+            protocol_version: None,
+            agent_version: None,
+            protocols: None,
+            metadata: None,
+        }
+    }
+
+    pub fn with_protocol_version(mut self, protocol_version: String) -> Self {
+        self.protocol_version = Some(protocol_version);
+        self
+    }
+
+    pub fn with_agent_version(mut self, agent_version: String) -> Self {
+        self.agent_version = Some(agent_version);
+        self
+    }
+
+    pub fn with_protocols(mut self, protocols: Vec<String>) -> Self {
+        self.protocols = Some(protocols);
+        self
+    }
+
+    pub fn with_protocol(mut self, protocol: String) -> Self {
+        self.protocols = match self.protocols {
+            Some(mut protocols) => {
+                protocols.push(protocol);
+                Some(protocols)
+            },
+            None => Some(vec![protocol]),
+        };
+        self
+    }
+
+    pub fn with_metadata(mut self, metadata: Vec<u8>) -> Self {
+        self.metadata = Some(metadata);
+        self
+    }
+}
+
+impl Behaviour {
+    pub async fn query(&self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
+        todo!()
+    }
 }
 
 impl NetworkBehaviour for Behaviour {
@@ -57,6 +116,10 @@ impl NetworkBehaviour for Behaviour {
     }
 
     fn poll(&mut self, cx: &mut Context<'_>, params: &mut impl PollParameters) -> Poll<ToSwarm<Self::OutEvent, THandlerInEvent<Self>>> {
-        todo!()
+        if let Some((peer_id, event)) = self.events_to_dispatch.pop() {
+            return Poll::Ready(ToSwarm::NotifyHandler { peer_id, handler: NotifyHandler::Any, event });
+        }
+
+        Poll::Pending
     }
 }

@@ -9,7 +9,7 @@ pub use libp2p::{
     swarm::{
         handler::ConnectionEvent, ConnectionHandler, ConnectionHandlerEvent, ConnectionId,
         FromSwarm, KeepAlive, NetworkBehaviour, PollParameters, SubstreamProtocol, THandlerInEvent,
-        THandlerOutEvent, ToSwarm,
+        THandlerOutEvent, ToSwarm, NotifyHandler,
     },
     InboundUpgrade, Multiaddr, OutboundUpgrade, PeerId,
 };
@@ -21,7 +21,7 @@ pub use std::{
     task::{Context, Poll},
     io::Error as IoError,
 };
-pub use tokio::sync::RwLock;
+pub use tokio::sync::{RwLock, oneshot::{Sender as OneshotSender, Receiver as OneshotReceiver, channel as oneshot_channel}};
 
 mod behavior;
 mod client_server;
