@@ -12,5 +12,5 @@ pub use log::{info, warn, error, debug, trace};
 pub use kamilata::prelude::*;
 pub use serde::{Serialize, Deserialize};
 pub use async_trait::async_trait;
-pub use std::{collections::HashMap, sync::Arc, time::Duration};
+pub use std::{collections::HashMap, sync::Arc, time::Duration, pin::Pin, future::Future};
 pub use tokio::{sync::RwLock, time::sleep};

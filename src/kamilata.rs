@@ -1,5 +1,7 @@
+use std::collections::HashSet;
+
 use crate::prelude::*;
-use kamilata::behaviour::KamilataEvent;
+use kamilata::{behaviour::KamilataEvent, db::{TooManySeeders, TooManyLeechers}};
 use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour}, identity::Keypair, PeerId, tcp, Transport, core::upgrade, mplex::MplexConfig, noise, Multiaddr};
 use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
@@ -32,8 +34,103 @@ impl From<KamilataEvent> for Event {
     }
 }
 
+const SEEDER_TARGET: usize = 8;
+const MAX_LEECHERS: usize = 50;
+
+#[derive(Default)]
+struct KamilataState {
+    known_peers: RwLock<HashMap<PeerId, PeerInfo>>,
+
+    seeders: RwLock<HashSet<PeerId>>,
+    leechers: RwLock<HashSet<PeerId>>,
+    transient_peers: RwLock<HashSet<PeerId>>,
+}
+
+impl KamilataState {
+    pub async fn seeder_available(&self) -> bool {
+        let seeders = self.seeders.read().await;
+        seeders.len() < SEEDER_TARGET
+    }
+
+    pub async fn leecher_available(&self) -> bool {
+        let leechers = self.leechers.read().await;
+        leechers.len() < MAX_LEECHERS
+    }
+
+    pub async fn is_seeder(&self, peer_id: &PeerId) -> bool {
+        let seeders = self.seeders.read().await;
+        seeders.contains(peer_id)
+    }
+
+    pub async fn add_seeder(&self, peer_id: PeerId) -> Result<(), TooManySeeders> {
+        let mut seeders = self.seeders.write().await;
+        if seeders.len() >= SEEDER_TARGET {
+            return Err(TooManySeeders{});
+        }
+        let mut leechers = self.leechers.write().await;
+        let mut transient_peers = self.transient_peers.write().await;
+        seeders.insert(peer_id);
+        leechers.remove(&peer_id);
+        transient_peers.remove(&peer_id);
+        Ok(())
+    }
+
+    pub async fn add_leecher(&self, peer_id: PeerId) -> Result<(), TooManyLeechers> {
+        let mut seeders = self.seeders.write().await;
+        if seeders.contains(&peer_id) {
+            return Ok(());
+        }
+        let mut leechers = self.leechers.write().await;
+        if leechers.len() >= MAX_LEECHERS {
+            return Err(TooManyLeechers{});
+        }
+        let mut transient_peers = self.transient_peers.write().await;
+        seeders.remove(&peer_id);
+        leechers.insert(peer_id);
+        transient_peers.remove(&peer_id);
+        Ok(())
+    }
+
+    
+}
+
+
+/// # Peer swarm managment 
+/// 
+/// This implementation attributes slots to different kind of peers.
+/// The policies are strongly enforced, and the swarm isn't reluctant to disconnect peers.
+/// 
+/// ## Seeders
+/// 
+/// Those are select peers we chose to leech from.
+/// We chose those whom we trust the most.
+/// We try to reach SEEDER_TARGET, and we never go above.
+/// These peers have guaranteed slots as leechers too.
+/// = SEEDER_TARGET
+/// 
+/// ## Leechers
+/// 
+/// Those are peers who selected us to leech from.
+/// We leech back from all leechers, though they don't count as seeders.
+/// Leechers have the right to refuse to seed us.
+/// When new peers apply for a leecher slot and they are all taken, we disconnect the peer with the lowest score.
+/// In order to prevent a malicious actor from replacing all legitimate leechers, peers that cause a disconnection start with a reputation malus.
+/// <= MAX_LEECHERS
+/// 
+/// ## Transient peers
+/// 
+/// Some peers connect for a few seconds, the time to send us queries. We do the same to them.
+/// Those peers are theoretically unlimited, but there is a practical high limit at MAX_FAST_PACED_SLOTS.
+/// The main limit is actually the time those peers are allowed to stay connected.
+/// When that time is up, we disconnect them. We might be more tolerant when we have plenty of slots available.
+/// <= MAX_FAST_PACED_SLOTS
 pub struct KamilataNode {
     swarm: Swarm<AdmarusBehaviour>,
+    state: Arc<KamilataState>,
+}
+
+struct PeerInfo {
+    addrs: Vec<Multiaddr>,
 }
 
 impl KamilataNode {
@@ -41,7 +138,20 @@ impl KamilataNode {
         let local_key = Keypair::generate_ed25519();
         let peer_id = PeerId::from(local_key.public());
 
-        let kamilata = KamilataBehaviour::new_with_store(peer_id, index);
+        let kam_state = Arc::new(KamilataState::default());
+        let kam_state2 = Arc::clone(&kam_state);
+        let approve_leecher = move |peer_id: PeerId| -> Pin<Box<dyn Future<Output = bool> + Send>> {
+            let kam_state3 = Arc::clone(&kam_state2);
+            Box::pin(async move {
+                kam_state3.leecher_available().await || kam_state3.is_seeder(&peer_id).await
+            })
+        };
+        let kam_config = KamilataConfig {
+            approve_leecher: Some(Box::new(approve_leecher)),
+            ..KamilataConfig::default()
+        };
+
+        let kamilata = KamilataBehaviour::new_with_config_and_store(peer_id, kam_config, index);
         let identify = IdentifyBehaviour::new(
             IdentifyConfig::new(String::from("admarus/0.1.0"), local_key.public())
         );
@@ -49,6 +159,7 @@ impl KamilataNode {
             kamilata,
             identify,
         };
+        
         
         let tcp_transport = tcp::tokio::Transport::new(tcp::Config::new());
 
@@ -65,6 +176,7 @@ impl KamilataNode {
 
         KamilataNode {
             swarm,
+            state: kam_state,
         }
     }
 
@@ -74,6 +186,11 @@ impl KamilataNode {
 
     pub fn run(mut self) -> KamilataController {
         let (sender, mut receiver) = channel(1);
+        let controller = 
+        KamilataController {
+            sender,
+            state: Arc::clone(&self.state)
+        };
         tokio::spawn(async move {
             loop {
                 let recv = Box::pin(receiver.recv());
@@ -108,7 +225,24 @@ impl KamilataNode {
                             IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id:?}"),
                             IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id:?}: {error:?}"),
                         },
-                        SwarmEvent::Behaviour(Event::Kamilata(e)) => debug!("Produced behaviour event {e:?}"),
+                        SwarmEvent::Behaviour(Event::Kamilata(event)) => match event {
+                            KamilataEvent::LeecherAdded { peer_id, filter_count, interval_ms } => {
+                                debug!("Leecher added: {peer_id:?} (filter_count: {filter_count:?}, interval_ms: {interval_ms:?})");
+                                let r = self.state.add_leecher(peer_id).await;
+                                if let Err(e) = r {
+                                    error!("Error while adding leecher {peer_id:?}: {e:?}");
+                                    // TODO self.kam_mut().stop_seeding(peer_id);
+                                }
+                            },
+                            KamilataEvent::SeederAdded { peer_id } => {
+                                debug!("Seeder added: {peer_id:?}");
+                                let r = self.state.add_seeder(peer_id).await;
+                                if let Err(e) = r {
+                                    error!("Error while adding seeder {peer_id:?}: {e:?}");
+                                    // TODO self.kam_mut().stop_leeching(peer_id);
+                                }
+                            },
+                        },
                         SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address:?} (listener id: {listener_id:?})"),
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => debug!("Connection established with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
                         SwarmEvent::ConnectionClosed { peer_id, endpoint, num_established, .. } => debug!("Connection closed with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
@@ -122,9 +256,7 @@ impl KamilataNode {
                 }
             }
         });
-        KamilataController {
-            sender,
-        }
+        controller
     }
 }
 
@@ -142,6 +274,7 @@ enum ClientCommand {
 
 pub struct KamilataController {
     sender: Sender<ClientCommand>,
+    state: Arc<KamilataState>,
 }
 
 impl KamilataController {
