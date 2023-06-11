@@ -43,20 +43,20 @@ struct ConnectedPeerInfo {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-enum ConnectedPeerRole {
-    FirstClass,
-    SecondClass,
+enum PeerClass {
+    First,
+    Second,
     Transient
 }
 
 impl ConnectedPeerInfo {
-    pub fn role(&self) -> ConnectedPeerRole {
+    pub fn role(&self) -> PeerClass {
         if self.selected {
-            ConnectedPeerRole::FirstClass
+            PeerClass::First
         } else if self.leeching {
-            ConnectedPeerRole::SecondClass
+            PeerClass::Second
         } else {
-            ConnectedPeerRole::Transient
+            PeerClass::Transient
         }
     }
 }
@@ -84,9 +84,9 @@ impl KamilataState {
         let mut second_class_count = 0;
         let mut transient_count = 0;
         self.connected_peers.read().await.values().for_each(|i| match i.role() {
-            ConnectedPeerRole::FirstClass => first_class_count += 1,
-            ConnectedPeerRole::SecondClass => second_class_count += 1,
-            ConnectedPeerRole::Transient => transient_count += 1,
+            PeerClass::First => first_class_count += 1,
+            PeerClass::Second => second_class_count += 1,
+            PeerClass::Transient => transient_count += 1,
         });
         (first_class_count, second_class_count, transient_count)
     }
@@ -101,7 +101,7 @@ impl KamilataState {
         leecher_count < self.config.leechers
     }
 
-    pub async fn class(&self, peer_id: &PeerId) -> Option<ConnectedPeerRole> {
+    pub async fn class(&self, peer_id: &PeerId) -> Option<PeerClass> {
         self.connected_peers.read().await.get(peer_id).map(|i| i.role())
     }
 
@@ -128,7 +128,7 @@ impl KamilataState {
     async fn on_leecher_added(&self, peer_id: PeerId) -> Result<(), TooManyLeechers> {
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.entry(peer_id).and_modify(|i| i.leeching = true);
-        let leecher_count = connected_peers.values().filter(|i| i.role() == ConnectedPeerRole::SecondClass).count();
+        let leecher_count = connected_peers.values().filter(|i| i.role() == PeerClass::Second).count();
         if leecher_count > self.config.leechers {
             return Err(TooManyLeechers{})
         }
@@ -195,7 +195,7 @@ impl KamilataNode {
         let approve_leecher = move |peer_id: PeerId| -> Pin<Box<dyn Future<Output = bool> + Send>> {
             let kam_state3 = Arc::clone(&kam_state2);
             Box::pin(async move {
-                kam_state3.second_class_slot_available().await || kam_state3.class(&peer_id).await == Some(ConnectedPeerRole::FirstClass)
+                kam_state3.second_class_slot_available().await || kam_state3.class(&peer_id).await == Some(PeerClass::First)
             })
         };
         let kam_config = KamilataConfig {
@@ -287,7 +287,7 @@ impl KamilataNode {
                                 if let Err(e) = r {
                                     error!("Error while adding leecher {peer_id}: {e:?}");
                                     self.kam_mut().stop_seeding(peer_id);
-                                } else if self.state.class(&peer_id).await == Some(ConnectedPeerRole::SecondClass) {
+                                } else if self.state.class(&peer_id).await == Some(PeerClass::Second) {
                                     self.kam_mut().leech_from(peer_id);
                                 }
                             },
@@ -298,7 +298,7 @@ impl KamilataNode {
                             KamilataEvent::LeecherRemoved { peer_id } => {
                                 debug!("Leecher removed: {peer_id}");
                                 self.state.on_leecher_removed(&peer_id).await;
-                                if self.state.class(&peer_id).await == Some(ConnectedPeerRole::Transient) {
+                                if self.state.class(&peer_id).await == Some(PeerClass::Transient) {
                                     self.kam_mut().stop_leeching(peer_id);
                                 }
                             },
