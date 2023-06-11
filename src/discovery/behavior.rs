@@ -14,25 +14,26 @@ impl NetworkBehaviour for Behaviour {
 
     fn on_swarm_event(&mut self, event: FromSwarm<Self::ConnectionHandler>) {
         match event {
-            FromSwarm::ConnectionEstablished(_) => todo!(),
-            FromSwarm::ConnectionClosed(_) => todo!(),
-            FromSwarm::AddressChange(_) => todo!(),
-            FromSwarm::DialFailure(_) => todo!(),
-            FromSwarm::ListenFailure(_) => todo!(),
-            FromSwarm::NewListener(_) => todo!(),
-            FromSwarm::NewListenAddr(_) => todo!(),
-            FromSwarm::ExpiredListenAddr(_) => todo!(),
-            FromSwarm::ListenerError(_) => todo!(),
-            FromSwarm::ListenerClosed(_) => todo!(),
-            FromSwarm::NewExternalAddr(_) => todo!(),
-            FromSwarm::ExpiredExternalAddr(_) => todo!(),
+            FromSwarm::ConnectionEstablished(info) => {
+                let db = Arc::clone(&self.db);
+                tokio::spawn(async move {
+                    db.insert_peer(info.peer_id).await;
+                });
+            },
+            FromSwarm::ConnectionClosed(info) => {
+                if info.remaining_established == 0 {
+                    let db = Arc::clone(&self.db);
+                    tokio::spawn(async move {
+                        db.remove_peer(&info.peer_id).await;
+                    });
+                }
+            },
+            _ => (),
         }
     }
 
-    fn on_connection_handler_event(&mut self, peer_id: PeerId, connection_id: ConnectionId, event: THandlerOutEvent<Self>) {
-        match event {
-
-        }
+    fn on_connection_handler_event(&mut self, _peer_id: PeerId, _connection_id: ConnectionId, event: THandlerOutEvent<Self>) {
+        match event {}
     }
 
     fn handle_established_inbound_connection(
