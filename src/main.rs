@@ -6,6 +6,7 @@ mod documents;
 mod api;
 mod kamilata;
 mod clap;
+mod swarm;
 
 use crate::prelude::*;
 

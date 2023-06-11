@@ -1,12 +1,9 @@
-use std::collections::HashSet;
-
 use crate::prelude::*;
-use kamilata::{behaviour::KamilataEvent, db::{TooManySeeders, TooManyLeechers}};
+use kamilata::behaviour::KamilataEvent;
 use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour}, identity::Keypair, PeerId, tcp, Transport, core::upgrade, mplex::MplexConfig, noise, Multiaddr};
 use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 use futures::{StreamExt, future};
-use std::time::Instant;
 
 const FILTER_SIZE: usize = 125000;
 
@@ -28,161 +25,16 @@ impl From<IdentifyEvent> for Event {
         Self::Identify(Box::new(event))
     }
 }
-  
+
 impl From<KamilataEvent> for Event {
     fn from(event: KamilataEvent) -> Self {
         Self::Kamilata(event)
     }
 }
 
-struct ConnectedPeerInfo {
-    selected: bool,
-    seeding: bool,
-    leeching: bool,
-    connected_since: Instant,
-}
-
-#[derive(Debug, Clone, Copy, PartialEq)]
-enum PeerClass {
-    First,
-    Second,
-    Transient
-}
-
-impl ConnectedPeerInfo {
-    pub fn role(&self) -> PeerClass {
-        if self.selected {
-            PeerClass::First
-        } else if self.leeching {
-            PeerClass::Second
-        } else {
-            PeerClass::Transient
-        }
-    }
-}
-
-struct KamilataState {
-    config: Arc<Args>,
-    known_peers: RwLock<HashMap<PeerId, PeerInfo>>,
-
-    connected_peers: RwLock<HashMap<PeerId, ConnectedPeerInfo>>,
-}
-
-impl KamilataState {
-    pub fn new(config: Arc<Args>) -> KamilataState {
-        KamilataState {
-            config,
-            known_peers: RwLock::new(HashMap::new()),
-            connected_peers: RwLock::new(HashMap::new()),
-        }
-    }
-}
-
-impl KamilataState {
-    pub async fn class_counts(&self) -> (usize, usize, usize) {
-        let mut first_class_count = 0;
-        let mut second_class_count = 0;
-        let mut transient_count = 0;
-        self.connected_peers.read().await.values().for_each(|i| match i.role() {
-            PeerClass::First => first_class_count += 1,
-            PeerClass::Second => second_class_count += 1,
-            PeerClass::Transient => transient_count += 1,
-        });
-        (first_class_count, second_class_count, transient_count)
-    }
-
-    pub async fn first_class_slot_available(&self) -> bool {
-        let seeder_count = self.class_counts().await.0;
-        seeder_count < self.config.seeders
-    }
-
-    pub async fn second_class_slot_available(&self) -> bool {
-        let leecher_count = self.class_counts().await.1;
-        leecher_count < self.config.leechers
-    }
-
-    pub async fn class(&self, peer_id: &PeerId) -> Option<PeerClass> {
-        self.connected_peers.read().await.get(peer_id).map(|i| i.role())
-    }
-
-    async fn on_peer_connected(&self, peer_id: PeerId) {
-        let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.insert(peer_id, ConnectedPeerInfo {
-            selected: false,
-            seeding: false,
-            leeching: false,
-            connected_since: Instant::now(),
-        });
-    }
-
-    async fn on_peer_disconnected(&self, peer_id: &PeerId) {
-        let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.remove(peer_id);
-    }
-
-    async fn on_seeder_added(&self, peer_id: PeerId) {
-        let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.entry(peer_id).and_modify(|i| i.seeding = true);
-    }
-
-    async fn on_leecher_added(&self, peer_id: PeerId) -> Result<(), TooManyLeechers> {
-        let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.entry(peer_id).and_modify(|i| i.leeching = true);
-        let leecher_count = connected_peers.values().filter(|i| i.role() == PeerClass::Second).count();
-        if leecher_count > self.config.leechers {
-            return Err(TooManyLeechers{})
-        }
-        Ok(())
-    }
-
-    async fn on_seeder_removed(&self, peer_id: &PeerId) {
-        let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.entry(*peer_id).and_modify(|i| i.seeding = false);
-    }
-
-    async fn on_leecher_removed(&self, peer_id: &PeerId) {
-        let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.entry(*peer_id).and_modify(|i| i.leeching = false);
-    }
-}
-
-
-/// # Peer swarm managment 
-/// 
-/// This implementation attributes slots to different kind of peers.
-/// The policies are strongly enforced, and the swarm isn't reluctant to disconnect peers.
-/// 
-/// ## First-class peers
-/// 
-/// Those are select peers we chose to leech from.
-/// We chose those whom we trust the most.
-/// We try to reach SEEDER_TARGET, and we never go above.
-/// These peers have guaranteed slots as leechers too.
-/// = SEEDER_TARGET
-/// 
-/// ## Second-class peers
-/// 
-/// Those are peers who selected us as first-class peers.
-/// We leech back from all leechers, though they don't count as seeders.
-/// Leechers have the right to refuse to seed us.
-/// When new peers apply for a leecher slot and they are all taken, we disconnect the peer with the lowest score.
-/// In order to prevent a malicious actor from replacing all legitimate leechers, peers that cause a disconnection start with a reputation malus.
-/// <= MAX_LEECHERS
-/// 
-/// ## Transient peers
-/// 
-/// Some peers connect for a few seconds, the time to send us queries. We do the same to them.
-/// Those peers are theoretically unlimited, but there is a practical high limit at MAX_FAST_PACED_SLOTS.
-/// The main limit is actually the time those peers are allowed to stay connected.
-/// When that time is up, we disconnect them. We might be more tolerant when we have plenty of slots available.
-/// <= MAX_FAST_PACED_SLOTS
 pub struct KamilataNode {
     swarm: Swarm<AdmarusBehaviour>,
-    state: Arc<KamilataState>,
-}
-
-struct PeerInfo {
-    addrs: Vec<Multiaddr>,
+    swarm_manager: Arc<SwarmManager>,
 }
 
 impl KamilataNode {
@@ -190,12 +42,12 @@ impl KamilataNode {
         let local_key = Keypair::generate_ed25519();
         let peer_id = PeerId::from(local_key.public());
 
-        let kam_state = Arc::new(KamilataState::new(Arc::clone(&config)));
-        let kam_state2 = Arc::clone(&kam_state);
+        let swarm_manager = Arc::new(SwarmManager::new(Arc::clone(&config)));
+        let swarm_manager2 = Arc::clone(&swarm_manager);
         let approve_leecher = move |peer_id: PeerId| -> Pin<Box<dyn Future<Output = bool> + Send>> {
-            let kam_state3 = Arc::clone(&kam_state2);
+            let swarm_manager3 = Arc::clone(&swarm_manager2);
             Box::pin(async move {
-                kam_state3.second_class_slot_available().await || kam_state3.class(&peer_id).await == Some(PeerClass::First)
+                swarm_manager3.second_class_slot_available().await || swarm_manager3.class(&peer_id).await == Some(PeerClass::First)
             })
         };
         let kam_config = KamilataConfig {
@@ -228,7 +80,7 @@ impl KamilataNode {
 
         KamilataNode {
             swarm,
-            state: kam_state,
+            swarm_manager,
         }
     }
 
@@ -241,7 +93,7 @@ impl KamilataNode {
         let controller = 
         KamilataController {
             sender,
-            state: Arc::clone(&self.state)
+            swarm_manager: Arc::clone(&self.swarm_manager)
         };
         tokio::spawn(async move {
             loop {
@@ -283,39 +135,39 @@ impl KamilataNode {
                         SwarmEvent::Behaviour(Event::Kamilata(event)) => match event {
                             KamilataEvent::LeecherAdded { peer_id, filter_count, interval_ms } => {
                                 debug!("Leecher added: {peer_id} (filter_count: {filter_count}, interval_ms: {interval_ms})");
-                                let r = self.state.on_leecher_added(peer_id).await;
+                                let r = self.swarm_manager.on_leecher_added(peer_id).await;
                                 if let Err(e) = r {
                                     error!("Error while adding leecher {peer_id}: {e:?}");
                                     self.kam_mut().stop_seeding(peer_id);
-                                } else if self.state.class(&peer_id).await == Some(PeerClass::Second) {
+                                } else if self.swarm_manager.class(&peer_id).await == Some(PeerClass::Second) {
                                     self.kam_mut().leech_from(peer_id);
                                 }
                             },
                             KamilataEvent::SeederAdded { peer_id } => {
                                 debug!("Seeder added: {peer_id}");
-                                self.state.on_seeder_added(peer_id).await;
+                                self.swarm_manager.on_seeder_added(peer_id).await;
                             },
                             KamilataEvent::LeecherRemoved { peer_id } => {
                                 debug!("Leecher removed: {peer_id}");
-                                self.state.on_leecher_removed(&peer_id).await;
-                                if self.state.class(&peer_id).await == Some(PeerClass::Transient) {
+                                self.swarm_manager.on_leecher_removed(&peer_id).await;
+                                if self.swarm_manager.class(&peer_id).await == Some(PeerClass::Transient) {
                                     self.kam_mut().stop_leeching(peer_id);
                                 }
                             },
                             KamilataEvent::SeederRemoved { peer_id } => {
                                 debug!("Seeder removed: {peer_id}");
-                                self.state.on_seeder_removed(&peer_id).await;
+                                self.swarm_manager.on_seeder_removed(&peer_id).await;
                             },
                         },
                         SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address} (listener id: {listener_id:?})"),
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => {
                             debug!("Connection established with {peer_id} (num_established: {num_established}, endpoint: {endpoint:?})");
-                            self.state.on_peer_connected(peer_id).await;
+                            self.swarm_manager.on_peer_connected(peer_id).await;
                         },
                         SwarmEvent::ConnectionClosed { peer_id, num_established, .. } => {
                             if num_established == 0 {
                                 debug!("Peer {peer_id} disconnected");
-                                self.state.on_peer_disconnected(&peer_id).await;
+                                self.swarm_manager.on_peer_disconnected(&peer_id).await;
                             }
                         },
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error}"),
@@ -346,7 +198,7 @@ enum ClientCommand {
 
 pub struct KamilataController {
     sender: Sender<ClientCommand>,
-    state: Arc<KamilataState>,
+    swarm_manager: Arc<SwarmManager>,
 }
 
 impl KamilataController {
