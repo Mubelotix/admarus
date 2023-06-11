@@ -260,7 +260,7 @@ impl KamilataNode {
                         ClientCommand::LeechFromAll => {
                             let peer_ids = self.swarm.connected_peers().cloned().collect::<Vec<_>>();
                             for peer_id in peer_ids {
-                                trace!("Leeching from {:?}", peer_id);
+                                trace!("Leeching from {peer_id}");
                                 self.kam_mut().leech_from(peer_id);
                             }
                         },
@@ -272,57 +272,57 @@ impl KamilataNode {
                             IdentifyEvent::Received { peer_id, info } => {
                                 let r = self.kam_mut().set_addresses(&peer_id, info.listen_addrs).await;
                                 if let Err(e) = r {
-                                    error!("Error while setting addresses for {peer_id:?}: {e:?}");
+                                    error!("Error while setting addresses for {peer_id}: {e:?}");
                                 }
                             },
-                            IdentifyEvent::Sent { peer_id } => trace!("Sent identify request to {peer_id:?}"),
-                            IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id:?}"),
-                            IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id:?}: {error:?}"),
+                            IdentifyEvent::Sent { peer_id } => trace!("Sent identify request to {peer_id}"),
+                            IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id}"),
+                            IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id}: {error}"),
                         },
                         // Kamilata events
                         SwarmEvent::Behaviour(Event::Kamilata(event)) => match event {
                             KamilataEvent::LeecherAdded { peer_id, filter_count, interval_ms } => {
-                                debug!("Leecher added: {peer_id:?} (filter_count: {filter_count:?}, interval_ms: {interval_ms:?})");
+                                debug!("Leecher added: {peer_id} (filter_count: {filter_count}, interval_ms: {interval_ms})");
                                 let r = self.state.on_leecher_added(peer_id).await;
                                 if let Err(e) = r {
-                                    error!("Error while adding leecher {peer_id:?}: {e:?}");
+                                    error!("Error while adding leecher {peer_id}: {e:?}");
                                     self.kam_mut().stop_seeding(peer_id);
                                 } else if self.state.role(&peer_id).await == Some(ConnectedPeerRole::Leecher) {
                                     self.kam_mut().leech_from(peer_id);
                                 }
                             },
                             KamilataEvent::SeederAdded { peer_id } => {
-                                debug!("Seeder added: {peer_id:?}");
+                                debug!("Seeder added: {peer_id}");
                                 self.state.on_seeder_added(peer_id).await;
                             },
                             KamilataEvent::LeecherRemoved { peer_id } => {
-                                debug!("Leecher removed: {peer_id:?}");
+                                debug!("Leecher removed: {peer_id}");
                                 self.state.on_leecher_removed(&peer_id).await;
                                 if self.state.role(&peer_id).await == Some(ConnectedPeerRole::Transient) {
                                     self.kam_mut().stop_leeching(peer_id);
                                 }
                             },
                             KamilataEvent::SeederRemoved { peer_id } => {
-                                debug!("Seeder removed: {peer_id:?}");
+                                debug!("Seeder removed: {peer_id}");
                                 self.state.on_seeder_removed(&peer_id).await;
                             },
                         },
-                        SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address:?} (listener id: {listener_id:?})"),
+                        SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address} (listener id: {listener_id:?})"),
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => {
-                            debug!("Connection established with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})");
+                            debug!("Connection established with {peer_id} (num_established: {num_established}, endpoint: {endpoint:?})");
                             self.state.on_peer_connected(peer_id).await;
                         },
                         SwarmEvent::ConnectionClosed { peer_id, num_established, .. } => {
                             if num_established == 0 {
-                                debug!("Peer {peer_id:?} disconnected");
+                                debug!("Peer {peer_id} disconnected");
                                 self.state.on_peer_disconnected(&peer_id).await;
                             }
                         },
-                        SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error:?}"),
-                        SwarmEvent::ExpiredListenAddr { listener_id, address } => debug!("Expired listen addr {address:?} (listener id: {listener_id:?})"),
+                        SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error}"),
+                        SwarmEvent::ExpiredListenAddr { listener_id, address } => debug!("Expired listen addr {address} (listener id: {listener_id:?})"),
                         SwarmEvent::ListenerClosed { listener_id, addresses, reason } => debug!("Listener closed (listener id: {listener_id:?}, addresses: {addresses:?}, reason: {reason:?})"),
-                        SwarmEvent::ListenerError { listener_id, error } => debug!("Listener error (listener id: {listener_id:?}, error: {error:?})"),
-                        SwarmEvent::Dialing(peer_id) => debug!("Dialing {peer_id:?}"),
+                        SwarmEvent::ListenerError { listener_id, error } => debug!("Listener error (listener id: {listener_id:?}, error: {error})"),
+                        SwarmEvent::Dialing(peer_id) => debug!("Dialing {peer_id}"),
                         _ => (),
                     },
                 }
