@@ -6,6 +6,7 @@ use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour}, identit
 use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 use futures::{StreamExt, future};
+use std::time::Instant;
 
 const FILTER_SIZE: usize = 125000;
 
@@ -38,6 +39,7 @@ struct ConnectedPeerInfo {
     selected: bool,
     seeding: bool,
     leeching: bool,
+    connected_since: Instant,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -101,6 +103,21 @@ impl KamilataState {
 
     pub async fn role(&self, peer_id: &PeerId) -> Option<ConnectedPeerRole> {
         self.connected_peers.read().await.get(peer_id).map(|i| i.role())
+    }
+
+    async fn on_peer_connected(&self, peer_id: PeerId) {
+        let mut connected_peers = self.connected_peers.write().await;
+        connected_peers.insert(peer_id, ConnectedPeerInfo {
+            selected: false,
+            seeding: false,
+            leeching: false,
+            connected_since: Instant::now(),
+        });
+    }
+
+    async fn on_peer_disconnected(&self, peer_id: &PeerId) {
+        let mut connected_peers = self.connected_peers.write().await;
+        connected_peers.remove(peer_id);
     }
 
     async fn on_seeder_added(&self, peer_id: PeerId) {
@@ -231,6 +248,7 @@ impl KamilataNode {
                 let recv = Box::pin(receiver.recv());
                 let value = futures::future::select(recv, self.swarm.select_next_some()).await;
                 match value {
+                    // Client commands
                     future::Either::Left((Some(command), _)) => match command {
                         ClientCommand::Search { queries, config, sender } => {
                             let controller = self.kam_mut().search_with_config(queries, config).await;
@@ -249,6 +267,7 @@ impl KamilataNode {
                     },
                     future::Either::Left((None, _)) => break,
                     future::Either::Right((event, _)) => match event {
+                        // Identify events
                         SwarmEvent::Behaviour(Event::Identify(event)) => match *event {
                             IdentifyEvent::Received { peer_id, info } => {
                                 let r = self.kam_mut().set_addresses(&peer_id, info.listen_addrs).await;
@@ -260,6 +279,7 @@ impl KamilataNode {
                             IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id:?}"),
                             IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id:?}: {error:?}"),
                         },
+                        // Kamilata events
                         SwarmEvent::Behaviour(Event::Kamilata(event)) => match event {
                             KamilataEvent::LeecherAdded { peer_id, filter_count, interval_ms } => {
                                 debug!("Leecher added: {peer_id:?} (filter_count: {filter_count:?}, interval_ms: {interval_ms:?})");
@@ -267,6 +287,8 @@ impl KamilataNode {
                                 if let Err(e) = r {
                                     error!("Error while adding leecher {peer_id:?}: {e:?}");
                                     self.kam_mut().stop_seeding(peer_id);
+                                } else if self.state.role(&peer_id).await == Some(ConnectedPeerRole::Leecher) {
+                                    self.kam_mut().leech_from(peer_id);
                                 }
                             },
                             KamilataEvent::SeederAdded { peer_id } => {
@@ -286,8 +308,16 @@ impl KamilataNode {
                             },
                         },
                         SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address:?} (listener id: {listener_id:?})"),
-                        SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => debug!("Connection established with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
-                        SwarmEvent::ConnectionClosed { peer_id, endpoint, num_established, .. } => debug!("Connection closed with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})"),
+                        SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => {
+                            debug!("Connection established with {peer_id:?} (num_established: {num_established:?}, endpoint: {endpoint:?})");
+                            self.state.on_peer_connected(peer_id).await;
+                        },
+                        SwarmEvent::ConnectionClosed { peer_id, num_established, .. } => {
+                            if num_established == 0 {
+                                debug!("Peer {peer_id:?} disconnected");
+                                self.state.on_peer_disconnected(&peer_id).await;
+                            }
+                        },
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error:?}"),
                         SwarmEvent::ExpiredListenAddr { listener_id, address } => debug!("Expired listen addr {address:?} (listener id: {listener_id:?})"),
                         SwarmEvent::ListenerClosed { listener_id, addresses, reason } => debug!("Listener closed (listener id: {listener_id:?}, addresses: {addresses:?}, reason: {reason:?})"),
