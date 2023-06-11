@@ -44,17 +44,17 @@ struct ConnectedPeerInfo {
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 enum ConnectedPeerRole {
-    Seeder,
-    Leecher,
+    FirstClass,
+    SecondClass,
     Transient
 }
 
 impl ConnectedPeerInfo {
     pub fn role(&self) -> ConnectedPeerRole {
         if self.selected {
-            ConnectedPeerRole::Seeder
+            ConnectedPeerRole::FirstClass
         } else if self.leeching {
-            ConnectedPeerRole::Leecher
+            ConnectedPeerRole::SecondClass
         } else {
             ConnectedPeerRole::Transient
         }
@@ -80,28 +80,28 @@ impl KamilataState {
 
 impl KamilataState {
     pub async fn role_counts(&self) -> (usize, usize, usize) {
-        let mut seeders = 0;
-        let mut leechers = 0;
-        let mut transient_peers = 0;
+        let mut first_class_count = 0;
+        let mut second_class_count = 0;
+        let mut transient_count = 0;
         self.connected_peers.read().await.values().for_each(|i| match i.role() {
-            ConnectedPeerRole::Seeder => seeders += 1,
-            ConnectedPeerRole::Leecher => leechers += 1,
-            ConnectedPeerRole::Transient => transient_peers += 1,
+            ConnectedPeerRole::FirstClass => first_class_count += 1,
+            ConnectedPeerRole::SecondClass => second_class_count += 1,
+            ConnectedPeerRole::Transient => transient_count += 1,
         });
-        (seeders, leechers, transient_peers)
+        (first_class_count, second_class_count, transient_count)
     }
 
-    pub async fn seeder_available(&self) -> bool {
+    pub async fn first_class_slot_available(&self) -> bool {
         let seeder_count = self.role_counts().await.0;
         seeder_count < self.config.seeders
     }
 
-    pub async fn leecher_available(&self) -> bool {
+    pub async fn second_class_slot_available(&self) -> bool {
         let leecher_count = self.role_counts().await.1;
         leecher_count < self.config.leechers
     }
 
-    pub async fn role(&self, peer_id: &PeerId) -> Option<ConnectedPeerRole> {
+    pub async fn class(&self, peer_id: &PeerId) -> Option<ConnectedPeerRole> {
         self.connected_peers.read().await.get(peer_id).map(|i| i.role())
     }
 
@@ -128,7 +128,7 @@ impl KamilataState {
     async fn on_leecher_added(&self, peer_id: PeerId) -> Result<(), TooManyLeechers> {
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.entry(peer_id).and_modify(|i| i.leeching = true);
-        let leecher_count = connected_peers.values().filter(|i| i.role() == ConnectedPeerRole::Leecher).count();
+        let leecher_count = connected_peers.values().filter(|i| i.role() == ConnectedPeerRole::SecondClass).count();
         if leecher_count > self.config.leechers {
             return Err(TooManyLeechers{})
         }
@@ -152,7 +152,7 @@ impl KamilataState {
 /// This implementation attributes slots to different kind of peers.
 /// The policies are strongly enforced, and the swarm isn't reluctant to disconnect peers.
 /// 
-/// ## Seeders
+/// ## First-class peers
 /// 
 /// Those are select peers we chose to leech from.
 /// We chose those whom we trust the most.
@@ -160,9 +160,9 @@ impl KamilataState {
 /// These peers have guaranteed slots as leechers too.
 /// = SEEDER_TARGET
 /// 
-/// ## Leechers
+/// ## Second-class peers
 /// 
-/// Those are peers who selected us to leech from.
+/// Those are peers who selected us as first-class peers.
 /// We leech back from all leechers, though they don't count as seeders.
 /// Leechers have the right to refuse to seed us.
 /// When new peers apply for a leecher slot and they are all taken, we disconnect the peer with the lowest score.
@@ -195,7 +195,7 @@ impl KamilataNode {
         let approve_leecher = move |peer_id: PeerId| -> Pin<Box<dyn Future<Output = bool> + Send>> {
             let kam_state3 = Arc::clone(&kam_state2);
             Box::pin(async move {
-                kam_state3.leecher_available().await || kam_state3.role(&peer_id).await == Some(ConnectedPeerRole::Seeder)
+                kam_state3.second_class_slot_available().await || kam_state3.class(&peer_id).await == Some(ConnectedPeerRole::FirstClass)
             })
         };
         let kam_config = KamilataConfig {
@@ -287,7 +287,7 @@ impl KamilataNode {
                                 if let Err(e) = r {
                                     error!("Error while adding leecher {peer_id}: {e:?}");
                                     self.kam_mut().stop_seeding(peer_id);
-                                } else if self.state.role(&peer_id).await == Some(ConnectedPeerRole::Leecher) {
+                                } else if self.state.class(&peer_id).await == Some(ConnectedPeerRole::SecondClass) {
                                     self.kam_mut().leech_from(peer_id);
                                 }
                             },
@@ -298,7 +298,7 @@ impl KamilataNode {
                             KamilataEvent::LeecherRemoved { peer_id } => {
                                 debug!("Leecher removed: {peer_id}");
                                 self.state.on_leecher_removed(&peer_id).await;
-                                if self.state.role(&peer_id).await == Some(ConnectedPeerRole::Transient) {
+                                if self.state.class(&peer_id).await == Some(ConnectedPeerRole::Transient) {
                                     self.kam_mut().stop_leeching(peer_id);
                                 }
                             },
