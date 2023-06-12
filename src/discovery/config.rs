@@ -18,7 +18,7 @@ impl Default for Config {
     fn default() -> Self {
         Config {
             default_visibility: false,
-            protocols: vec!["/mubelotix/discovery/0.1.0".to_string()],
+            protocols: vec!["/mubelotix-discovery/0.1.0".to_string()],
             max_results: 100,
             request_max_payload_size: 50_000,
             response_max_payload_size: 500_000,
