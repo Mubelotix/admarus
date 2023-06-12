@@ -12,10 +12,12 @@ pub struct Behaviour {
 }
 
 impl Behaviour {
+    /// Creates a new behaviour with default configuration.
     pub fn new() -> Behaviour {
         Behaviour::new_with_config(Config::default())
     }
 
+    /// Creates a new behaviour with a custom configuration.
     pub fn new_with_config(config: Config) -> Behaviour {
         let config = Arc::new(config);
         Behaviour {
@@ -25,6 +27,7 @@ impl Behaviour {
         }
     }
 
+    /// Sends a query to a peer.
     pub async fn query(&mut self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
         let (sender, receiver) = oneshot_channel();
         self.events_to_dispatch.push((
@@ -56,6 +59,8 @@ impl Behaviour {
         }
     }
 
+    /// Updates information about a peer.
+    /// The information is expected to be obtained from the `identify` protocol.
     pub async fn set_info(&mut self, peer_id: PeerId, info: libp2p_identify::Info) {
         self.db.set_info(&peer_id, Info {
             protocol_version: info.protocol_version,
@@ -67,6 +72,8 @@ impl Behaviour {
         }).await;
     }
 
+    /// Sends a request to a peer to set our visibility to its peers.
+    /// When true, our peer will be advertised to other peers.
     pub async fn set_visibility_to_peer(&mut self, peer_id: PeerId, visible: bool) -> Result<(), IoError> {
         let (sender, receiver) = oneshot_channel();
         self.events_to_dispatch.push((
