@@ -95,6 +95,17 @@ impl Behaviour {
             Err(e) => Err(e)
         }
     }
+
+    pub async fn set_info(&mut self, peer_id: PeerId, info: libp2p_identify::Info) {
+        self.db.set_info(&peer_id, Info {
+            protocol_version: info.protocol_version,
+            agent_version: info.agent_version,
+            listen_addrs: info.listen_addrs,
+            protocols: info.protocols,
+            observed_addr: Some(info.observed_addr),
+            metadata: Vec::new(),
+        }).await;
+    }
 }
 
 impl NetworkBehaviour for Behaviour {
