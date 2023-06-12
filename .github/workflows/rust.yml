@@ -28,7 +28,7 @@ jobs:
         wget https://github.com/ipfs/kubo/releases/download/v0.20.0/kubo_v0.20.0_linux-amd64.tar.gz
         tar -xzf kubo_v0.20.0_linux-amd64.tar.gz
         sudo ./kubo/install.sh
-        ipfs init || true
+        ipfs init
     - name: Install protoc
       run: sudo apt install protobuf-compiler
     - name: Install Kamilata
@@ -40,5 +40,5 @@ jobs:
     - name: Run Kubo
       run: | 
         ipfs daemon &
-        sleep 3
+        sleep 8
         ipfs pin add /ipns/ipfs.tech
