@@ -1,5 +1,3 @@
-use super::*;
-
 pub struct Config {
     /// Whether peers are visible by default.
     pub default_visibility: bool,

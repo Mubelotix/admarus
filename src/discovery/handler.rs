@@ -108,7 +108,7 @@ impl ConnectionHandler for Handler {
             match server_task.as_mut().poll(cx) {
                 Poll::Ready(result) => {
                     self.server_tasks.remove(0);
-                    debug!("Server task finished");
+                    debug!("Server task finished: {result:?}");
                 },
                 Poll::Pending => (),
             }

@@ -1,4 +1,5 @@
 //! This module contains a simple protocol for peer discovery.
+#![allow(dead_code)]
 
 pub use futures::{
     future::{self, BoxFuture},

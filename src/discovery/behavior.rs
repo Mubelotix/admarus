@@ -169,7 +169,7 @@ impl NetworkBehaviour for Behaviour {
         Ok(Handler::new(remote_peer_id, Arc::clone(&self.config), Arc::clone(&self.db)))
     }
 
-    fn poll(&mut self, cx: &mut Context<'_>, params: &mut impl PollParameters) -> Poll<ToSwarm<Self::OutEvent, THandlerInEvent<Self>>> {
+    fn poll(&mut self, _cx: &mut Context<'_>, _params: &mut impl PollParameters) -> Poll<ToSwarm<Self::OutEvent, THandlerInEvent<Self>>> {
         if let Some((peer_id, event)) = self.events_to_dispatch.pop() {
             return Poll::Ready(ToSwarm::NotifyHandler { peer_id, handler: NotifyHandler::Any, event });
         }

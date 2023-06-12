@@ -8,7 +8,7 @@ pub struct ArcConfig {
 impl From<&Arc<Config>> for ArcConfig {
     fn from(inner: &Arc<Config>) -> Self {
         ArcConfig {
-            inner: Arc::clone(&inner),
+            inner: Arc::clone(inner),
         }
     }
 }
