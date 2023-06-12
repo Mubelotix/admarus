@@ -93,7 +93,7 @@ pub async fn server_task(remote_peer_id: PeerId, mut stream: Stream, db: Arc<Db>
     Ok(())
 }
 
-pub async fn client_task(request: Request, mut stream: Stream, db: Arc<Db>) -> Result<Response, IoError> {
+async fn client_task_inner(request: Request, mut stream: Stream, db: Arc<Db>) -> Result<Response, IoError> {
     let request = serde_json::to_vec(&request)?;
     send_prefixed(&mut stream, &request).await?;
 
@@ -101,4 +101,9 @@ pub async fn client_task(request: Request, mut stream: Stream, db: Arc<Db>) -> R
     let response: Response = serde_json::from_slice(&response)?;
 
     Ok(response)
+}
+
+pub async fn client_task(request: Request, replier: RequestReplier, stream: Stream, db: Arc<Db>) {
+    let response = client_task_inner(request, stream, db).await;
+    replier.send(response).unwrap();
 }

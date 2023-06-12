@@ -28,8 +28,8 @@ pub struct Handler {
     db: Arc<Db>,
 
     server_tasks: Vec<BoxFuture<'static, Result<(), IoError>>>,
-    client_tasks: Vec<BoxFuture<'static, Result<Response, IoError>>>,
-    pending_requests: Vec<(Request, OneshotSender<Result<Response, IoError>>)>,
+    client_tasks: Vec<BoxFuture<'static, ()>>,
+    pending_requests: Vec<(Request, RequestReplier)>,
 }
 
 impl Handler {
@@ -81,7 +81,7 @@ impl ConnectionHandler for Handler {
             ConnectionEvent::FullyNegotiatedOutbound(info) => {
                 let stream = info.protocol;
                 let (request, replier) = info.info;
-                let client_task = Box::pin(client_task(request, stream, Arc::clone(&self.db)));
+                let client_task = Box::pin(client_task(request, replier, stream, Arc::clone(&self.db)));
                 self.client_tasks.push(client_task)
             },
             ConnectionEvent::DialUpgradeError(e) => {
@@ -117,7 +117,7 @@ impl ConnectionHandler for Handler {
         // Run client task
         if let Some(client_task) = self.client_tasks.first_mut() {
             match client_task.as_mut().poll(cx) {
-                Poll::Ready(result) => {
+                Poll::Ready(()) => {
                     self.client_tasks.remove(0);
                     debug!("Client task finished");
                 },
