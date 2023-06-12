@@ -5,6 +5,7 @@ pub enum Event {
 }
 
 pub struct Behaviour {
+    config: Arc<Config>,
     db: Arc<Db>,
     events_to_dispatch: Vec<(PeerId, HandlerInEvent)>,
 }
@@ -102,7 +103,7 @@ impl NetworkBehaviour for Behaviour {
         _local_addr: &Multiaddr,
         _remote_addr: &Multiaddr,
     ) -> Result<libp2p::swarm::THandler<Self>, libp2p::swarm::ConnectionDenied> {
-        Ok(Handler::new(remote_peer_id, Arc::clone(&self.db)))
+        Ok(Handler::new(remote_peer_id, Arc::clone(&self.config), Arc::clone(&self.db)))
     }
 
     fn handle_established_outbound_connection(
@@ -112,7 +113,7 @@ impl NetworkBehaviour for Behaviour {
         _addr: &Multiaddr,
         _role_override: libp2p::core::Endpoint,
     ) -> Result<libp2p::swarm::THandler<Self>, libp2p::swarm::ConnectionDenied> {
-        Ok(Handler::new(remote_peer_id, Arc::clone(&self.db)))
+        Ok(Handler::new(remote_peer_id, Arc::clone(&self.config), Arc::clone(&self.db)))
     }
 
     fn poll(&mut self, cx: &mut Context<'_>, params: &mut impl PollParameters) -> Poll<ToSwarm<Self::OutEvent, THandlerInEvent<Self>>> {

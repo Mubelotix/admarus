@@ -1,26 +1,33 @@
 
 use super::*;
 
+pub struct ArcConfig {
+    pub inner: Arc<Config>,
+}
+
+impl From<&Arc<Config>> for ArcConfig {
+    fn from(inner: &Arc<Config>) -> Self {
+        ArcConfig {
+            inner: Arc::clone(&inner),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub enum UpgradeError {
 
 }
 
-#[derive(Clone)]
-pub struct Discovery {
-    pub protocols: Arc<Vec<String>>,
-}
-
-impl UpgradeInfo for Discovery {
+impl UpgradeInfo for ArcConfig {
     type Info = String;
     type InfoIter = std::vec::IntoIter<Self::Info>;
 
     fn protocol_info(&self) -> Self::InfoIter {
-        (*self.protocols).clone().into_iter()
+        self.inner.protocols.clone().into_iter()
     }
 }
 
-impl<C> InboundUpgrade<C> for Discovery {
+impl<C> InboundUpgrade<C> for ArcConfig {
     type Output = C;
     type Error = UpgradeError;
     type Future = future::Ready<Result<Self::Output, UpgradeError>>;
@@ -30,7 +37,7 @@ impl<C> InboundUpgrade<C> for Discovery {
     }
 }
 
-impl<C> OutboundUpgrade<C> for Discovery {
+impl<C> OutboundUpgrade<C> for ArcConfig {
     type Output = C;
     type Error = UpgradeError;
     type Future = future::Ready<Result<Self::Output, UpgradeError>>;

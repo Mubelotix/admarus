@@ -24,6 +24,7 @@ impl std::error::Error for HandlerError {}
 
 pub struct Handler {
     remote_peer_id: PeerId,
+    config: Arc<Config>,
     db: Arc<Db>,
 
     server_tasks: Vec<BoxFuture<'static, Result<(), IoError>>>,
@@ -32,9 +33,10 @@ pub struct Handler {
 }
 
 impl Handler {
-    pub fn new(remote_peer_id: PeerId, db: Arc<Db>) -> Handler {
+    pub fn new(remote_peer_id: PeerId, config: Arc<Config>, db: Arc<Db>) -> Handler {
         Handler {
             remote_peer_id,
+            config,
             db,
             server_tasks: Vec::new(),
             client_tasks: Vec::new(),
@@ -48,14 +50,13 @@ impl ConnectionHandler for Handler {
     type InEvent = HandlerInEvent;
     type OutEvent = HandlerOutEvent;
     type Error = HandlerError;
-    type InboundProtocol = Discovery;
-    type OutboundProtocol = Discovery;
+    type InboundProtocol = ArcConfig;
+    type OutboundProtocol = ArcConfig;
     type InboundOpenInfo = ();
     type OutboundOpenInfo = Request;
 
-    fn listen_protocol(&self) -> SubstreamProtocol<Discovery, ()> {
-        let discovery = Discovery { protocols: Arc::new(vec![]) };
-        SubstreamProtocol::new(discovery, ())
+    fn listen_protocol(&self) -> SubstreamProtocol<ArcConfig, ()> {
+        SubstreamProtocol::new((&self.config).into(), ())
     }
 
     fn connection_keep_alive(&self) -> KeepAlive {
@@ -68,7 +69,7 @@ impl ConnectionHandler for Handler {
         }
     }
 
-    fn on_connection_event(&mut self, event: ConnectionEvent<Discovery, Discovery, (), Request>) {
+    fn on_connection_event(&mut self, event: ConnectionEvent<ArcConfig, ArcConfig, (), Request>) {
         match event {
             ConnectionEvent::FullyNegotiatedInbound(info) => {
                 let stream = info.protocol;
@@ -90,10 +91,10 @@ impl ConnectionHandler for Handler {
         }
     }
 
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<Discovery, Request, HandlerOutEvent, HandlerError>> {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, Request, HandlerOutEvent, HandlerError>> {
         if let Some(pending_request) = self.pending_requests.pop() {
             return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
-                protocol: SubstreamProtocol::new(Discovery { protocols: Arc::new(vec![]) }, pending_request),
+                protocol: SubstreamProtocol::new((&self.config).into(), pending_request),
             });
         }
 
