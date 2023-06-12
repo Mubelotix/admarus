@@ -66,6 +66,23 @@ impl Behaviour {
             metadata: Vec::new(),
         }).await;
     }
+
+    pub async fn set_visibility_to_peer(&mut self, peer_id: PeerId, visible: bool) -> Result<(), IoError> {
+        let (sender, receiver) = oneshot_channel();
+        self.events_to_dispatch.push((
+            peer_id,
+            HandlerInEvent::Request {
+                request: Request::SetVisibility(visible),
+                replier: sender
+            }
+        ));
+        let rep = receiver.await.map_err(|_| IoError::new(std::io::ErrorKind::BrokenPipe, "Couldn't receive response"))??;
+        if matches!(rep, Response::Ok) {
+            Ok(())
+        } else {
+            Err(IoError::new(std::io::ErrorKind::InvalidData, "Unexpected response"))
+        }
+    }
 }
 
 impl NetworkBehaviour for Behaviour {
