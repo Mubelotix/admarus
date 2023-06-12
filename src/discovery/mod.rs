@@ -33,3 +33,4 @@ mod config;
 pub use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*};
 
 pub type Stream = Negotiated<SubstreamBox>;
+pub type RequestReplier = OneshotSender<Result<Response, IoError>>;

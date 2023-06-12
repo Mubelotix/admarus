@@ -2,9 +2,9 @@ use super::*;
 
 #[derive(Debug)]
 pub enum HandlerInEvent {
-    Query {
-        query: PeerListQuery,
-        reply: OneshotSender<Result<HashMap<PeerId, Info>, IoError>>,
+    Request {
+        request: Request,
+        replier: RequestReplier,
     },
 }
 
@@ -29,7 +29,7 @@ pub struct Handler {
 
     server_tasks: Vec<BoxFuture<'static, Result<(), IoError>>>,
     client_tasks: Vec<BoxFuture<'static, Result<Response, IoError>>>,
-    pending_requests: Vec<Request>,
+    pending_requests: Vec<(Request, OneshotSender<Result<Response, IoError>>)>,
 }
 
 impl Handler {
@@ -53,7 +53,7 @@ impl ConnectionHandler for Handler {
     type InboundProtocol = ArcConfig;
     type OutboundProtocol = ArcConfig;
     type InboundOpenInfo = ();
-    type OutboundOpenInfo = Request;
+    type OutboundOpenInfo = (Request, RequestReplier);
 
     fn listen_protocol(&self) -> SubstreamProtocol<ArcConfig, ()> {
         SubstreamProtocol::new((&self.config).into(), ())
@@ -65,11 +65,13 @@ impl ConnectionHandler for Handler {
 
     fn on_behaviour_event(&mut self, event: HandlerInEvent) {
         match event {
-            HandlerInEvent::Query { query, reply } => todo!(),
+            HandlerInEvent::Request { request, replier } => {
+                self.pending_requests.push((request, replier))
+            },
         }
     }
 
-    fn on_connection_event(&mut self, event: ConnectionEvent<ArcConfig, ArcConfig, (), Request>) {
+    fn on_connection_event(&mut self, event: ConnectionEvent<ArcConfig, ArcConfig, (), (Request, RequestReplier)>) {
         match event {
             ConnectionEvent::FullyNegotiatedInbound(info) => {
                 let stream = info.protocol;
@@ -78,7 +80,7 @@ impl ConnectionHandler for Handler {
             },
             ConnectionEvent::FullyNegotiatedOutbound(info) => {
                 let stream = info.protocol;
-                let request = info.info;
+                let (request, replier) = info.info;
                 let client_task = Box::pin(client_task(request, stream, Arc::clone(&self.db)));
                 self.client_tasks.push(client_task)
             },
@@ -94,10 +96,10 @@ impl ConnectionHandler for Handler {
         }
     }
 
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, Request, HandlerOutEvent, HandlerError>> {
-        if let Some(pending_request) = self.pending_requests.pop() {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, (Request, RequestReplier), HandlerOutEvent, HandlerError>> {
+        if let Some(pending_info) = self.pending_requests.pop() {
             return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
-                protocol: SubstreamProtocol::new((&self.config).into(), pending_request),
+                protocol: SubstreamProtocol::new((&self.config).into(), pending_info),
             });
         }
 
