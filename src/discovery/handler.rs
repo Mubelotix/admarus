@@ -78,6 +78,9 @@ impl ConnectionHandler for Handler {
             },
             ConnectionEvent::FullyNegotiatedOutbound(info) => {
                 let stream = info.protocol;
+                let request = info.info;
+                let client_task = Box::pin(client_task(request, stream, Arc::clone(&self.db)));
+                self.client_tasks.push(client_task)
             },
             ConnectionEvent::DialUpgradeError(e) => {
                 let e = e.error;
