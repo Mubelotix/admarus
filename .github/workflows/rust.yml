@@ -21,7 +21,6 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
-          /home/runner/.ipfs
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/rust.yml') }}
     - name: Install Kubo
@@ -41,5 +40,5 @@ jobs:
     - name: Run Kubo
       run: | 
         ipfs daemon &
-        sleep 4
+        sleep 3
         ipfs pin add /ipns/ipfs.tech
