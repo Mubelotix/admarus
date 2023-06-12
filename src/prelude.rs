@@ -7,7 +7,7 @@ pub use crate::{
     kamilata::*,
     clap::*,
     swarm::*,
-    discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent}
+    discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig}
 };
 pub use clap::Parser;
 pub use log::{info, warn, error, debug, trace};

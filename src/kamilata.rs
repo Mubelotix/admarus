@@ -58,17 +58,19 @@ impl KamilataNode {
                 swarm_manager3.second_class_slot_available().await || swarm_manager3.class(&peer_id).await == Some(PeerClass::First)
             })
         };
-        let kam_config = KamilataConfig {
+
+        let kamilata = KamilataBehaviour::new_with_config_and_store(peer_id, KamilataConfig {
             approve_leecher: Some(Box::new(approve_leecher)),
             protocol_names: vec![String::from("/admarus/kamilata/0.1.0")],
             ..KamilataConfig::default()
-        };
-
-        let kamilata = KamilataBehaviour::new_with_config_and_store(peer_id, kam_config, index);
+        }, index);
         let identify = IdentifyBehaviour::new(
             IdentifyConfig::new(String::from("admarus/0.1.0"), local_key.public())
         );
-        let discovery = DiscoveryBehavior::new();
+        let discovery = DiscoveryBehavior::new_with_config(DiscoveryConfig {
+            default_visibility: true,
+            ..DiscoveryConfig::default()
+        });
         let behaviour = AdmarusBehaviour {
             kamilata,
             identify,
