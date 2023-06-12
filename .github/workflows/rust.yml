@@ -41,5 +41,6 @@ jobs:
     - name: Run Kubo
       run: | 
         ipfs daemon &
-        sleep 3
+        sleep 20
         timeout 15 ipfs pin add /ipns/ipfs.tech
+        
