@@ -41,4 +41,4 @@ jobs:
       run: | 
         ipfs daemon &
         sleep 8
-        ipfs pin add /ipns/ipfs.tech
+        timeout 15 ipfs pin add /ipns/ipfs.tech
