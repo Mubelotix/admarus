@@ -31,6 +31,13 @@ pub struct Db {
 }
 
 impl Db {
+    pub fn new(config: Arc<Config>) -> Db {
+        Db {
+            config,
+            data: RwLock::new(HashMap::new()),
+        }
+    }
+
     pub fn config(&self) -> &Config {
         &self.config
     }

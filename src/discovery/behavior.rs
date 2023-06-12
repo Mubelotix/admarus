@@ -65,6 +65,19 @@ impl PeerListQuery {
 }
 
 impl Behaviour {
+    pub async fn new() -> Behaviour {
+        Behaviour::new_with_config(Config::default()).await
+    }
+
+    pub async fn new_with_config(config: Config) -> Behaviour {
+        let config = Arc::new(config);
+        Behaviour {
+            config: Arc::clone(&config),
+            db: Arc::new(Db::new(config)),
+            events_to_dispatch: Vec::new(),
+        }
+    }
+
     pub async fn query(&mut self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
         let (sender, receiver) = oneshot_channel();
         self.events_to_dispatch.push((
