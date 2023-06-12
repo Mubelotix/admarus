@@ -143,7 +143,7 @@ impl KamilataNode {
                                 }
                                 self.disc_mut().set_info(peer_id, info).await;
                             },
-                            IdentifyEvent::Sent { peer_id } => trace!("Sent identify request to {peer_id}"),
+                            IdentifyEvent::Sent { peer_id } => trace!("Sent identify info to {peer_id}"),
                             IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id}"),
                             IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id}: {error}"),
                         },

@@ -21,6 +21,7 @@ jobs:
           ~/.cargo/registry/index/
           ~/.cargo/registry/cache/
           ~/.cargo/git/db/
+          /home/runner/.ipfs
           target/
         key: ${{ runner.os }}-cargo-${{ hashFiles('**/rust.yml') }}
     - name: Install Kubo
@@ -28,7 +29,7 @@ jobs:
         wget https://github.com/ipfs/kubo/releases/download/v0.20.0/kubo_v0.20.0_linux-amd64.tar.gz
         tar -xzf kubo_v0.20.0_linux-amd64.tar.gz
         sudo ./kubo/install.sh
-        ipfs init
+        ipfs init || true
     - name: Install protoc
       run: sudo apt install protobuf-compiler
     - name: Install Kamilata
@@ -39,8 +40,6 @@ jobs:
       run: cargo build
     - name: Run Kubo
       run: | 
-        rm /home/runner/.ipfs/repo.lock || true
         ipfs daemon &
-        sleep 4
-        rm /home/runner/.ipfs/repo.lock || true
+        sleep 3
         timeout 15 ipfs pin add /ipns/ipfs.tech
