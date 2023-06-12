@@ -104,15 +104,21 @@ impl <const N: usize> DocumentIndex<N> {
 
     pub async fn run(&self) {
         let mut already_explored = HashSet::new();
+        let mut last_printed_error = None;
         loop {
             let mut pinned = match list_pinned(&self.config.ipfs_rpc).await {
                 Ok(pinned) => pinned,
                 Err(e) => {
-                    error!("Error while listing pinned elements: {:?}", e);
+                    let e_string = e.to_string();
+                    if !last_printed_error.map(|lpe| lpe==e_string).unwrap_or(false) {
+                        error!("Error while listing pinned elements: {}", e_string);
+                    }
+                    last_printed_error = Some(e_string);
                     sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
                     continue;
                 }
             };
+            last_printed_error = None;
             pinned.retain(|cid| already_explored.insert(cid.clone()));
             debug!("{} new pinned elements", pinned.len());
             

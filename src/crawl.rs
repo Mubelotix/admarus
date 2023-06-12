@@ -22,6 +22,16 @@ impl From<serde_json::Error> for FetchingError {
     }
 }
 
+impl std::fmt::Display for FetchingError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            FetchingError::ReqwestError(e) => write!(f, "ReqwestError: {e}"),
+            FetchingError::InvalidJson(e) => write!(f, "InvalidJson: {e}"),
+            FetchingError::InvalidResponse(e) => write!(f, "InvalidResponse: {e}"),
+        }
+    }
+}
+
 use FetchingError::InvalidResponse;
 
 pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, FetchingError> {
