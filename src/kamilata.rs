@@ -60,6 +60,7 @@ impl KamilataNode {
         };
         let kam_config = KamilataConfig {
             approve_leecher: Some(Box::new(approve_leecher)),
+            protocol_names: vec![String::from("/admarus/kamilata/0.1.0")],
             ..KamilataConfig::default()
         };
 
@@ -135,6 +136,7 @@ impl KamilataNode {
                         // Identify events
                         SwarmEvent::Behaviour(Event::Identify(event)) => match *event {
                             IdentifyEvent::Received { peer_id, info } => {
+                                trace!("Received identify info from {peer_id}: {info:?}");
                                 let r = self.kam_mut().set_addresses(&peer_id, info.listen_addrs.clone()).await;
                                 if let Err(e) = r {
                                     error!("Error while setting addresses for {peer_id}: {e:?}");
