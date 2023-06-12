@@ -16,3 +16,4 @@ pub use async_trait::async_trait;
 pub use std::{collections::HashMap, sync::Arc, time::{Duration, Instant}, pin::Pin, future::Future};
 pub use tokio::{sync::RwLock, time::sleep};
 pub use libp2p::{PeerId, Multiaddr};
+pub use futures::future::BoxFuture;

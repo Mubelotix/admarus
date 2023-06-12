@@ -1,3 +1,5 @@
+#![allow(implied_bounds_entailment)]
+
 mod result;
 mod index;
 mod prelude;
@@ -7,6 +9,7 @@ mod api;
 mod kamilata;
 mod clap;
 mod swarm;
+mod discovery;
 
 use crate::prelude::*;
 

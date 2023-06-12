@@ -1,5 +1,3 @@
-use std::io;
-
 use super::*;
 
 pub enum Event {
