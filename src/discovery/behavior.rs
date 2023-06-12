@@ -1,3 +1,5 @@
+use std::io;
+
 use super::*;
 
 pub enum Event {
@@ -17,6 +19,7 @@ pub struct PeerListQuery {
     agent_version: Option<String>,
     protocols: Option<Vec<String>>,
     metadata: Option<Vec<u8>>,
+    max_results: Option<usize>,
 }
 
 impl PeerListQuery {
@@ -27,6 +30,7 @@ impl PeerListQuery {
             agent_version: None,
             protocols: None,
             metadata: None,
+            max_results: None,
         }
     }
 
@@ -63,8 +67,35 @@ impl PeerListQuery {
 }
 
 impl Behaviour {
-    pub async fn query(&self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
-        todo!()
+    pub async fn query(&mut self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
+        let (sender, receiver) = oneshot_channel();
+        self.events_to_dispatch.push((
+            query.peer_id,
+            HandlerInEvent::Request {
+                request: Request::GetPeers {
+                    protocol_version: query.protocol_version,
+                    agent_version: query.agent_version,
+                    protocols: query.protocols,
+                    metadata: query.metadata,
+                    max_results: query.max_results.unwrap_or(self.config.max_results),
+                },
+                replier: sender
+            }
+        ));
+        let result = receiver.await.map_err(|_| IoError::new(std::io::ErrorKind::BrokenPipe, "Couldn't receive response"))?;
+        match result {
+            Ok(Response::Peers(peers)) => {
+                let mut final_peers = HashMap::new();
+                for (peer_id, info) in peers {
+                    if let Ok(peer_id) = peer_id.parse() {
+                        final_peers.insert(peer_id, info);
+                    }
+                }
+                Ok(final_peers)
+            },
+            Ok(_) => Err(IoError::new(std::io::ErrorKind::InvalidData, "Unexpected response")),
+            Err(e) => Err(e)
+        }
     }
 }
 
