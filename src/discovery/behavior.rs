@@ -72,6 +72,11 @@ impl Behaviour {
         }).await;
     }
 
+    /// Changes if one of our peers is advertised to other peers.
+    pub async fn set_peer_visibilility(&mut self, peer_id: PeerId, visible: bool) {
+        self.db.set_visibility(&peer_id, visible).await;
+    }
+
     /// Sends a request to a peer to set our visibility to its peers.
     /// When true, our peer will be advertised to other peers.
     pub async fn set_visibility_to_peer(&mut self, peer_id: PeerId, visible: bool) -> Result<(), IoError> {
