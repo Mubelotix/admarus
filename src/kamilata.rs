@@ -12,12 +12,14 @@ const FILTER_SIZE: usize = 125000;
 struct AdmarusBehaviour {
     kamilata: KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>,
     identify: IdentifyBehaviour,
+    discovery: DiscoveryBehavior,
 }
 
 #[derive(Debug)]
 enum Event {
     Identify(Box<IdentifyEvent>),
     Kamilata(KamilataEvent),
+    Discovery(DiscoveryEvent),
 }
 
 impl From<IdentifyEvent> for Event {
@@ -29,6 +31,12 @@ impl From<IdentifyEvent> for Event {
 impl From<KamilataEvent> for Event {
     fn from(event: KamilataEvent) -> Self {
         Self::Kamilata(event)
+    }
+}
+
+impl From<DiscoveryEvent> for Event {
+    fn from(event: DiscoveryEvent) -> Self {
+        Self::Discovery(event)
     }
 }
 
@@ -59,11 +67,12 @@ impl KamilataNode {
         let identify = IdentifyBehaviour::new(
             IdentifyConfig::new(String::from("admarus/0.1.0"), local_key.public())
         );
+        let discovery = DiscoveryBehavior::new();
         let behaviour = AdmarusBehaviour {
             kamilata,
             identify,
+            discovery,
         };
-        
         
         let tcp_transport = tcp::tokio::Transport::new(tcp::Config::new());
 
@@ -86,6 +95,10 @@ impl KamilataNode {
 
     fn kam_mut(&mut self) -> &mut KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>> {
         &mut self.swarm.behaviour_mut().kamilata
+    }
+
+    fn disc_mut(&mut self) -> &mut DiscoveryBehavior {
+        &mut self.swarm.behaviour_mut().discovery
     }
 
     pub fn run(mut self) -> KamilataController {
@@ -122,10 +135,11 @@ impl KamilataNode {
                         // Identify events
                         SwarmEvent::Behaviour(Event::Identify(event)) => match *event {
                             IdentifyEvent::Received { peer_id, info } => {
-                                let r = self.kam_mut().set_addresses(&peer_id, info.listen_addrs).await;
+                                let r = self.kam_mut().set_addresses(&peer_id, info.listen_addrs.clone()).await;
                                 if let Err(e) = r {
                                     error!("Error while setting addresses for {peer_id}: {e:?}");
                                 }
+                                self.disc_mut().set_info(peer_id, info).await;
                             },
                             IdentifyEvent::Sent { peer_id } => trace!("Sent identify request to {peer_id}"),
                             IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id}"),

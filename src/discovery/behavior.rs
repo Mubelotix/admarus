@@ -1,5 +1,6 @@
 use super::*;
 
+#[derive(Debug, Clone)]
 pub enum Event {
 
 }
@@ -65,11 +66,11 @@ impl PeerListQuery {
 }
 
 impl Behaviour {
-    pub async fn new() -> Behaviour {
-        Behaviour::new_with_config(Config::default()).await
+    pub fn new() -> Behaviour {
+        Behaviour::new_with_config(Config::default())
     }
 
-    pub async fn new_with_config(config: Config) -> Behaviour {
+    pub fn new_with_config(config: Config) -> Behaviour {
         let config = Arc::new(config);
         Behaviour {
             config: Arc::clone(&config),
