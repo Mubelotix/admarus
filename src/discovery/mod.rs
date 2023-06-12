@@ -30,8 +30,9 @@ mod handler;
 mod protocol;
 mod db;
 mod config;
+mod query;
 
-pub use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*};
+pub use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*, query::*};
 
 pub type Stream = Negotiated<SubstreamBox>;
 pub type RequestReplier = OneshotSender<Result<Response, IoError>>;
