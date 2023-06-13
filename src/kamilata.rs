@@ -88,7 +88,13 @@ impl KamilataNode {
             .boxed();
         
         let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
-        swarm.listen_on(config.kam_addr.parse().unwrap()).unwrap();
+        for kam_addr in &config.kam_addrs {
+            let Ok(kam_addr) = kam_addr.parse::<Multiaddr>() else {
+                error!("Invalid address: {kam_addr}");
+                continue;
+            };
+            swarm.listen_on(kam_addr).unwrap();
+        }
 
         KamilataNode {
             swarm,

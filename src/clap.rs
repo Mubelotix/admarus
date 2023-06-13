@@ -5,8 +5,8 @@ use crate::prelude::*;
 #[command(author, version, about, long_about = None)]
 pub struct Args {
     /// Address on which the Kamilata node will listen
-    #[arg(long, default_value_t = String::from("/ip4/127.0.0.1/tcp/4002"))]
-    pub kam_addr: String,
+    #[arg(long, default_values_t = [String::from("/ip4/0.0.0.0/tcp/4002"), String::from("/ip6/::/tcp/4002")])]
+    pub kam_addrs: Vec<String>,
 
     /// Address of the Kamilata bootstrap node
     #[arg(long)]
