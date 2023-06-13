@@ -146,3 +146,7 @@ impl SwarmManager {
         connected_peers.entry(*peer_id).and_modify(|i| i.leeching = false);
     }
 }
+
+pub async fn manage_swarm(controller: KamilataController) {
+
+}

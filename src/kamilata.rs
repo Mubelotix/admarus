@@ -106,8 +106,7 @@ impl KamilataNode {
 
     pub fn run(mut self) -> KamilataController {
         let (sender, mut receiver) = channel(1);
-        let controller = 
-        KamilataController {
+        let controller = KamilataController {
             sender,
             swarm_manager: Arc::clone(&self.swarm_manager)
         };
@@ -214,6 +213,7 @@ enum ClientCommand {
     LeechFromAll,
 }
 
+#[derive(Clone)]
 pub struct KamilataController {
     sender: Sender<ClientCommand>,
     swarm_manager: Arc<SwarmManager>,
