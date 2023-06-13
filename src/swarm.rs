@@ -194,7 +194,8 @@ pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
                 .collect::<Vec<_>>();
             candidates.sort_by(|(_, a), (_, b)| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
             candidates.truncate(missing_fcp);
-
+            drop(connected_peers);
+            
             let mut connected_peers = sw.connected_peers.write().await;
             for (peer_id, info) in candidates {
                 if let Some(connected_info) = connected_peers.get_mut(peer_id) {
