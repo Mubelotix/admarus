@@ -257,7 +257,7 @@ pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
 
         // Sweep dial_attemps
         dial_attemps.retain(|_,time| time.elapsed() < Duration::from_secs(3600));
-        let currently_dialing = dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(50)).count();
+        let currently_dialing = dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(30)).count();
 
         // Looking for more peers
         let (fcp_count, _scp_count, _tp_count) = sw.class_counts().await;
@@ -273,10 +273,16 @@ pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
                 .iter()
                 .filter(|(peer_id, _)| 
                     !connected_peers.get(peer_id).map(|i| i.selected).unwrap_or(false)
-                    && !dial_attemps.contains_key(peer_id)
+                    && (!dial_attemps.contains_key(peer_id) || connected_peers.contains_key(peer_id))
                 )
                 .collect::<Vec<_>>();
-            candidates.sort_by(|(_, a), (_, b)| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+            candidates.sort_by(|(aid, a), (bid, b)| {
+                let mut ordering = b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal);
+                if ordering == Ordering::Equal {
+                    ordering = connected_peers.contains_key(bid).cmp(&connected_peers.contains_key(aid));
+                }
+                ordering
+            });
             candidates.truncate(missing_fcp);
             drop(connected_peers);
             
@@ -286,7 +292,7 @@ pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
                     debug!("Selecting first-class peer {peer_id}");
                     connected_info.selected = true;
                 } else {
-                    debug!("Dialing new peer {peer_id}");
+                    debug!("Dialing new peer {peer_id} at {:?}", info.addrs);
                     controller.dial_with_peer_id(*peer_id, info.addrs.clone()).await;
                     dial_attemps.insert(*peer_id, Instant::now());
                 }
