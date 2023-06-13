@@ -16,6 +16,6 @@ pub use serde::{Serialize, Deserialize};
 pub use async_trait::async_trait;
 pub use std::{collections::HashMap, sync::Arc, time::{Duration, Instant}, pin::Pin, future::Future, cmp::Ordering};
 pub use tokio::{sync::RwLock, time::sleep};
-pub use libp2p::{PeerId, Multiaddr, swarm::dial_opts::DialOpts};
+pub use libp2p::{PeerId, Multiaddr, swarm::dial_opts::DialOpts, multiaddr::Protocol};
 pub use futures::future::BoxFuture;
 pub use reqwest::Client;

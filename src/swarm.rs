@@ -183,9 +183,22 @@ pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Arg
         let now = Instant::now();
         let mut known_peers = controller.sw.known_peers.write().await;
         let previous_len = known_peers.len();
-        for (peer_id, addr) in peers {
+        for (peer_id, ipfs_addr) in peers {
+            let addr_components = ipfs_addr.iter().collect::<Vec<_>>();
+            let mut admarus_addr = Multiaddr::empty();
+            match addr_components.first() {
+                Some(Protocol::Ip4(ip)) => {
+                    admarus_addr.push(Protocol::Ip4(*ip));
+                    admarus_addr.push(Protocol::Tcp(4002));
+                }
+                Some(Protocol::Ip6(ip)) => {
+                    admarus_addr.push(Protocol::Ip6(*ip));
+                    admarus_addr.push(Protocol::Tcp(4002));
+                }
+                _ => continue,
+            }
             let known_peer = known_peers.entry(peer_id).or_default();
-            known_peer.addrs.push(addr);
+            known_peer.addrs.push(admarus_addr);
             known_peer.last_seen_ipfs = Some(now);
         }
         let new_len = known_peers.len();
