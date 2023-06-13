@@ -211,6 +211,7 @@ pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Arg
     }
 }
 
+/// Removes entries older than 1 week in the known peers database.
 pub async fn cleanup_known_peers(controller: KamilataController) {
     loop {
         let mut known_peers = controller.sw.known_peers.write().await;
@@ -231,6 +232,7 @@ pub async fn cleanup_known_peers(controller: KamilataController) {
     }
 }
 
+/// Ensures the swarm is healthy.
 pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
     let sw = Arc::clone(&controller.sw);
 
