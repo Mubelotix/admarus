@@ -37,9 +37,12 @@ struct ConnectedPeerInfo {
     connected_since: Instant,
 }
 
-
+#[derive(Clone)]
 struct PeerInfo {
     addrs: Vec<Multiaddr>,
+    score: f32,
+    recommander_score: f32,
+    recommanded_by: Option<PeerId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -50,7 +53,7 @@ pub enum PeerClass {
 }
 
 impl ConnectedPeerInfo {
-    pub fn role(&self) -> PeerClass {
+    pub fn class(&self) -> PeerClass {
         if self.selected {
             PeerClass::First
         } else if self.leeching {
@@ -60,7 +63,6 @@ impl ConnectedPeerInfo {
         }
     }
 }
-
 
 pub struct SwarmManager {
     config: Arc<Args>,
@@ -84,7 +86,7 @@ impl SwarmManager {
         let mut first_class_count = 0;
         let mut second_class_count = 0;
         let mut transient_count = 0;
-        self.connected_peers.read().await.values().for_each(|i| match i.role() {
+        self.connected_peers.read().await.values().for_each(|i| match i.class() {
             PeerClass::First => first_class_count += 1,
             PeerClass::Second => second_class_count += 1,
             PeerClass::Transient => transient_count += 1,
@@ -94,7 +96,7 @@ impl SwarmManager {
 
     pub async fn first_class_slot_available(&self) -> bool {
         let seeder_count = self.class_counts().await.0;
-        seeder_count < self.config.seeders
+        seeder_count < self.config.first_class
     }
 
     pub async fn second_class_slot_available(&self) -> bool {
@@ -103,7 +105,7 @@ impl SwarmManager {
     }
 
     pub async fn class(&self, peer_id: &PeerId) -> Option<PeerClass> {
-        self.connected_peers.read().await.get(peer_id).map(|i| i.role())
+        self.connected_peers.read().await.get(peer_id).map(|i| i.class())
     }
 
     pub async fn on_peer_connected(&self, peer_id: PeerId) {
@@ -129,7 +131,7 @@ impl SwarmManager {
     pub async fn on_leecher_added(&self, peer_id: PeerId) -> Result<(), TooManyLeechers> {
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.entry(peer_id).and_modify(|i| i.leeching = true);
-        let leecher_count = connected_peers.values().filter(|i| i.role() == PeerClass::Second).count();
+        let leecher_count = connected_peers.values().filter(|i| i.class() == PeerClass::Second).count();
         if leecher_count > self.config.leechers {
             return Err(TooManyLeechers{})
         }
@@ -147,6 +149,65 @@ impl SwarmManager {
     }
 }
 
-pub async fn manage_swarm(controller: KamilataController) {
+pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
+    let sw = Arc::clone(&controller.sw);
 
+    let mut dial_attemps: HashMap<PeerId, Instant> = HashMap::new();
+
+    loop {
+        // Unselect all first-class peers that are not seeding
+        // Disconnect all transient peers that are staying too long
+        for (peer_id, info) in sw.connected_peers.write().await.iter_mut() {
+            match info.class() {
+                PeerClass::First => if !info.seeding && info.connected_since.elapsed() > Duration::from_secs(60) {
+                    info.selected = false;
+                    // TODO visility in discovery
+                },
+                PeerClass::Transient => if info.connected_since.elapsed() > Duration::from_secs(60) {
+                    debug!("Disconnecting transient peer {peer_id}");
+                    controller.disconnect(peer_id).await;
+                },
+                _ => (),
+            }
+        }
+
+        // Sweep dial_attemps
+        dial_attemps.retain(|_,time| time.elapsed() < Duration::from_secs(3600));
+        let currently_dialing = dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(100)).count();
+
+        // Looking for more peers
+        let (fcp_count, _scp_count, _tp_count) = sw.class_counts().await;
+        let missing_fcp = config.first_class.saturating_sub(fcp_count).saturating_sub(currently_dialing);
+        if missing_fcp == 0 { continue }
+        debug!("Not enough first-class peers, looking for {} more", missing_fcp);
+
+        {
+            let known_peers = sw.known_peers.read().await;
+            let connected_peers = sw.connected_peers.read().await;
+
+            let mut candidates = known_peers
+                .iter()
+                .filter(|(peer_id, _)| 
+                    !connected_peers.get(peer_id).map(|i| i.selected).unwrap_or(false)
+                    && !dial_attemps.contains_key(peer_id)
+                )
+                .collect::<Vec<_>>();
+            candidates.sort_by(|(_, a), (_, b)| b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal));
+            candidates.truncate(missing_fcp);
+
+            let mut connected_peers = sw.connected_peers.write().await;
+            for (peer_id, info) in candidates {
+                if let Some(connected_info) = connected_peers.get_mut(peer_id) {
+                    debug!("Selecting first-class peer {peer_id}");
+                    connected_info.selected = true;
+                } else {
+                    debug!("Dialing new peer {peer_id}");
+                    controller.dial_with_peer_id(*peer_id, info.addrs.clone()).await;
+                    dial_attemps.insert(*peer_id, Instant::now());
+                }
+            }
+        }
+
+        sleep(Duration::from_secs(1)).await;
+    }
 }

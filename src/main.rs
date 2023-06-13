@@ -34,6 +34,6 @@ async fn main() {
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, kamilata.clone());
     let f2 = index.run();
-    let f3 = manage_swarm(kamilata);
+    let f3 = manage_swarm(kamilata, Arc::clone(&config));
     tokio::join!(f1, f2, f3);
 }

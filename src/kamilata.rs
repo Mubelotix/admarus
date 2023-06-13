@@ -108,7 +108,7 @@ impl KamilataNode {
         let (sender, mut receiver) = channel(1);
         let controller = KamilataController {
             sender,
-            swarm_manager: Arc::clone(&self.swarm_manager)
+            sw: Arc::clone(&self.swarm_manager)
         };
         tokio::spawn(async move {
             loop {
@@ -121,8 +121,17 @@ impl KamilataNode {
                             let controller = self.kam_mut().search_with_config(queries, config).await;
                             let _ = sender.send(controller);
                         },
-                        ClientCommand::Dial { addr } => {
-                            self.swarm.dial(addr).unwrap();
+                        ClientCommand::Dial(dial_opts) => {
+                            let r = self.swarm.dial(dial_opts);
+                            if let Err(e) = r {
+                                error!("Error while dialing: {e:?}");
+                            }
+                        },
+                        ClientCommand::Disconnect { peer_id } => {
+                            let r = self.swarm.disconnect_peer_id(peer_id);
+                            if let Err(e) = r {
+                                error!("Error while disconnecting from {peer_id}: {e:?}");
+                            }
                         },
                         ClientCommand::LeechFromAll => {
                             let peer_ids = self.swarm.connected_peers().cloned().collect::<Vec<_>>();
@@ -207,8 +216,9 @@ enum ClientCommand {
         config: SearchConfig,
         sender: OneshotSender<OngoingSearchController<DocumentResult>>,
     },
-    Dial {
-        addr: Multiaddr,
+    Dial(DialOpts),
+    Disconnect {
+        peer_id: PeerId,
     },
     LeechFromAll,
 }
@@ -216,7 +226,7 @@ enum ClientCommand {
 #[derive(Clone)]
 pub struct KamilataController {
     sender: Sender<ClientCommand>,
-    swarm_manager: Arc<SwarmManager>,
+    pub sw: Arc<SwarmManager>,
 }
 
 impl KamilataController {
@@ -231,8 +241,21 @@ impl KamilataController {
     }
 
     pub async fn dial(&self, addr: Multiaddr) {
-        let _ = self.sender.send(ClientCommand::Dial {
-            addr,
+        let _ = self.sender.send(ClientCommand::Dial(addr.into())).await;
+    }
+
+    pub async fn dial_with_peer_id(&self, peer_id: PeerId, addrs: Vec<Multiaddr>) {
+        let _ = self.sender.send(ClientCommand::Dial(
+            DialOpts::peer_id(peer_id).condition(libp2p::swarm::dial_opts::PeerCondition::Disconnected)
+                .addresses(addrs)
+                .extend_addresses_through_behaviour()
+                .build()
+        )).await;
+    }
+
+    pub async fn disconnect(&self, peer_id: &PeerId) {
+        let _ = self.sender.send(ClientCommand::Disconnect {
+            peer_id: *peer_id,
         }).await;
     }
 

@@ -22,7 +22,7 @@ pub struct Args {
 
     /// Number of seeders to connect to
     #[arg(long, default_value = "8")]
-    pub seeders: usize,
+    pub first_class: usize,
 
     /// Number of leechers to allow to connect
     #[arg(long, default_value = "50")]
