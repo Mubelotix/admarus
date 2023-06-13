@@ -1,40 +1,39 @@
-use reqwest::Client;
 use crate::prelude::*;
 
 const MAX_HTML_LENGTH: usize = 15_000_000;
 
 #[derive(Debug)]
-pub enum FetchingError {
+pub enum IpfsRpcError {
     ReqwestError(reqwest::Error),
     InvalidJson(serde_json::Error),
     InvalidResponse(&'static str),
 }
 
-impl From<reqwest::Error> for FetchingError {
+impl From<reqwest::Error> for IpfsRpcError {
     fn from(e: reqwest::Error) -> Self {
-        FetchingError::ReqwestError(e)
+        IpfsRpcError::ReqwestError(e)
     }
 }
 
-impl From<serde_json::Error> for FetchingError {
+impl From<serde_json::Error> for IpfsRpcError {
     fn from(e: serde_json::Error) -> Self {
-        FetchingError::InvalidJson(e)
+        IpfsRpcError::InvalidJson(e)
     }
 }
 
-impl std::fmt::Display for FetchingError {
+impl std::fmt::Display for IpfsRpcError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            FetchingError::ReqwestError(e) => write!(f, "ReqwestError: {e}"),
-            FetchingError::InvalidJson(e) => write!(f, "InvalidJson: {e}"),
-            FetchingError::InvalidResponse(e) => write!(f, "InvalidResponse: {e}"),
+            IpfsRpcError::ReqwestError(e) => write!(f, "ReqwestError: {e}"),
+            IpfsRpcError::InvalidJson(e) => write!(f, "InvalidJson: {e}"),
+            IpfsRpcError::InvalidResponse(e) => write!(f, "InvalidResponse: {e}"),
         }
     }
 }
 
-use FetchingError::InvalidResponse;
+use IpfsRpcError::InvalidResponse;
 
-pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, FetchingError> {
+pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, IpfsRpcError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/ls")).send().await?;
     let rep = rep.text().await?;
@@ -87,7 +86,7 @@ pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<Strin
     metadatas
 }
 
-pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Result<Option<Vec<(String, Metadata)>>, FetchingError> {
+pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Result<Option<Vec<(String, Metadata)>>, IpfsRpcError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/get?arg={cid}")).send().await?;
     let rep = rep.text().await?;
@@ -149,7 +148,7 @@ pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>)
     documents
 }
 
-pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Document>, FetchingError> {
+pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Document>, IpfsRpcError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}")).send().await?;
     let rep: Vec<u8> = rep.bytes().await?.to_vec();
@@ -159,4 +158,39 @@ pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Docum
     }
 
     Ok(None)
+}
+
+pub async fn get_ipfs_peers(ipfs_rpc: &str) -> Result<Vec<(PeerId, Multiaddr)>, IpfsRpcError> {
+    let client = Client::new();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/swarm/peers")).send().await?;
+    let rep = rep.text().await?;
+    let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
+    let peers = rep
+        .get("Peers").ok_or(InvalidResponse("Peers expected on data"))?
+        .as_array().ok_or(InvalidResponse("Peers expected to be an array"))?;
+
+    let mut results = Vec::new();
+    for peer in peers {
+        // Get addr
+        let addr = peer
+            .get("Addr").ok_or(InvalidResponse("Addr expected on peer"))?
+            .as_str().ok_or(InvalidResponse("Addr expected to be a string"))?;
+        let Ok(addr) = addr.parse() else {
+            warn!("Invalid multiaddr: {addr}");
+            continue;
+        };
+
+        // Get peer id
+        let peer_id = peer
+            .get("Peer").ok_or(InvalidResponse("Peer expected on peer"))?
+            .as_str().ok_or(InvalidResponse("Peer expected to be a string"))?;
+        let Ok(peer_id) = peer_id.parse() else {
+            warn!("Invalid peer id: {peer_id}");
+            continue;
+        };
+        
+        results.push((peer_id, addr));
+    }
+
+    Ok(results)
 }

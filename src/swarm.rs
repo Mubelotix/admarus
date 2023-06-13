@@ -37,12 +37,15 @@ struct ConnectedPeerInfo {
     connected_since: Instant,
 }
 
-#[derive(Clone)]
-struct PeerInfo {
+#[derive(Clone, Default)]
+pub struct PeerInfo {
     addrs: Vec<Multiaddr>,
     score: f32,
     recommander_score: f32,
-    recommanded_by: Option<PeerId>,
+
+    last_seen_ipfs: Option<Instant>,
+    last_seen: Option<Instant>,
+    recommended_by: Vec<(PeerId, Instant)>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -146,6 +149,31 @@ impl SwarmManager {
     pub async fn on_leecher_removed(&self, peer_id: &PeerId) {
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.entry(*peer_id).and_modify(|i| i.leeching = false);
+    }
+}
+
+/// Some of our ipfs peers might run Admarus.
+/// We try to connect randomly on the default Admarus port (4002).
+pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Args>) {
+    loop {
+        let peers = match get_ipfs_peers(&config.ipfs_rpc).await {
+            Ok(peers) => peers,
+            Err(e) => {
+                error!("Failed to bootstrap from ipfs peers: {e:?}");
+                return;
+            }
+        };
+    
+        let now = Instant::now();
+        let mut known_peers = controller.sw.known_peers.write().await;
+        for (peer_id, addr) in peers {
+            let known_peer = known_peers.entry(peer_id).or_default();
+            known_peer.addrs.push(addr);
+            known_peer.last_seen_ipfs = Some(now);
+        }
+        drop(known_peers);
+
+        sleep(Duration::from_secs(5*60)).await;
     }
 }
 

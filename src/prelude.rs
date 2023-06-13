@@ -1,7 +1,7 @@
 pub use crate::{
     result::*,
     index::*,
-    crawl::*,
+    ipfs_rpc::*,
     documents::*,
     api::*,
     kamilata::*,
@@ -18,3 +18,4 @@ pub use std::{collections::HashMap, sync::Arc, time::{Duration, Instant}, pin::P
 pub use tokio::{sync::RwLock, time::sleep};
 pub use libp2p::{PeerId, Multiaddr, swarm::dial_opts::DialOpts};
 pub use futures::future::BoxFuture;
+pub use reqwest::Client;

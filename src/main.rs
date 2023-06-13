@@ -3,7 +3,7 @@
 mod result;
 mod index;
 mod prelude;
-mod crawl;
+mod ipfs_rpc;
 mod documents;
 mod api;
 mod kamilata;
@@ -34,6 +34,7 @@ async fn main() {
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, kamilata.clone());
     let f2 = index.run();
-    let f3 = manage_swarm(kamilata, Arc::clone(&config));
-    tokio::join!(f1, f2, f3);
+    let f3 = manage_swarm(kamilata.clone(), Arc::clone(&config));
+    let f4 = bootstrap_from_ipfs(kamilata, Arc::clone(&config));
+    tokio::join!(f1, f2, f3, f4);
 }
