@@ -48,6 +48,22 @@ pub struct PeerInfo {
     recommended_by: Vec<(PeerId, Instant)>,
 }
 
+impl PeerInfo {
+    pub fn last_updated(&self) -> Option<Instant> {
+        let mut latest = self.last_seen_ipfs;
+        if self.last_seen > latest {
+            latest = self.last_seen;
+        }
+        for (_, time) in self.recommended_by.iter() {
+            if Some(*time) > latest {
+                latest = Some(*time);
+            }
+        }
+
+        latest
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum PeerClass {
     First,
@@ -174,6 +190,21 @@ pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Arg
         drop(known_peers);
 
         sleep(Duration::from_secs(5*60)).await;
+    }
+}
+
+pub async fn cleanup_known_peers(controller: KamilataController) {
+    loop {
+        let mut known_peers = controller.sw.known_peers.write().await;
+        known_peers.retain(|_, info| {
+            match info.last_updated() {
+                Some(last_updated) => last_updated.elapsed() < Duration::from_secs(7*86400),
+                None => false,
+            }
+        });
+        drop(known_peers);
+
+        sleep(Duration::from_secs(60*60)).await;
     }
 }
 
