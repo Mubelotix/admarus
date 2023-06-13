@@ -211,7 +211,9 @@ pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Arg
                 _ => continue,
             }
             let known_peer = known_peers.entry(peer_id).or_default();
-            known_peer.addrs.push(admarus_addr);
+            if !known_peer.addrs.contains(&admarus_addr) {
+                known_peer.addrs.push(admarus_addr);
+            }
             known_peer.last_seen_ipfs = Some(now);
         }
         let new_len = known_peers.len();
