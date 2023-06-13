@@ -49,6 +49,7 @@ impl KamilataNode {
     pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> KamilataNode {
         let local_key = Keypair::generate_ed25519();
         let peer_id = PeerId::from(local_key.public());
+        info!("Local peer id: {peer_id}");
 
         let swarm_manager = Arc::new(SwarmManager::new(Arc::clone(&config)));
         let swarm_manager2 = Arc::clone(&swarm_manager);
