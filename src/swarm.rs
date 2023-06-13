@@ -182,12 +182,17 @@ pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Arg
     
         let now = Instant::now();
         let mut known_peers = controller.sw.known_peers.write().await;
+        let previous_len = known_peers.len();
         for (peer_id, addr) in peers {
             let known_peer = known_peers.entry(peer_id).or_default();
             known_peer.addrs.push(addr);
             known_peer.last_seen_ipfs = Some(now);
         }
+        let new_len = known_peers.len();
         drop(known_peers);
+        if new_len != previous_len {
+            debug!("Added {} new peers from ipfs", new_len - previous_len);
+        }
 
         sleep(Duration::from_secs(5*60)).await;
     }
@@ -196,13 +201,18 @@ pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Arg
 pub async fn cleanup_known_peers(controller: KamilataController) {
     loop {
         let mut known_peers = controller.sw.known_peers.write().await;
+        let previous_len = known_peers.len();
         known_peers.retain(|_, info| {
             match info.last_updated() {
                 Some(last_updated) => last_updated.elapsed() < Duration::from_secs(7*86400),
                 None => false,
             }
         });
+        let new_len = known_peers.len();
         drop(known_peers);
+        if new_len != previous_len {
+            debug!("Removed {} peers from known peers database (outdated data)", previous_len - new_len);
+        }
 
         sleep(Duration::from_secs(60*60)).await;
     }
