@@ -128,6 +128,7 @@ impl SwarmManager {
     }
 
     pub async fn on_peer_connected(&self, peer_id: PeerId) {
+        let mut known_peers = self.known_peers.write().await;
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.insert(peer_id, ConnectedPeerInfo {
             selected: false,
@@ -135,11 +136,23 @@ impl SwarmManager {
             leeching: false,
             connected_since: Instant::now(),
         });
+        let mut peer_info = known_peers.entry(peer_id).or_default();
+        peer_info.last_seen = Some(Instant::now());
     }
 
     pub async fn on_peer_disconnected(&self, peer_id: &PeerId) {
+        let mut known_peers = self.known_peers.write().await;
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.remove(peer_id);
+        let mut peer_info = known_peers.entry(*peer_id).or_default();
+        peer_info.last_seen = Some(Instant::now());
+    }
+
+    pub async fn on_identify(&self, peer_id: &PeerId, info: libp2p_identify::Info) {
+        let mut known_peers = self.known_peers.write().await;
+        let mut peer_info = known_peers.entry(*peer_id).or_default();
+        peer_info.addrs = info.listen_addrs;
+        // TODO: other fields
     }
 
     pub async fn on_seeder_added(&self, peer_id: PeerId) {
@@ -291,6 +304,7 @@ pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
                 if let Some(connected_info) = connected_peers.get_mut(peer_id) {
                     debug!("Selecting first-class peer {peer_id}");
                     connected_info.selected = true;
+                    controller.leech_from(*peer_id).await;
                 } else {
                     debug!("Dialing new peer {peer_id} at {:?}", info.addrs);
                     controller.dial_with_peer_id(*peer_id, info.addrs.clone()).await;

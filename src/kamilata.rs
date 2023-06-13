@@ -42,7 +42,7 @@ impl From<DiscoveryEvent> for Event {
 
 pub struct KamilataNode {
     swarm: Swarm<AdmarusBehaviour>,
-    swarm_manager: Arc<SwarmManager>,
+    sw: Arc<SwarmManager>,
 }
 
 impl KamilataNode {
@@ -98,7 +98,7 @@ impl KamilataNode {
 
         KamilataNode {
             swarm,
-            swarm_manager,
+            sw: swarm_manager,
         }
     }
 
@@ -114,7 +114,7 @@ impl KamilataNode {
         let (sender, mut receiver) = channel(1);
         let controller = KamilataController {
             sender,
-            sw: Arc::clone(&self.swarm_manager)
+            sw: Arc::clone(&self.sw)
         };
         tokio::spawn(async move {
             loop {
@@ -139,12 +139,9 @@ impl KamilataNode {
                                 error!("Error while disconnecting from {peer_id}: {e:?}");
                             }
                         },
-                        ClientCommand::LeechFromAll => {
-                            let peer_ids = self.swarm.connected_peers().cloned().collect::<Vec<_>>();
-                            for peer_id in peer_ids {
-                                trace!("Leeching from {peer_id}");
-                                self.kam_mut().leech_from(peer_id);
-                            }
+                        ClientCommand::LeechFrom(peer_id) => {
+                            trace!("Leeching from {peer_id}");
+                            self.kam_mut().leech_from(peer_id);
                         },
                     },
                     future::Either::Left((None, _)) => break,
@@ -157,7 +154,8 @@ impl KamilataNode {
                                 if let Err(e) = r {
                                     error!("Error while setting addresses for {peer_id}: {e:?}");
                                 }
-                                self.disc_mut().set_info(peer_id, info).await;
+                                self.disc_mut().set_info(peer_id, info.clone()).await;
+                                self.sw.on_identify(&peer_id, info).await;
                             },
                             IdentifyEvent::Sent { peer_id } => trace!("Sent identify info to {peer_id}"),
                             IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id}"),
@@ -167,39 +165,39 @@ impl KamilataNode {
                         SwarmEvent::Behaviour(Event::Kamilata(event)) => match event {
                             KamilataEvent::LeecherAdded { peer_id, filter_count, interval_ms } => {
                                 debug!("Leecher added: {peer_id} (filter_count: {filter_count}, interval_ms: {interval_ms})");
-                                let r = self.swarm_manager.on_leecher_added(peer_id).await;
+                                let r = self.sw.on_leecher_added(peer_id).await;
                                 if let Err(e) = r {
                                     error!("Error while adding leecher {peer_id}: {e:?}");
                                     self.kam_mut().stop_seeding(peer_id);
-                                } else if self.swarm_manager.class(&peer_id).await == Some(PeerClass::Second) {
+                                } else if self.sw.class(&peer_id).await == Some(PeerClass::Second) {
                                     self.kam_mut().leech_from(peer_id);
                                 }
                             },
                             KamilataEvent::SeederAdded { peer_id } => {
                                 debug!("Seeder added: {peer_id}");
-                                self.swarm_manager.on_seeder_added(peer_id).await;
+                                self.sw.on_seeder_added(peer_id).await;
                             },
                             KamilataEvent::LeecherRemoved { peer_id } => {
                                 debug!("Leecher removed: {peer_id}");
-                                self.swarm_manager.on_leecher_removed(&peer_id).await;
-                                if self.swarm_manager.class(&peer_id).await == Some(PeerClass::Transient) {
+                                self.sw.on_leecher_removed(&peer_id).await;
+                                if self.sw.class(&peer_id).await == Some(PeerClass::Transient) {
                                     self.kam_mut().stop_leeching(peer_id);
                                 }
                             },
                             KamilataEvent::SeederRemoved { peer_id } => {
                                 debug!("Seeder removed: {peer_id}");
-                                self.swarm_manager.on_seeder_removed(&peer_id).await;
+                                self.sw.on_seeder_removed(&peer_id).await;
                             },
                         },
                         SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address} (listener id: {listener_id:?})"),
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => {
                             debug!("Connection established with {peer_id} (num_established: {num_established}, endpoint: {endpoint:?})");
-                            self.swarm_manager.on_peer_connected(peer_id).await;
+                            self.sw.on_peer_connected(peer_id).await;
                         },
                         SwarmEvent::ConnectionClosed { peer_id, num_established, .. } => {
                             if num_established == 0 {
                                 debug!("Peer {peer_id} disconnected");
-                                self.swarm_manager.on_peer_disconnected(&peer_id).await;
+                                self.sw.on_peer_disconnected(&peer_id).await;
                             }
                         },
                         SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error}"),
@@ -226,7 +224,7 @@ enum ClientCommand {
     Disconnect {
         peer_id: PeerId,
     },
-    LeechFromAll,
+    LeechFrom(PeerId),
 }
 
 #[derive(Clone)]
@@ -265,7 +263,7 @@ impl KamilataController {
         }).await;
     }
 
-    pub async fn leech_from_all(&self) {
-        let _ = self.sender.send(ClientCommand::LeechFromAll).await;
+    pub async fn leech_from(&self, peer_id: PeerId) {
+        let _ = self.sender.send(ClientCommand::LeechFrom(peer_id)).await;
     }
 }

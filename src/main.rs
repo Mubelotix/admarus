@@ -29,7 +29,8 @@ async fn main() {
     if let Some(bootstrap_addr) = &config.kam_bootstrap {
         kamilata.dial(bootstrap_addr.parse().unwrap()).await;
         sleep(Duration::from_secs(2)).await;
-        kamilata.leech_from_all().await; // FIXME: remove this
+        // FIXME: remove this
+        todo!("leech from") 
     }
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, kamilata.clone());
