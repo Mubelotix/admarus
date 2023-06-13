@@ -263,7 +263,7 @@ pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
         let (fcp_count, _scp_count, _tp_count) = sw.class_counts().await;
         let missing_fcp = config.first_class.saturating_sub(fcp_count).saturating_sub(currently_dialing);
         if missing_fcp == 0 { continue }
-        debug!("Not enough first-class peers, looking for {} more", missing_fcp);
+        trace!("Not enough first-class peers, looking for {missing_fcp} more ({} targeted - {fcp_count} have - {currently_dialing} dialing)", config.first_class);
 
         {
             let known_peers = sw.known_peers.read().await;
