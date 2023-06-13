@@ -120,6 +120,10 @@ impl <const N: usize> DocumentIndex<N> {
             };
             last_printed_error = None;
             pinned.retain(|cid| already_explored.insert(cid.clone()));
+            if pinned.is_empty() {
+                sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
+                continue;
+            }
             debug!("{} new pinned elements", pinned.len());
             
             let pinned_files = explore_all(&self.config.ipfs_rpc, pinned).await;
