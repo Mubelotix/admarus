@@ -63,3 +63,25 @@ pub async fn submit_census_record(census_rpc: &str, record: Record, keys: Keypai
         Err(CensusRpcError::Status(status, text))
     }
 }
+
+pub async fn get_census_peers(census_rpc: &str) -> Result<Vec<(PeerId, Vec<Multiaddr>)>, CensusRpcError> {
+    let client = Client::new();
+    let resp = client.get(format!("{census_rpc}/api/v0/peers"))
+        .send()
+        .await?;
+    let status = resp.status().as_u16();
+    let body = resp.text().await?;
+    if status != 200 {
+        return Err(CensusRpcError::Status(status, body));
+    }
+
+    let value = serde_json::from_str::<HashMap<String, Vec<String>>>(&body)?;
+    let mut peers = Vec::new();
+    for (peer_id, addrs) in value {
+        let Ok(peer_id) = peer_id.parse() else { continue };
+        let addrs = addrs.into_iter().filter_map(|addr| addr.parse().ok()).collect();
+        peers.push((peer_id, addrs));
+    }
+
+    Ok(peers)
+}
