@@ -54,7 +54,8 @@ pub struct PeerInfo {
 
     last_seen_ipfs: Option<u64>,
     last_seen: Option<u64>,
-    recommended_by: Vec<(PeerId, u64)>,
+    last_returned_by_census: Option<u64>,
+    recommended_by: HashMap<PeerId, u64>,
 }
 
 impl PeerInfo {
@@ -74,6 +75,21 @@ impl PeerInfo {
 
     pub fn availability(&self) -> f64 {
         self.successful_dials as f64 / (self.successful_dials + self.failed_dials) as f64
+    }
+
+    pub fn source_reliability(&self) -> usize {
+        let mut reliability = 0;
+        if self.last_seen_ipfs.is_some() {
+            reliability += 1;
+        }
+        if self.last_returned_by_census.is_some() {
+            reliability += 10;
+        }
+        if self.last_seen.is_some() {
+            reliability += 100;
+        }
+        reliability += std::cmp::min(self.recommended_by.len() * 5, 90);
+        reliability
     }
 }
 
@@ -167,9 +183,12 @@ impl SwarmManager {
             if ordering == Ordering::Equal {
                 ordering = b.availability().partial_cmp(&a.availability()).unwrap_or(Ordering::Equal);
             }
+            if ordering == Ordering::Equal {
+                ordering = b.source_reliability().partial_cmp(&a.source_reliability()).unwrap_or(Ordering::Equal);
+            }
             ordering
         });
-        
+
         candidates.truncate(count);
 
         candidates.into_iter().map(|(a,b)| (*a,b.clone())).collect()

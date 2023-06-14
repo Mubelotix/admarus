@@ -10,6 +10,7 @@ pub async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
         }
     };
 
+    let now = now();
     let mut known_peers = node.sw.known_peers.write().await;
     let previous_len = known_peers.len();
     for (peer_id, addrs) in census_peers {
@@ -19,6 +20,7 @@ pub async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
                 known_peer.addrs.push(addr);
             }
         }
+        known_peer.last_returned_by_census = Some(now);
     }
     let new_len = known_peers.len();
     drop(known_peers);
