@@ -263,10 +263,6 @@ impl NodeController {
         receiver.await.expect("Channel closed")
     }
 
-    pub async fn dial(&self, addr: Multiaddr) {
-        let _ = self.sender.send(ClientCommand::Dial(addr.into())).await;
-    }
-
     pub async fn dial_with_peer_id(&self, peer_id: PeerId, addrs: Vec<Multiaddr>) {
         let _ = self.sender.send(ClientCommand::Dial(
             DialOpts::peer_id(peer_id).condition(libp2p::swarm::dial_opts::PeerCondition::Disconnected)
