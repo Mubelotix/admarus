@@ -5,9 +5,10 @@ pub async fn cleanup_db_task(controller: NodeController) {
     loop {
         let mut known_peers = controller.sw.known_peers.write().await;
         let previous_len = known_peers.len();
+        let now = now();
         known_peers.retain(|_, info| {
             match info.last_updated() {
-                Some(last_updated) => last_updated.elapsed() < Duration::from_secs(7*86400),
+                Some(last_updated) => now - last_updated < 7*86400,
                 None => false,
             }
         });

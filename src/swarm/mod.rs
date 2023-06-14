@@ -49,13 +49,13 @@ pub struct PeerInfo {
     score: f32,
     recommander_score: f32,
 
-    last_seen_ipfs: Option<Instant>,
-    last_seen: Option<Instant>,
-    recommended_by: Vec<(PeerId, Instant)>,
+    last_seen_ipfs: Option<u64>,
+    last_seen: Option<u64>,
+    recommended_by: Vec<(PeerId, u64)>,
 }
 
 impl PeerInfo {
-    pub fn last_updated(&self) -> Option<Instant> {
+    pub fn last_updated(&self) -> Option<u64> {
         let mut latest = self.last_seen_ipfs;
         if self.last_seen > latest {
             latest = self.last_seen;
@@ -154,7 +154,7 @@ impl SwarmManager {
             connected_since: Instant::now(),
         });
         let mut peer_info = known_peers.entry(peer_id).or_default();
-        peer_info.last_seen = Some(Instant::now());
+        peer_info.last_seen = Some(now());
     }
 
     pub async fn on_peer_disconnected(&self, peer_id: &PeerId) {
@@ -162,7 +162,7 @@ impl SwarmManager {
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.remove(peer_id);
         let mut peer_info = known_peers.entry(*peer_id).or_default();
-        peer_info.last_seen = Some(Instant::now());
+        peer_info.last_seen = Some(now());
     }
 
     pub async fn on_identify(&self, peer_id: &PeerId, info: libp2p_identify::Info) {

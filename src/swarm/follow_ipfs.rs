@@ -12,7 +12,7 @@ pub async fn follow_ipfs_task(controller: NodeController, config: Arc<Args>) {
             }
         };
     
-        let now = Instant::now();
+        let now = now();
         let mut known_peers = controller.sw.known_peers.write().await;
         let previous_len = known_peers.len();
         for (peer_id, ipfs_addr) in peers {
