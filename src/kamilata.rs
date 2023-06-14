@@ -40,13 +40,13 @@ impl From<DiscoveryEvent> for Event {
     }
 }
 
-pub struct KamilataNode {
+pub struct Node {
     swarm: Swarm<AdmarusBehaviour>,
     sw: Arc<SwarmManager>,
 }
 
-impl KamilataNode {
-    pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> (KamilataNode, Keypair) {
+impl Node {
+    pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> (Node, Keypair) {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         info!("Local peer id: {peer_id}");
@@ -97,7 +97,7 @@ impl KamilataNode {
             swarm.listen_on(kam_addr).unwrap();
         }
 
-        (KamilataNode {
+        (Node {
             swarm,
             sw: swarm_manager,
         }, keypair)
@@ -111,9 +111,9 @@ impl KamilataNode {
         &mut self.swarm.behaviour_mut().discovery
     }
 
-    pub fn run(mut self) -> KamilataController {
+    pub fn run(mut self) -> NodeController {
         let (sender, mut receiver) = channel(1);
-        let controller = KamilataController {
+        let controller = NodeController {
             sender,
             sw: Arc::clone(&self.sw)
         };
@@ -236,12 +236,12 @@ enum ClientCommand {
 }
 
 #[derive(Clone)]
-pub struct KamilataController {
+pub struct NodeController {
     sender: Sender<ClientCommand>,
     pub sw: Arc<SwarmManager>,
 }
 
-impl KamilataController {
+impl NodeController {
     pub async fn search(&self, queries: SearchQueries) -> OngoingSearchController<DocumentResult> {
         let (sender, receiver) = oneshot_channel();
         let _ = self.sender.send(ClientCommand::Search {

@@ -1,13 +1,13 @@
 use crate::prelude::*;
 
-pub async fn update_census_task(kamilata: KamilataController, census_rpc: Option<&str>, keypair: Keypair) {
+pub async fn update_census_task(node: NodeController, census_rpc: Option<&str>, keypair: Keypair) {
     let census_rpc = match census_rpc {
         Some(census_rpc) => census_rpc,
         None => return,
     };
 
     loop {
-        let addrs = kamilata
+        let addrs = node
             .external_addresses().await
             .into_iter()
             .map(|rec| rec.addr.to_string())

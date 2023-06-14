@@ -25,20 +25,20 @@ async fn main() {
     
     let search_park = Arc::new(SearchPark::new());
 
-    let (kamilata, keypair) = KamilataNode::init(Arc::clone(&config), index.clone()).await;
-    let kamilata = kamilata.run();
+    let (node, keypair) = Node::init(Arc::clone(&config), index.clone()).await;
+    let node = node.run();
     if let Some(bootstrap_addr) = &config.kam_bootstrap {
-        kamilata.dial(bootstrap_addr.parse().unwrap()).await;
+        node.dial(bootstrap_addr.parse().unwrap()).await;
         sleep(Duration::from_secs(2)).await;
         // FIXME: remove this
         todo!("leech from") 
     }
 
-    let f1 = serve_api(&config.api_addr, index.clone(), search_park, kamilata.clone());
+    let f1 = serve_api(&config.api_addr, index.clone(), search_park, node.clone());
     let f2 = index.run();
-    let f3 = maintain_swarm_task(kamilata.clone(), Arc::clone(&config));
-    let f4 = follow_ipfs_task(kamilata.clone(), Arc::clone(&config));
-    let f5 = cleanup_db_task(kamilata.clone());
-    let f6 = update_census_task(kamilata.clone(), config.census_rpc.as_deref(), keypair.clone());
+    let f3 = maintain_swarm_task(node.clone(), Arc::clone(&config));
+    let f4 = follow_ipfs_task(node.clone(), Arc::clone(&config));
+    let f5 = cleanup_db_task(node.clone());
+    let f6 = update_census_task(node.clone(), config.census_rpc.as_deref(), keypair.clone());
     tokio::join!(f1, f2, f3, f4, f5, f6);
 }

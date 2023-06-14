@@ -44,7 +44,7 @@ impl SearchPark {
     }
 }
 
-async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>, KamilataController)) -> Result<impl warp::Reply, Infallible> {
+async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>, NodeController)) -> Result<impl warp::Reply, Infallible> {
     let words: Vec<_> = query.q.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
     let search_controler = kamilata.search(SearchQueries::from(words)).await;
     let id = search_park.insert(search_controler).await;
@@ -63,7 +63,7 @@ async fn fetch_results((query, search_park): (FetchResultsQuery, Arc<SearchPark>
     Ok(Response::builder().header("Content-Type", "application/json").body(serde_json::to_string(&search_results).unwrap()).unwrap())
 }
 
-pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: KamilataController) {
+pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: NodeController) {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
 
     let local_search = warp::get()

@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// Ensures the swarm is healthy.
-pub async fn maintain_swarm_task(controller: KamilataController, config: Arc<Args>) {
+pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) {
     let sw = Arc::clone(&controller.sw);
 
     let mut dial_attemps: HashMap<PeerId, Instant> = HashMap::new();
