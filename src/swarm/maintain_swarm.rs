@@ -29,46 +29,20 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
         let missing_fcp = config.first_class.saturating_sub(fcp_count).saturating_sub(currently_dialing);
         if missing_fcp == 0 { continue }
         trace!("Not enough first-class peers, looking for {missing_fcp} more ({} targeted - {fcp_count} have - {currently_dialing} dialing)", config.first_class);
+        let candidates = sw.get_peers_to_dial(missing_fcp).await;
 
-        {
-            let known_peers = sw.known_peers.read().await;
-            let dial_attempts = sw.dial_attemps.read().await;
-            let connected_peers = sw.connected_peers.read().await;
-
-            let mut candidates = known_peers
-                .iter()
-                .filter(|(peer_id, _)| 
-                    !connected_peers.get(peer_id).map(|i| i.selected).unwrap_or(false)
-                    && (!dial_attempts.contains_key(peer_id) || connected_peers.contains_key(peer_id))
-                )
-                .collect::<Vec<_>>();
-            candidates.sort_by(|(aid, a), (bid, b)| {
-                let mut ordering = b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal);
-                if ordering == Ordering::Equal {
-                    ordering = connected_peers.contains_key(bid).cmp(&connected_peers.contains_key(aid));
-                }
-                if ordering == Ordering::Equal {
-                    ordering = b.availability().partial_cmp(&a.availability()).unwrap_or(Ordering::Equal);
-                }
-                ordering
+        // Fetch more peers if we don't have enough
+        if candidates.len() < missing_fcp && last_get_peers.map(|i| i.elapsed() > Duration::from_secs(60)).unwrap_or(true) {
+            trace!("Not enough candidates ({}). Getting peers", candidates.len());
+            last_get_peers = Some(Instant::now());
+            let controller2 = controller.clone();
+            let config2 = Arc::clone(&config);
+            tokio::spawn(async move {
+                get_peers(controller2, config2).await
             });
-            candidates.truncate(missing_fcp);
-            let candidates = candidates.into_iter().map(|(a,b)| (*a,b.clone())).collect::<Vec<_>>();
-            drop(known_peers);
-            drop(dial_attempts);
-            drop(connected_peers);
+        }
 
-            // Fetch more peers if we don't have enough
-            if candidates.len() < missing_fcp && last_get_peers.map(|i| i.elapsed() > Duration::from_secs(60)).unwrap_or(true) {
-                trace!("Not enough candidates ({}). Getting peers", candidates.len());
-                last_get_peers = Some(Instant::now());
-                let controller2 = controller.clone();
-                let config2 = Arc::clone(&config);
-                tokio::spawn(async move {
-                    get_peers(controller2, config2).await
-                });
-            }
-            
+        {            
             let mut known_peers = sw.known_peers.write().await;
             let mut dial_attempts = sw.dial_attemps.write().await;
             let mut connected_peers = sw.connected_peers.write().await;

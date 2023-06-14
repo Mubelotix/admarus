@@ -146,6 +146,35 @@ impl SwarmManager {
         dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(30)).count()
     }
 
+    pub async fn get_peers_to_dial(&self, count: usize) -> Vec<(PeerId, PeerInfo)> {
+        let known_peers = self.known_peers.read().await;
+        let dial_attempts = self.dial_attemps.read().await;
+        let connected_peers = self.connected_peers.read().await;
+
+        let mut candidates = known_peers
+            .iter()
+            .filter(|(peer_id, _)| 
+                !connected_peers.get(peer_id).map(|i| i.selected).unwrap_or(false)
+                && (!dial_attempts.contains_key(peer_id) || connected_peers.contains_key(peer_id))
+            )
+            .collect::<Vec<_>>();
+
+        candidates.sort_by(|(aid, a), (bid, b)| {
+            let mut ordering = b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal);
+            if ordering == Ordering::Equal {
+                ordering = connected_peers.contains_key(bid).cmp(&connected_peers.contains_key(aid));
+            }
+            if ordering == Ordering::Equal {
+                ordering = b.availability().partial_cmp(&a.availability()).unwrap_or(Ordering::Equal);
+            }
+            ordering
+        });
+        
+        candidates.truncate(count);
+
+        candidates.into_iter().map(|(a,b)| (*a,b.clone())).collect()
+    }
+
     pub async fn on_peer_connected(&self, peer_id: PeerId) {
         let mut known_peers = self.known_peers.write().await;
         let dial_attempts = self.dial_attemps.read().await;
