@@ -30,6 +30,11 @@
 
 use crate::prelude::*;
 
+mod follow_ipfs;
+mod maintain_swarm;
+mod cleanup_db;
+pub use {follow_ipfs::*, maintain_swarm::*, cleanup_db::*};
+
 struct ConnectedPeerInfo {
     selected: bool,
     seeding: bool,
@@ -181,140 +186,4 @@ impl SwarmManager {
     }
 }
 
-/// Some of our ipfs peers might run Admarus.
-/// We try to connect randomly on the default Admarus port (4002).
-pub async fn bootstrap_from_ipfs(controller: KamilataController, config: Arc<Args>) {
-    loop {
-        let peers = match get_ipfs_peers(&config.ipfs_rpc).await {
-            Ok(peers) => peers,
-            Err(e) => {
-                error!("Failed to bootstrap from ipfs peers: {e:?}");
-                return;
-            }
-        };
-    
-        let now = Instant::now();
-        let mut known_peers = controller.sw.known_peers.write().await;
-        let previous_len = known_peers.len();
-        for (peer_id, ipfs_addr) in peers {
-            let addr_components = ipfs_addr.iter().collect::<Vec<_>>();
-            let mut admarus_addr = Multiaddr::empty();
-            match addr_components.first() {
-                Some(Protocol::Ip4(ip)) => {
-                    admarus_addr.push(Protocol::Ip4(*ip));
-                    admarus_addr.push(Protocol::Tcp(4002));
-                }
-                Some(Protocol::Ip6(ip)) => {
-                    admarus_addr.push(Protocol::Ip6(*ip));
-                    admarus_addr.push(Protocol::Tcp(4002));
-                }
-                _ => continue,
-            }
-            let known_peer = known_peers.entry(peer_id).or_default();
-            if !known_peer.addrs.contains(&admarus_addr) {
-                known_peer.addrs.push(admarus_addr);
-            }
-            known_peer.last_seen_ipfs = Some(now);
-        }
-        let new_len = known_peers.len();
-        drop(known_peers);
-        if new_len != previous_len {
-            debug!("Added {} new peers from ipfs", new_len - previous_len);
-        }
 
-        sleep(Duration::from_secs(5*60)).await;
-    }
-}
-
-/// Removes entries older than 1 week in the known peers database.
-pub async fn cleanup_known_peers(controller: KamilataController) {
-    loop {
-        let mut known_peers = controller.sw.known_peers.write().await;
-        let previous_len = known_peers.len();
-        known_peers.retain(|_, info| {
-            match info.last_updated() {
-                Some(last_updated) => last_updated.elapsed() < Duration::from_secs(7*86400),
-                None => false,
-            }
-        });
-        let new_len = known_peers.len();
-        drop(known_peers);
-        if new_len != previous_len {
-            debug!("Removed {} peers from known peers database (outdated data)", previous_len - new_len);
-        }
-
-        sleep(Duration::from_secs(60*60)).await;
-    }
-}
-
-/// Ensures the swarm is healthy.
-pub async fn manage_swarm(controller: KamilataController, config: Arc<Args>) {
-    let sw = Arc::clone(&controller.sw);
-
-    let mut dial_attemps: HashMap<PeerId, Instant> = HashMap::new();
-
-    loop {
-        // Unselect all first-class peers that are not seeding
-        // Disconnect all transient peers that are staying too long
-        for (peer_id, info) in sw.connected_peers.write().await.iter_mut() {
-            match info.class() {
-                PeerClass::First => if !info.seeding && info.connected_since.elapsed() > Duration::from_secs(60) {
-                    info.selected = false;
-                    // TODO visility in discovery
-                },
-                PeerClass::Transient => if info.connected_since.elapsed() > Duration::from_secs(60) {
-                    debug!("Disconnecting transient peer {peer_id}");
-                    controller.disconnect(peer_id).await;
-                },
-                _ => (),
-            }
-        }
-
-        // Sweep dial_attemps
-        dial_attemps.retain(|_,time| time.elapsed() < Duration::from_secs(3600));
-        let currently_dialing = dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(30)).count();
-
-        // Looking for more peers
-        let (fcp_count, _scp_count, _tp_count) = sw.class_counts().await;
-        let missing_fcp = config.first_class.saturating_sub(fcp_count).saturating_sub(currently_dialing);
-        if missing_fcp == 0 { continue }
-        trace!("Not enough first-class peers, looking for {missing_fcp} more ({} targeted - {fcp_count} have - {currently_dialing} dialing)", config.first_class);
-
-        {
-            let known_peers = sw.known_peers.read().await;
-            let connected_peers = sw.connected_peers.read().await;
-
-            let mut candidates = known_peers
-                .iter()
-                .filter(|(peer_id, _)| 
-                    !connected_peers.get(peer_id).map(|i| i.selected).unwrap_or(false)
-                    && (!dial_attemps.contains_key(peer_id) || connected_peers.contains_key(peer_id))
-                )
-                .collect::<Vec<_>>();
-            candidates.sort_by(|(aid, a), (bid, b)| {
-                let mut ordering = b.score.partial_cmp(&a.score).unwrap_or(Ordering::Equal);
-                if ordering == Ordering::Equal {
-                    ordering = connected_peers.contains_key(bid).cmp(&connected_peers.contains_key(aid));
-                }
-                ordering
-            });
-            candidates.truncate(missing_fcp);
-            drop(connected_peers);
-            
-            let mut connected_peers = sw.connected_peers.write().await;
-            for (peer_id, info) in candidates {
-                if let Some(connected_info) = connected_peers.get_mut(peer_id) {
-                    debug!("Selecting first-class peer {peer_id}");
-                    connected_info.selected = true;
-                    controller.leech_from(*peer_id).await;
-                } else {
-                    debug!("Dialing new peer {peer_id} at {:?}", info.addrs);
-                    controller.dial_with_peer_id(*peer_id, info.addrs.clone()).await;
-                    dial_attemps.insert(*peer_id, Instant::now());
-                }
-            }
-        }
-
-        sleep(Duration::from_secs(1)).await;
-    }
-}

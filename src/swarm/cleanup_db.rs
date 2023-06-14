@@ -1,0 +1,22 @@
+use crate::prelude::*;
+
+/// Removes entries older than 1 week in the known peers database.
+pub async fn cleanup_db(controller: KamilataController) {
+    loop {
+        let mut known_peers = controller.sw.known_peers.write().await;
+        let previous_len = known_peers.len();
+        known_peers.retain(|_, info| {
+            match info.last_updated() {
+                Some(last_updated) => last_updated.elapsed() < Duration::from_secs(7*86400),
+                None => false,
+            }
+        });
+        let new_len = known_peers.len();
+        drop(known_peers);
+        if new_len != previous_len {
+            debug!("Removed {} peers from known peers database (outdated data)", previous_len - new_len);
+        }
+
+        sleep(Duration::from_secs(60*60)).await;
+    }
+}

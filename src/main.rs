@@ -36,8 +36,8 @@ async fn main() {
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, kamilata.clone());
     let f2 = index.run();
-    let f3 = manage_swarm(kamilata.clone(), Arc::clone(&config));
-    let f4 = bootstrap_from_ipfs(kamilata.clone(), Arc::clone(&config));
-    let f5 = cleanup_known_peers(kamilata.clone());
+    let f3 = maintain_swarm(kamilata.clone(), Arc::clone(&config));
+    let f4 = follow_ipfs(kamilata.clone(), Arc::clone(&config));
+    let f5 = cleanup_db(kamilata.clone());
     tokio::join!(f1, f2, f3, f4, f5);
 }
