@@ -3,7 +3,8 @@
 mod result;
 mod index;
 mod prelude;
-mod ipfs_rpc;
+mod rpc_ipfs;
+mod rpc_census;
 mod documents;
 mod api;
 mod kamilata;

@@ -34,6 +34,8 @@ dependencies = [
  "scraper",
  "serde",
  "serde_json",
+ "sha2 0.10.6",
+ "sha2-derive",
  "tokio",
  "warp",
 ]
@@ -3568,6 +3570,23 @@ dependencies = [
  "cpufeatures",
  "digest 0.10.7",
 ]
+
+[[package]]
+name = "sha2-derive"
+version = "0.1.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1baf671db8b852fb752fa2166907c42259c1f92119c9dc6e6f19e020d47dbffe"
+dependencies = [
+ "generic-array",
+ "sha2 0.10.6",
+ "sha2-derive-proc-macro",
+]
+
+[[package]]
+name = "sha2-derive-proc-macro"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0aafeb6d9054861fe631c49ad678fda7ba68270fc98fff0b1b6861f0d6b916f4"
 
 [[package]]
 name = "signal-hook-registry"

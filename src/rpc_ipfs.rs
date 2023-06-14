@@ -4,28 +4,28 @@ const MAX_HTML_LENGTH: usize = 15_000_000;
 
 #[derive(Debug)]
 pub enum IpfsRpcError {
-    ReqwestError(reqwest::Error),
-    InvalidJson(serde_json::Error),
+    Reqwest(reqwest::Error),
+    Json(serde_json::Error),
     InvalidResponse(&'static str),
 }
 
 impl From<reqwest::Error> for IpfsRpcError {
     fn from(e: reqwest::Error) -> Self {
-        IpfsRpcError::ReqwestError(e)
+        IpfsRpcError::Reqwest(e)
     }
 }
 
 impl From<serde_json::Error> for IpfsRpcError {
     fn from(e: serde_json::Error) -> Self {
-        IpfsRpcError::InvalidJson(e)
+        IpfsRpcError::Json(e)
     }
 }
 
 impl std::fmt::Display for IpfsRpcError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            IpfsRpcError::ReqwestError(e) => write!(f, "ReqwestError: {e}"),
-            IpfsRpcError::InvalidJson(e) => write!(f, "InvalidJson: {e}"),
+            IpfsRpcError::Reqwest(e) => write!(f, "ReqwestError: {e}"),
+            IpfsRpcError::Json(e) => write!(f, "InvalidJson: {e}"),
             IpfsRpcError::InvalidResponse(e) => write!(f, "InvalidResponse: {e}"),
         }
     }
