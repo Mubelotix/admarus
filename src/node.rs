@@ -252,7 +252,7 @@ impl NodeController {
             config: SearchConfig::default(),
             sender,
         }).await;
-        receiver.await.unwrap()
+        receiver.await.expect("Channel closed")
     }
 
     pub async fn external_addresses(&self) -> Vec<AddressRecord> {
@@ -260,7 +260,7 @@ impl NodeController {
         let _ = self.sender.send(ClientCommand::GetExternalAddrs {
             sender,
         }).await;
-        receiver.await.unwrap()
+        receiver.await.expect("Channel closed")
     }
 
     pub async fn dial(&self, addr: Multiaddr) {

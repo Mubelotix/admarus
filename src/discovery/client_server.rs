@@ -105,5 +105,5 @@ async fn client_task_inner(request: Request, mut stream: Stream, db: Arc<Db>) ->
 
 pub async fn client_task(request: Request, replier: RequestReplier, stream: Stream, db: Arc<Db>) {
     let response = client_task_inner(request, stream, db).await;
-    replier.send(response).unwrap();
+    let _ = replier.send(response);
 }
