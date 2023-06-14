@@ -8,10 +8,6 @@ pub struct Args {
     #[arg(long, default_values_t = [String::from("/ip4/0.0.0.0/tcp/4002"), String::from("/ip6/::/tcp/4002")])]
     pub listen_addrs: Vec<String>,
 
-    /// Address of the Admarus bootstrap node
-    #[arg(long)]
-    pub kam_bootstrap: Option<String>,
-
     /// IPFS RPC url
     #[arg(long, default_value = "http://localhost:5001")]
     pub ipfs_rpc: String,
