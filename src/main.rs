@@ -32,6 +32,6 @@ async fn main() {
     let f2 = index.run();
     let f3 = maintain_swarm_task(node.clone(), Arc::clone(&config));
     let f4 = cleanup_db_task(node.clone());
-    let f5 = update_census_task(node.clone(), config.census_rpc.as_deref(), keypair.clone());
+    let f5 = update_census_task(node.clone(), keypair.clone(), Arc::clone(&config));
     tokio::join!(f1, f2, f3, f4, f5);
 }
