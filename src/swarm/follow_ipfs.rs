@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Some of our ipfs peers might run Admarus.
 /// We try to connect randomly on the default Admarus port (4002).
-pub async fn follow_ipfs(controller: KamilataController, config: Arc<Args>) {
+pub async fn follow_ipfs_task(controller: KamilataController, config: Arc<Args>) {
     loop {
         let peers = match get_ipfs_peers(&config.ipfs_rpc).await {
             Ok(peers) => peers,

@@ -1,6 +1,6 @@
 use crate::prelude::*;
 use kamilata::behaviour::KamilataEvent;
-use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour}, identity::Keypair, PeerId, tcp, Transport, core::upgrade, mplex::MplexConfig, noise, Multiaddr};
+use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour, AddressRecord}, identity::Keypair, PeerId, tcp, Transport, core::upgrade, mplex::MplexConfig, noise, Multiaddr};
 use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 use futures::{StreamExt, future};
@@ -46,9 +46,9 @@ pub struct KamilataNode {
 }
 
 impl KamilataNode {
-    pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> KamilataNode {
-        let local_key = Keypair::generate_ed25519();
-        let peer_id = PeerId::from(local_key.public());
+    pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> (KamilataNode, Keypair) {
+        let keypair = Keypair::generate_ed25519();
+        let peer_id = PeerId::from(keypair.public());
         info!("Local peer id: {peer_id}");
 
         let swarm_manager = Arc::new(SwarmManager::new(Arc::clone(&config)));
@@ -66,7 +66,7 @@ impl KamilataNode {
             ..KamilataConfig::default()
         }, index);
         let identify = IdentifyBehaviour::new(
-            IdentifyConfig::new(String::from("admarus/0.1.0"), local_key.public())
+            IdentifyConfig::new(String::from("admarus/0.1.0"), keypair.public())
         );
         let discovery = DiscoveryBehavior::new_with_config(DiscoveryConfig {
             default_visibility: true,
@@ -83,7 +83,7 @@ impl KamilataNode {
         let transport = tcp_transport
             .upgrade(upgrade::Version::V1Lazy)
             .authenticate(
-                noise::Config::new(&local_key).expect("Signing libp2p-noise static DH keypair failed."),
+                noise::Config::new(&keypair).expect("Signing libp2p-noise static DH keypair failed."),
             )
             .multiplex(MplexConfig::default())
             .boxed();
@@ -97,10 +97,10 @@ impl KamilataNode {
             swarm.listen_on(kam_addr).unwrap();
         }
 
-        KamilataNode {
+        (KamilataNode {
             swarm,
             sw: swarm_manager,
-        }
+        }, keypair)
     }
 
     fn kam_mut(&mut self) -> &mut KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>> {
@@ -127,6 +127,10 @@ impl KamilataNode {
                         ClientCommand::Search { queries, config, sender } => {
                             let controller = self.kam_mut().search_with_config(queries, config).await;
                             let _ = sender.send(controller);
+                        },
+                        ClientCommand::GetExternalAddrs { sender } => {
+                            let addrs = self.swarm.external_addresses();
+                            let _ = sender.send(addrs.cloned().collect());
                         },
                         ClientCommand::Dial(dial_opts) => {
                             let r = self.swarm.dial(dial_opts);
@@ -221,6 +225,9 @@ enum ClientCommand {
         config: SearchConfig,
         sender: OneshotSender<OngoingSearchController<DocumentResult>>,
     },
+    GetExternalAddrs {
+        sender: OneshotSender<Vec<AddressRecord>>,
+    },
     Dial(DialOpts),
     Disconnect {
         peer_id: PeerId,
@@ -240,6 +247,14 @@ impl KamilataController {
         let _ = self.sender.send(ClientCommand::Search {
             queries,
             config: SearchConfig::default(),
+            sender,
+        }).await;
+        receiver.await.unwrap()
+    }
+
+    pub async fn external_addresses(&self) -> Vec<AddressRecord> {
+        let (sender, receiver) = oneshot_channel();
+        let _ = self.sender.send(ClientCommand::GetExternalAddrs {
             sender,
         }).await;
         receiver.await.unwrap()

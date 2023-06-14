@@ -39,7 +39,7 @@ pub struct Record {
     pub addrs: Vec<String>,
 }
 
-async fn publish_record(census_rpc: &str, record: Record, keys: Keypair) -> Result<(), CensusRpcError> {
+pub async fn submit_census_record(census_rpc: &str, record: Record, keys: Keypair) -> Result<(), CensusRpcError> {
     let hash = record.hash();
     let signature = keys.sign(&hash)?;
     let api_record = ApiRecord {
@@ -49,7 +49,8 @@ async fn publish_record(census_rpc: &str, record: Record, keys: Keypair) -> Resu
     };
 
     let client = Client::new();
-    let resp = client.post(format!("{census_rpc}/api/v0/publish"))
+    let resp = client.post(format!("{census_rpc}/api/v0/submit"))
+        .header("Content-Type", "application/json")
         .body(serde_json::to_string(&api_record)?)
         .send()
         .await?;

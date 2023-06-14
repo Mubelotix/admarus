@@ -33,7 +33,8 @@ use crate::prelude::*;
 mod follow_ipfs;
 mod maintain_swarm;
 mod cleanup_db;
-pub use {follow_ipfs::*, maintain_swarm::*, cleanup_db::*};
+mod update_census;
+pub use {follow_ipfs::*, maintain_swarm::*, cleanup_db::*, update_census::*};
 
 struct ConnectedPeerInfo {
     selected: bool,

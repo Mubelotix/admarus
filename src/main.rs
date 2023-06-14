@@ -25,7 +25,7 @@ async fn main() {
     
     let search_park = Arc::new(SearchPark::new());
 
-    let kamilata = KamilataNode::init(Arc::clone(&config), index.clone()).await;
+    let (kamilata, keypair) = KamilataNode::init(Arc::clone(&config), index.clone()).await;
     let kamilata = kamilata.run();
     if let Some(bootstrap_addr) = &config.kam_bootstrap {
         kamilata.dial(bootstrap_addr.parse().unwrap()).await;
@@ -36,8 +36,9 @@ async fn main() {
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, kamilata.clone());
     let f2 = index.run();
-    let f3 = maintain_swarm(kamilata.clone(), Arc::clone(&config));
-    let f4 = follow_ipfs(kamilata.clone(), Arc::clone(&config));
-    let f5 = cleanup_db(kamilata.clone());
-    tokio::join!(f1, f2, f3, f4, f5);
+    let f3 = maintain_swarm_task(kamilata.clone(), Arc::clone(&config));
+    let f4 = follow_ipfs_task(kamilata.clone(), Arc::clone(&config));
+    let f5 = cleanup_db_task(kamilata.clone());
+    let f6 = update_census_task(kamilata.clone(), config.census_rpc.as_deref(), keypair.clone());
+    tokio::join!(f1, f2, f3, f4, f5, f6);
 }
