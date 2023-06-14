@@ -3,6 +3,7 @@ use crate::prelude::*;
 /// Ensures the swarm is healthy.
 pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) {
     let sw = Arc::clone(&controller.sw);
+    let mut last_get_peers: Option<Instant> = None;
 
     loop {
         // Unselect all first-class peers that are not seeding
@@ -56,6 +57,17 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
             drop(known_peers);
             drop(dial_attempts);
             drop(connected_peers);
+
+            // Fetch more peers from various sources if we don't have enough
+            if candidates.len() < missing_fcp && last_get_peers.map(|i| i.elapsed() > Duration::from_secs(60)).unwrap_or(true) {
+                trace!("Not enough candidates ({}). Getting peers", candidates.len());
+                last_get_peers = Some(Instant::now());
+                let controller2 = controller.clone();
+                let config2 = Arc::clone(&config);
+                tokio::spawn(async move {
+                    get_peers(controller2, config2).await
+                });
+            }
             
             let mut known_peers = sw.known_peers.write().await;
             let mut dial_attempts = sw.dial_attemps.write().await;
