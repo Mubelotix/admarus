@@ -58,7 +58,7 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
             drop(dial_attempts);
             drop(connected_peers);
 
-            // Fetch more peers from various sources if we don't have enough
+            // Fetch more peers if we don't have enough
             if candidates.len() < missing_fcp && last_get_peers.map(|i| i.elapsed() > Duration::from_secs(60)).unwrap_or(true) {
                 trace!("Not enough candidates ({}). Getting peers", candidates.len());
                 last_get_peers = Some(Instant::now());
