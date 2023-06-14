@@ -16,6 +16,10 @@ pub struct Args {
     #[arg(long, default_value = "http://localhost:5001")]
     pub ipfs_rpc: String,
 
+    /// Census public RPC url
+    #[arg(long, default_value = "http://localhost:14364")]
+    pub census_rpc: Option<String>,
+
     /// Address on which the API will listen
     #[arg(long, default_value_t = String::from("127.0.0.1:3030"))]
     pub api_addr: String,
