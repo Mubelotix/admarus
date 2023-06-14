@@ -5,7 +5,7 @@ pub use crate::{
     rpc_census::*,
     documents::*,
     api::*,
-    kamilata::*,
+    node::*,
     clap::*,
     swarm::*,
     discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig}

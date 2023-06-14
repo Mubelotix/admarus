@@ -7,7 +7,7 @@ mod rpc_ipfs;
 mod rpc_census;
 mod documents;
 mod api;
-mod kamilata;
+mod node;
 mod clap;
 mod swarm;
 mod discovery;
