@@ -46,23 +46,30 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
                 if ordering == Ordering::Equal {
                     ordering = connected_peers.contains_key(bid).cmp(&connected_peers.contains_key(aid));
                 }
+                if ordering == Ordering::Equal {
+                    ordering = b.availability().partial_cmp(&a.availability()).unwrap_or(Ordering::Equal);
+                }
                 ordering
             });
             candidates.truncate(missing_fcp);
+            let candidates = candidates.into_iter().map(|(a,b)| (*a,b.clone())).collect::<Vec<_>>();
+            drop(known_peers);
             drop(dial_attempts);
             drop(connected_peers);
             
+            let mut known_peers = sw.known_peers.write().await;
             let mut dial_attempts = sw.dial_attemps.write().await;
             let mut connected_peers = sw.connected_peers.write().await;
             for (peer_id, info) in candidates {
-                if let Some(connected_info) = connected_peers.get_mut(peer_id) {
+                if let Some(connected_info) = connected_peers.get_mut(&peer_id) {
                     debug!("Selecting first-class peer {peer_id}");
                     connected_info.selected = true;
-                    controller.leech_from(*peer_id).await;
+                    controller.leech_from(peer_id).await;
                 } else {
                     debug!("Dialing new peer {peer_id} at {:?}", info.addrs);
-                    controller.dial_with_peer_id(*peer_id, info.addrs.clone()).await;
-                    dial_attempts.insert(*peer_id, Instant::now());
+                    known_peers.entry(peer_id).or_default().failed_dials += 1; // We count as failed but it will be canceled if it succeeds
+                    controller.dial_with_peer_id(peer_id, info.addrs).await;
+                    dial_attempts.insert(peer_id, Instant::now());
                 }
             }
         }

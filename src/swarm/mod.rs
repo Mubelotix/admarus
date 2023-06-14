@@ -49,6 +49,9 @@ pub struct PeerInfo {
     score: f32,
     recommander_score: f32,
 
+    successful_dials: u64,
+    failed_dials: u64,
+
     last_seen_ipfs: Option<u64>,
     last_seen: Option<u64>,
     recommended_by: Vec<(PeerId, u64)>,
@@ -67,6 +70,10 @@ impl PeerInfo {
         }
 
         latest
+    }
+
+    pub fn availability(&self) -> f64 {
+        self.successful_dials as f64 / (self.successful_dials + self.failed_dials) as f64
     }
 }
 
@@ -120,11 +127,6 @@ impl SwarmManager {
         (first_class_count, second_class_count, transient_count)
     }
 
-    pub async fn first_class_slot_available(&self) -> bool {
-        let seeder_count = self.class_counts().await.0;
-        seeder_count < self.config.first_class
-    }
-
     pub async fn second_class_slot_available(&self) -> bool {
         let leecher_count = self.class_counts().await.1;
         leecher_count < self.config.leechers
@@ -146,6 +148,7 @@ impl SwarmManager {
 
     pub async fn on_peer_connected(&self, peer_id: PeerId) {
         let mut known_peers = self.known_peers.write().await;
+        let dial_attempts = self.dial_attemps.read().await;
         let mut connected_peers = self.connected_peers.write().await;
         connected_peers.insert(peer_id, ConnectedPeerInfo {
             selected: false,
@@ -155,6 +158,13 @@ impl SwarmManager {
         });
         let mut peer_info = known_peers.entry(peer_id).or_default();
         peer_info.last_seen = Some(now());
+        if dial_attempts.contains_key(&peer_id) {
+            if peer_info.failed_dials == 0 {
+                warn!("Peer {peer_id} connected after being dialed, but the dial attempt was not counted");
+            }
+            peer_info.failed_dials = peer_info.failed_dials.saturating_sub(1);
+            peer_info.successful_dials += 1;
+        }
     }
 
     pub async fn on_peer_disconnected(&self, peer_id: &PeerId) {
