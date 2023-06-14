@@ -75,7 +75,7 @@ pub async fn get_census_peers(census_rpc: &str) -> Result<Vec<(PeerId, Vec<Multi
         return Err(CensusRpcError::Status(status, body));
     }
 
-    let value = serde_json::from_str::<HashMap<String, Vec<String>>>(&body)?;
+    let value = serde_json::from_str::<Vec<(String, Vec<String>)>>(&body)?;
     let mut peers = Vec::new();
     for (peer_id, addrs) in value {
         let Ok(peer_id) = peer_id.parse() else { continue };
