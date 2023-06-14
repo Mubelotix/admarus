@@ -89,12 +89,15 @@ impl Node {
             .boxed();
         
         let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
-        for kam_addr in &config.kam_addrs {
-            let Ok(kam_addr) = kam_addr.parse::<Multiaddr>() else {
-                error!("Invalid address: {kam_addr}");
+        for listen_addr in &config.listen_addrs {
+            let Ok(parsed_addr) = listen_addr.parse::<Multiaddr>() else {
+                error!("Invalid address: {listen_addr}");
                 continue;
             };
-            swarm.listen_on(kam_addr).unwrap();
+            match swarm.listen_on(parsed_addr.clone()) {
+                Ok(_listerner_id) => (),
+                Err(e) => error!("Could not listen on {listen_addr}: {e:?}"),
+            }
         }
 
         (Node {

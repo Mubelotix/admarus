@@ -4,11 +4,11 @@ use crate::prelude::*;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 pub struct Args {
-    /// Address on which the Kamilata node will listen
+    /// Address on which the Admarus node will listen
     #[arg(long, default_values_t = [String::from("/ip4/0.0.0.0/tcp/4002"), String::from("/ip6/::/tcp/4002")])]
-    pub kam_addrs: Vec<String>,
+    pub listen_addrs: Vec<String>,
 
-    /// Address of the Kamilata bootstrap node
+    /// Address of the Admarus bootstrap node
     #[arg(long)]
     pub kam_bootstrap: Option<String>,
 
