@@ -92,7 +92,7 @@ impl ConnectedPeerInfo {
 pub struct SwarmManager {
     config: Arc<Args>,
     known_peers: RwLock<HashMap<PeerId, PeerInfo>>,
-
+    dial_attemps: RwLock<HashMap<PeerId, Instant>>,
     connected_peers: RwLock<HashMap<PeerId, ConnectedPeerInfo>>,
 }
 
@@ -101,6 +101,7 @@ impl SwarmManager {
         SwarmManager {
             config,
             known_peers: RwLock::new(HashMap::new()),
+            dial_attemps: RwLock::new(HashMap::new()),
             connected_peers: RwLock::new(HashMap::new()),
         }
     }
@@ -131,6 +132,16 @@ impl SwarmManager {
 
     pub async fn class(&self, peer_id: &PeerId) -> Option<PeerClass> {
         self.connected_peers.read().await.get(peer_id).map(|i| i.class())
+    }
+
+    pub async fn sweep_dial_attempts(&self) {
+        let mut dial_attemps = self.dial_attemps.write().await;
+        dial_attemps.retain(|_,time| time.elapsed() < Duration::from_secs(3600));
+    }
+
+    pub async fn currently_dialing(&self) -> usize {
+        let dial_attemps = self.dial_attemps.read().await;
+        dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(30)).count()
     }
 
     pub async fn on_peer_connected(&self, peer_id: PeerId) {

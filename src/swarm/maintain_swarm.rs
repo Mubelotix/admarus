@@ -4,8 +4,6 @@ use crate::prelude::*;
 pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) {
     let sw = Arc::clone(&controller.sw);
 
-    let mut dial_attemps: HashMap<PeerId, Instant> = HashMap::new();
-
     loop {
         // Unselect all first-class peers that are not seeding
         // Disconnect all transient peers that are staying too long
@@ -23,11 +21,9 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
             }
         }
 
-        // Sweep dial_attemps
-        dial_attemps.retain(|_,time| time.elapsed() < Duration::from_secs(3600));
-        let currently_dialing = dial_attemps.values().filter(|t| t.elapsed() < Duration::from_secs(30)).count();
-
         // Looking for more peers
+        sw.sweep_dial_attempts().await;
+        let currently_dialing = sw.currently_dialing().await;
         let (fcp_count, _scp_count, _tp_count) = sw.class_counts().await;
         let missing_fcp = config.first_class.saturating_sub(fcp_count).saturating_sub(currently_dialing);
         if missing_fcp == 0 { continue }
@@ -35,13 +31,14 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
 
         {
             let known_peers = sw.known_peers.read().await;
+            let dial_attempts = sw.dial_attemps.read().await;
             let connected_peers = sw.connected_peers.read().await;
 
             let mut candidates = known_peers
                 .iter()
                 .filter(|(peer_id, _)| 
                     !connected_peers.get(peer_id).map(|i| i.selected).unwrap_or(false)
-                    && (!dial_attemps.contains_key(peer_id) || connected_peers.contains_key(peer_id))
+                    && (!dial_attempts.contains_key(peer_id) || connected_peers.contains_key(peer_id))
                 )
                 .collect::<Vec<_>>();
             candidates.sort_by(|(aid, a), (bid, b)| {
@@ -52,8 +49,10 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
                 ordering
             });
             candidates.truncate(missing_fcp);
+            drop(dial_attempts);
             drop(connected_peers);
             
+            let mut dial_attempts = sw.dial_attemps.write().await;
             let mut connected_peers = sw.connected_peers.write().await;
             for (peer_id, info) in candidates {
                 if let Some(connected_info) = connected_peers.get_mut(peer_id) {
@@ -63,7 +62,7 @@ pub async fn maintain_swarm_task(controller: NodeController, config: Arc<Args>) 
                 } else {
                     debug!("Dialing new peer {peer_id} at {:?}", info.addrs);
                     controller.dial_with_peer_id(*peer_id, info.addrs.clone()).await;
-                    dial_attemps.insert(*peer_id, Instant::now());
+                    dial_attempts.insert(*peer_id, Instant::now());
                 }
             }
         }
