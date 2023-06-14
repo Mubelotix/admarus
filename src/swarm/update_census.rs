@@ -15,10 +15,13 @@ pub async fn update_census_task(node: NodeController, keypair: Keypair, config: 
 
     loop {
         let mut external_addrs = external_addrs.clone();
-        external_addrs.extend(node
+        let new_addrs = node
             .external_addresses().await
             .into_iter()
-            .map(|rec| rec.addr.to_string()));
+            .map(|rec| rec.addr.to_string())
+            .filter(|a| !external_addrs.contains(a))
+            .collect::<Vec<_>>();
+        external_addrs.extend(new_addrs);
         
         if external_addrs.is_empty() {
             sleep(Duration::from_secs(30*60)).await;
