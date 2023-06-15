@@ -135,6 +135,9 @@ impl Node {
                             let addrs = self.swarm.external_addresses();
                             let _ = sender.send(addrs.cloned().collect());
                         },
+                        ClientCommand::QueryPeers { query: q, sender } => {
+                            self.disc_mut().start_query(q, sender);
+                        }
                         ClientCommand::Dial(dial_opts) => {
                             let r = self.swarm.dial(dial_opts);
                             if let Err(e) = r {
@@ -231,6 +234,10 @@ enum ClientCommand {
     GetExternalAddrs {
         sender: OneshotSender<Vec<AddressRecord>>,
     },
+    QueryPeers {
+        query: PeerListQuery,  
+        sender: OneshotSender<Result<DiscoveryResponse, IoError>>,
+    },
     Dial(DialOpts),
     Disconnect {
         peer_id: PeerId,
@@ -270,6 +277,18 @@ impl NodeController {
                 .extend_addresses_through_behaviour()
                 .build()
         )).await;
+    }
+
+    pub async fn query_peers(&self, query: PeerListQuery) -> Result<DiscoveryResponse, IoError> {
+        let (sender, receiver) = oneshot_channel();
+        let _ = self.sender.send(ClientCommand::QueryPeers {
+            query,
+            sender,
+        }).await;
+        match receiver.await {
+            Ok(r) => r,
+            Err(_) => Err(IoError::new(std::io::ErrorKind::BrokenPipe, "Couldn't receive response")),
+        }
     }
 
     pub async fn disconnect(&self, peer_id: &PeerId) {

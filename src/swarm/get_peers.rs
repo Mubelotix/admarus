@@ -72,15 +72,34 @@ pub async fn get_peers_from_ipfs(controller: NodeController, config: Arc<Args>) 
     }
 }
 
+/// Asks our peers for a list of their peers.
+pub async fn get_peers_from_others(controller: NodeController, _config: Arc<Args>) {
+    let connected_peers = controller.sw.connected_peers.read().await.keys().cloned().collect::<Vec<_>>();
+
+    let queries = connected_peers.into_iter().map(|p| {
+        PeerListQuery::new(p) // TODO more params
+    });
+
+    let mut tasks: Vec<BoxFuture<_>> = Vec::new();
+    for q in queries {
+        tasks.push(Box::pin(controller.query_peers(q)))
+    }
+
+    join_all(tasks).await;
+}
+
 pub async fn get_peers(controller: NodeController, config: Arc<Args>) {
-    let mut tasks: Vec<BoxFuture<()>> = Vec::new();
+    let mut tasks: Vec<BoxFuture<_>> = Vec::new();
     if let Some(census_rpc) = &config.census_rpc {
         let census_task = get_peers_from_census(controller.clone(), census_rpc);
         tasks.push(Box::pin(census_task));
     }
 
-    let ipfs_task = get_peers_from_ipfs(controller, Arc::clone(&config));
+    let ipfs_task = get_peers_from_ipfs(controller.clone(), Arc::clone(&config));
     tasks.push(Box::pin(ipfs_task));
 
-    futures::future::join_all(tasks).await;
+    let discovery_task = get_peers_from_others(controller, Arc::clone(&config));
+    tasks.push(Box::pin(discovery_task));
+
+    join_all(tasks).await;
 }
