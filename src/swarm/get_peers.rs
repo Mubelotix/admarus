@@ -35,7 +35,7 @@ pub async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
 
 /// Some of our IPFS peers might run Admarus.
 /// We try to infer their potential Admarus listen addresses from their IPFS addresses.
-pub async fn get_peers_from_ipfs(controller: NodeController, config: Arc<Args>) {
+pub async fn get_peers_from_ipfs(node: NodeController, config: Arc<Args>) {
     let ipfs_peers = match get_ipfs_peers(&config.ipfs_rpc).await {
         Ok(peers) => peers,
         Err(e) => {
@@ -45,7 +45,7 @@ pub async fn get_peers_from_ipfs(controller: NodeController, config: Arc<Args>) 
     };
 
     let now = now();
-    let mut known_peers = controller.sw.known_peers.write().await;
+    let mut known_peers = node.sw.known_peers.write().await;
     let previous_len = known_peers.len();
     for (peer_id, ipfs_addr) in ipfs_peers {
         let addr_components = ipfs_addr.iter().collect::<Vec<_>>();
@@ -76,8 +76,8 @@ pub async fn get_peers_from_ipfs(controller: NodeController, config: Arc<Args>) 
 }
 
 /// Asks our peers for a list of their peers.
-pub async fn get_peers_from_others(controller: NodeController, _config: Arc<Args>) {
-    let connected_peers = controller.sw.connected_peers.read().await.keys().cloned().collect::<Vec<_>>();
+pub async fn get_peers_from_others(node: NodeController, _config: Arc<Args>) {
+    let connected_peers = node.sw.connected_peers.read().await.keys().cloned().collect::<Vec<_>>();
 
     let queries = connected_peers.into_iter().map(|p| {
         PeerListQuery::new(p) // TODO more params
@@ -85,23 +85,23 @@ pub async fn get_peers_from_others(controller: NodeController, _config: Arc<Args
 
     let mut tasks: Vec<BoxFuture<_>> = Vec::new();
     for q in queries {
-        tasks.push(Box::pin(controller.query_peers(q)))
+        tasks.push(Box::pin(node.query_peers(q)))
     }
 
     join_all(tasks).await;
 }
 
-pub async fn get_peers(controller: NodeController, config: Arc<Args>) {
+pub async fn get_peers(node: NodeController, config: Arc<Args>) {
     let mut tasks: Vec<BoxFuture<_>> = Vec::new();
     if let Some(census_rpc) = &config.census_rpc {
-        let census_task = get_peers_from_census(controller.clone(), census_rpc);
+        let census_task = get_peers_from_census(node.clone(), census_rpc);
         tasks.push(Box::pin(census_task));
     }
 
-    let ipfs_task = get_peers_from_ipfs(controller.clone(), Arc::clone(&config));
+    let ipfs_task = get_peers_from_ipfs(node.clone(), Arc::clone(&config));
     tasks.push(Box::pin(ipfs_task));
 
-    let discovery_task = get_peers_from_others(controller, Arc::clone(&config));
+    let discovery_task = get_peers_from_others(node, Arc::clone(&config));
     tasks.push(Box::pin(discovery_task));
 
     join_all(tasks).await;
