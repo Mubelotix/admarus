@@ -28,7 +28,8 @@ impl Behaviour {
     }
 
     /// Sends a query to a peer.
-    pub async fn query(&mut self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
+    /// Results will be returned through a channel.
+    pub async fn start_query(&mut self, query: PeerListQuery) -> OneshotReceiver<Result<Response, IoError>> {
         let (sender, receiver) = oneshot_channel();
         self.events_to_dispatch.push((
             query.peer_id,
@@ -43,6 +44,12 @@ impl Behaviour {
                 replier: sender
             }
         ));
+        receiver
+    }
+
+    /// Sends a query to a peer.
+    pub async fn query(&mut self, query: PeerListQuery) -> Result<HashMap<PeerId, Info>, IoError> {
+        let receiver = self.start_query(query).await;
         let result = receiver.await.map_err(|_| IoError::new(std::io::ErrorKind::BrokenPipe, "Couldn't receive response"))?;
         match result {
             Ok(Response::Peers(peers)) => {
