@@ -112,6 +112,7 @@ impl Node {
     pub fn run(mut self) -> NodeController {
         let (sender, mut receiver) = channel(1);
         let controller = NodeController {
+            peer_id: *self.swarm.local_peer_id(),
             sender,
             sw: Arc::clone(&self.sw)
         };
@@ -242,11 +243,16 @@ enum ClientCommand {
 
 #[derive(Clone)]
 pub struct NodeController {
+    peer_id: PeerId,
     sender: Sender<ClientCommand>,
     pub sw: Arc<SwarmManager>,
 }
 
 impl NodeController {
+    pub fn peer_id(&self) -> PeerId {
+        self.peer_id
+    }
+
     pub async fn search(&self, queries: SearchQueries) -> OngoingSearchController<DocumentResult> {
         let (sender, receiver) = oneshot_channel();
         let _ = self.sender.send(ClientCommand::Search {

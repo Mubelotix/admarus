@@ -64,9 +64,15 @@ pub async fn submit_census_record(census_rpc: &str, record: Record, keys: Keypai
     }
 }
 
-pub async fn get_census_peers(census_rpc: &str) -> Result<Vec<(PeerId, Vec<Multiaddr>)>, CensusRpcError> {
+pub async fn get_census_peers(census_rpc: &str, exclude: Vec<PeerId>) -> Result<Vec<(PeerId, Vec<Multiaddr>)>, CensusRpcError> {
+    let mut url = format!("{census_rpc}/api/v0/peers");
+    if !exclude.is_empty() {
+        url.push_str("?exclude=");
+        url.push_str(&exclude.iter().map(|id| id.to_string()).collect::<Vec<_>>().join(","));
+    }
+
     let client = Client::new();
-    let resp = client.get(format!("{census_rpc}/api/v0/peers"))
+    let resp = client.get(url)
         .send()
         .await?;
     let status = resp.status().as_u16();

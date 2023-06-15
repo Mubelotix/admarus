@@ -2,7 +2,10 @@ use crate::prelude::*;
 
 /// Asks a central server for a list of peers.
 pub async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
-    let census_peers = match get_census_peers(census_rpc).await {
+    let mut exclude = vec![node.peer_id()];
+    exclude.extend(node.sw.connected_peers.read().await.keys().cloned());
+
+    let census_peers = match get_census_peers(census_rpc, exclude).await {
         Ok(peers) => peers,
         Err(e) => {
             error!("Failed to get peers from census: {e:?}");
