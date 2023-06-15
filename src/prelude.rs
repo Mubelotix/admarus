@@ -21,7 +21,7 @@ pub use std::{
 };
 pub use tokio::{
     sync::{RwLock, mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}},
-    time::sleep
+    time::{sleep, timeout}
 };
 pub use libp2p::{
     swarm::{dial_opts::DialOpts, Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour, AddressRecord},

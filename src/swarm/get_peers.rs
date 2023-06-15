@@ -85,7 +85,9 @@ pub async fn get_peers_from_others(node: NodeController, _config: Arc<Args>) {
 
     let mut tasks: Vec<BoxFuture<_>> = Vec::new();
     for q in queries {
-        tasks.push(Box::pin(node.query_peers(q)))
+        let fut = node.query_peers(q);
+        let fut = timeout(Duration::from_secs(25), fut);
+        tasks.push(Box::pin(fut))
     }
 
     join_all(tasks).await;
