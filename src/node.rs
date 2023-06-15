@@ -1,9 +1,4 @@
 use crate::prelude::*;
-use kamilata::behaviour::KamilataEvent;
-use libp2p::{swarm::{Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour, AddressRecord}, identity::Keypair, PeerId, tcp, Transport, core::upgrade, mplex::MplexConfig, noise, Multiaddr};
-use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
-use tokio::sync::{mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
-use futures::{StreamExt, future};
 
 const FILTER_SIZE: usize = 125000;
 
@@ -126,7 +121,7 @@ impl Node {
                 let value = futures::future::select(recv, self.swarm.select_next_some()).await;
                 match value {
                     // Client commands
-                    future::Either::Left((Some(command), _)) => match command {
+                    Either::Left((Some(command), _)) => match command {
                         ClientCommand::Search { queries, config, sender } => {
                             let controller = self.kam_mut().search_with_config(queries, config).await;
                             let _ = sender.send(controller);
@@ -155,8 +150,8 @@ impl Node {
                             self.kam_mut().leech_from(peer_id);
                         },
                     },
-                    future::Either::Left((None, _)) => break,
-                    future::Either::Right((event, _)) => match event {
+                    Either::Left((None, _)) => break,
+                    Either::Right((event, _)) => match event {
                         // Identify events
                         SwarmEvent::Behaviour(Event::Identify(event)) => match *event {
                             IdentifyEvent::Received { peer_id, info } => {
