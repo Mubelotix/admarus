@@ -27,6 +27,27 @@
 //! The main limit is actually the time those peers are allowed to stay connected.
 //! When that time is up, we disconnect them. We might be more tolerant when we have plenty of slots available.
 //! <= MAX_FAST_PACED_SLOTS
+//! 
+//! # Reputation and score system
+//! 
+//! See the following list of events and their impact on the reputation score:
+//! 
+//! - Returned result is upvoted by the user: +5000
+//! - Returned result is automatically upvoted: +500
+//! - Returns search results: +100
+//! - Correct dns link: +20
+//! - Routes to a peer that returns search results: +10
+//! - Successful dial: +10
+//! - Returns peers for discovery: +5
+//! - First-class peer sent us filters: +0.2
+//! - Other peer sent us filters: +0.1
+//! - Asks for our peers: -2
+//! - Queries us: -5
+//! - Disconnects: -5
+//! - Incorrect dns link: -100
+//! - Returned result is automatically downvoted: -500
+//! - Returned result is downvoted by the user: -5000
+//! - Lies on document content: banned
 
 use crate::prelude::*;
 
