@@ -37,5 +37,5 @@ pub use sha2_derive::Hashable;
 pub use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 
 pub fn now() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs()
+    SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid system time").as_secs()
 }
