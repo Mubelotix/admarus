@@ -23,7 +23,7 @@ impl Component for SearchPage {
     type Message = SearchPageMessage;
     type Properties = SearchPageProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             
         }

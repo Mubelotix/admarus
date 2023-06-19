@@ -24,7 +24,7 @@ impl Component for ResultsPage {
     type Message = ResultsMessage;
     type Properties = ResultsPageProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
 
         }

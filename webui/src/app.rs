@@ -1,7 +1,5 @@
 use std::rc::Rc;
 
-use yew::virtual_dom::{VChild, VNode, VComp};
-
 use crate::prelude::*;
 
 #[derive(Clone)]
@@ -24,13 +22,13 @@ impl Component for App {
     type Message = AppMsg;
     type Properties = ();
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             page: Page::Home,
         }
     }
 
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+    fn update(&mut self, _ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             AppMsg::ChangePage(page) => {
                 self.page = page;

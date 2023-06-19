@@ -19,7 +19,7 @@ impl Component for SettingsPage {
     type Message = ();
     type Properties = SettingsProps;
 
-    fn create(ctx: &Context<Self>) -> Self {
+    fn create(_ctx: &Context<Self>) -> Self {
         Self {
             
         }
