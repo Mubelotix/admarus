@@ -31,12 +31,11 @@
             </div>
         </div>
     </div>
-    <div iter>
-        <div>{{cid_iter}}</div>
-        <div>{{paths_iter}}</div>
-        <div>{{icon_cid_iter}}</div>
-        <div>{{domain_iter}}</div>
-        <div>{{title_iter}}</div>
-        <div>{{description_iter}}</div>
+    <div id="result-list">
+        <div class="result" iter>
+            <h3><a href="ipfs://{{cid_iter}}">{{title_iter}}</a></h3>
+            <div class="result-path">ipfs://{{cid2_iter}}</div>
+            <p>{{description_iter}}</p>
+        </div>
     </div>
 </main>

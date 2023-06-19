@@ -69,6 +69,42 @@
     stroke-width: 2px;
 }
 
+/* Individual result */
+
+#result-list {
+    margin-left: 16rem;
+}
+
+.result {
+    width: 50%;
+    padding: 1rem 0;
+}
+
+.result>h3, .result>p {
+    margin: 0;
+    padding: 0;
+}
+
+.result>h3 {
+    font-size: 1.4rem;
+}
+
+.result>h3>a {
+    text-decoration: none;
+    font-weight: normal;
+    color: #1a0dab;
+}
+
+.result>h3:hover {
+    text-decoration: underline;
+}
+
+.result>.result-path {
+    color: #006d21;
+    margin: .3rem 0;
+    font-size: .9rem;
+}
+
 /* Animation */
 
 #search-bar {

@@ -97,12 +97,10 @@ impl Component for ResultsPage {
             onclick_glass = { ctx.link().callback(|_| ResultsMessage::RelaunchSearch) },
             onclick_home = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) },
-            cid_iter = { self.results.iter().map(|result| format!("{:?}", result.0.cid)) },
-            paths_iter = { self.results.iter().map(|result| format!("{:?}", result.0.paths)) },
-            icon_cid_iter = { self.results.iter().map(|result| format!("{:?}", result.0.icon_cid)) },
-            domain_iter = { self.results.iter().map(|result| format!("{:?}", result.0.domain)) },
-            title_iter = { self.results.iter().map(|result| format!("{:?}", result.0.title)) },
-            description_iter = { self.results.iter().map(|result| format!("{:?}", result.0.description)) },
+            cid_iter = { self.results.iter().map(|result| format!("{}", result.0.cid)) },
+            cid2_iter = { self.results.iter().map(|result| format!("{}", result.0.cid)) },
+            title_iter = { self.results.iter().map(|result| format!("{}", result.0.title)) },
+            description_iter = { self.results.iter().map(|result| format!("{}", result.0.description)) },
         )
     }
 }
