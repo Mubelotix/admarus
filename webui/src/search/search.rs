@@ -44,7 +44,7 @@ impl Component for SearchPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         template_html!(
-            "src/search/search.html",
+            "search/search.html",
             onclick_glass = { ctx.link().callback(|_| SearchPageMessage::LaunchSearch) },
             onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) }
         )

@@ -45,7 +45,7 @@ impl Component for ResultsPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         template_html!(
-            "src/results/results.html",
+            "results/results.html",
             query = { ctx.props().query.to_string() },
             onclick_glass = { ctx.link().callback(|_| ResultsMessage::RelaunchSearch) },
             onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) }
