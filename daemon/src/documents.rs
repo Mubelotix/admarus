@@ -61,6 +61,7 @@ impl HtmlDocument {
 
         DocumentResult {
             cid,
+            paths: metadata.paths,
             icon_cid: None,
             domain: None,
             title: title.unwrap_or_default(),

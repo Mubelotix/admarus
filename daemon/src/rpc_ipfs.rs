@@ -57,13 +57,13 @@ pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, IpfsRpcError> {
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Metadata {
-    pub pathes: Vec<Vec<String>>,
+    pub paths: Vec<Vec<String>>,
     pub size: Option<u64>,
 }
 
 impl Metadata {
     fn merge(&mut self, other: Metadata) {
-        self.pathes.extend(other.pathes);
+        self.paths.extend(other.paths);
         self.size = self.size.or(other.size);
     }
 }
@@ -120,11 +120,11 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
         let size = new_link
             .get("Tsize").ok_or(InvalidResponse("Tsize expected on link"))?
             .as_u64().ok_or(InvalidResponse("Tsize expected to be a u64"))?;
-        let mut pathes = metadata.pathes.clone();
+        let mut pathes = metadata.paths.clone();
         pathes.iter_mut().for_each(|p| p.push(name.to_owned()));
 
         links.push((hash.to_owned(), Metadata {
-            pathes,
+            paths: pathes,
             size: Some(size),
         }));
     }
@@ -134,7 +134,7 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
 
 pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
     let mut links = links.into_iter().collect::<Vec<_>>();
-    links.sort_by_key(|(_,metadata)| !metadata.pathes.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)));
+    links.sort_by_key(|(_,metadata)| !metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)));
 
     let mut documents = Vec::new();
     for (cid, metadata) in links {
