@@ -1,0 +1,129 @@
+#results-page {
+    background-color: #f5f5f5;
+    width: 100%;
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100 - 0.01px);
+}
+
+#results-header {
+    border-bottom: 1px solid #ccc;
+}
+
+#first-header-row {
+    height: 4rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#first-header-row>h1 {
+    width: 10rem;
+    font-size: 1.5rem;
+    font-weight: normal;
+    text-align: right;
+    flex-shrink: 0;
+    margin: 0;
+    view-transition-name: name;
+}
+
+#first-header-row>img {
+    width: 3.3rem;
+    margin: .35rem 2rem .35rem .7rem;
+    aspect-ratio: 1 / 1;
+    view-transition-name: logo;
+}
+
+#result-selectors {
+    padding-left: 16rem;
+    height: 2.5rem;
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+}
+
+#result-selectors>div {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-end;
+    margin-right: 1.5rem;
+    padding-bottom: .3rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+}
+
+#result-selectors>div>img {
+    height: 1.3rem;
+    width: 1.3rem;
+    stroke-width: 1.7px;
+    margin-right: 3px;
+}
+
+#result-selectors>div.selected {
+    font-weight: bold;
+    border-bottom: 2px solid black;
+}
+
+#result-selectors>div.selected>svg {
+    stroke-width: 2px;
+}
+
+/* Animation */
+
+#search-bar {
+    view-transition-name: search-bar;
+}
+
+@keyframes search-bar-slide-to-top {
+    from {
+        /*position: fixed;*/
+    }
+    to {
+        /*position: fixed;*/
+        /*top: calc(0.5rem - 1px);
+        left: 16rem;*/
+    }
+}
+
+
+
+::view-transition-group(search-bar) {
+    z-index: 2;
+    transition-duration: 300ms;
+}
+
+@keyframes fade-in {
+    from {
+        opacity: 0;
+    }
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fade-out {
+    from {
+        opacity: 1;
+    }
+    to {
+        opacity: 0;
+    }
+}
+
+::view-transition-group(name) {
+    animation-duration: 150ms !important;
+    animation-fill-mode: forwards !important;
+}
+::view-transition-image-pair(name) {
+    animation-duration: 150ms !important;
+    animation-fill-mode: forwards !important;
+}
+::view-transition-new(name) {
+    animation: none;
+    animation-fill-mode: forwards !important;
+    animation: 150ms ease-out fade-in;
+}
+::view-transition-old(name) {
+    animation: unset;
+    animation-fill-mode: forwards !important;
+    animation: 100ms ease-out fade-out;
+}

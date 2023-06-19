@@ -1,0 +1,164 @@
+html {
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+#search-page {
+    view-transition-name: search-page;
+}
+
+::view-transition-new(search-page) {
+    animation: none;
+}
+::view-transition-old(search-page) {
+    animation: none;
+}
+
+section {
+    height: 100vh;
+    height: calc(var(--vh, 1vh) * 100 - 0.01px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+main>section:first-child {
+    background-color: #f5f5f5;
+}
+
+#above-bar, #below-bar {
+    width: 100%;
+    height: calc((100% - 3rem - 2px) / 2);
+    display: flex;
+    flex-direction: column;
+}
+
+#above-bar {
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 2rem;
+}
+
+#header {
+    display: flex;
+    flex-direction: row;
+    width: 100%;
+    justify-content: right;
+}
+
+#connection-status {
+    padding: .5rem;
+    font-size: .9rem;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+}
+
+#connection-status-indicator {
+    height: .8rem;
+    width: .8rem;
+    margin-left: .3rem;
+    margin-top: .1rem;
+    /*border-radius: .4rem;
+    background-color: #2ecc71;
+    */
+}
+
+#connection-status-indicator.spinner {
+    border-width: 3px;
+    border-color: #ddd;
+    border-left-color: #f1c40f;
+}
+
+.grower-separator {
+    width: 100%;
+    flex-grow: 1;
+}
+
+#search-page #logo {
+    width: 10rem;
+    aspect-ratio: 1 / 1;
+    view-transition-name: logo;
+}
+
+#search-page h1 {
+    font-size: 4rem;
+    font-weight: normal;
+    margin: 0;
+    view-transition-name: name;
+}
+
+h1~p {
+    margin: 0;
+    font-size: 1.2rem;
+    color: #444;
+}
+
+#search-bar {
+    width: 38rem;
+    height: 3rem;
+    flex-shrink: 0;
+    background-color: #fefefe;
+    border: 1px solid #ccc;
+    border-radius: .3rem;
+    cursor: text;
+    box-shadow: 0 .2rem .75rem rgba(0, 0, 0, .07);
+    display: flex;
+    align-items: center;
+    padding: 0 0 0 1rem;
+}
+
+#search-bar:hover, #search-bar:focus-within {
+    box-shadow: 0 .2rem .75rem rgba(0, 0, 0, .2);
+}
+
+#search-bar>input {
+    all: unset;
+    flex-grow: 1;
+    height: 100%;
+    font-size: 1.3rem;
+}
+
+#glass-button {
+    all: unset;
+    height: 1.8rem;
+    width: 1.8rem;
+    padding: .75rem .45rem .45rem .75rem;
+    border-radius: 0 .3rem .3rem 0;
+    cursor: pointer;
+}
+
+#glass-button:hover {
+    background-color: #2ecc71;
+    color: #fefefe;
+}
+
+#below-bar {
+    justify-content: flex-start;
+    align-items: center;
+    padding-top: 2rem;
+}
+
+#buttons {
+    display: flex;
+    flex-direction: row;
+}
+
+#buttons>button {
+    all: unset;
+    background-color: #eaeaea;
+    border-radius: .3rem;
+    padding: .5rem 1rem;
+    margin: 0 .5rem;
+    cursor: pointer;
+    border: 2px solid #eaeaea;
+}
+
+#buttons>button:hover {
+    transition: border-color .2s;
+    border: 2px solid #ccc;
+}

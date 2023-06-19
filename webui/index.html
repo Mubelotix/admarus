@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admarus</title>
+    <link rel="icon" href="assets/logo.png" />
+    <link data-trunk rel="css" href="assets/spinner.css" />
+    <link data-trunk rel="css" href="src/search/search.css" />
+    <link data-trunk rel="css" href="src/settings/settings.css" />
+    <link data-trunk rel="css" href="src/results/results.css" />
+    <link data-trunk rel="copy-dir" href="assets" />
+    <style>
+        ::view-transition-old(root), ::view-transition-new(root) {
+            animation: none;
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <section>
+            <div id="above-bar">
+                <div id="header">
+                    <!--
+                    <div id="connection-status">
+                        <div>gateway</div>
+                        <div id="connection-status-indicator" class="spinner"></div>
+                    </div>
+                    -->
+                    <button id="settings-button"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+                </div>
+                <div class="grower-separator"></div>
+                <img id="logo" src="assets/logo.png"/>
+                <h1>Admarus</h1>
+                <p>The Peer-to-Peer Search Engine</p>
+            </div>
+            <div id="search-bar">
+                <input type="text" placeholder="Search the decentralized web"/>
+                <button id="glass-button">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                </button>
+            </div>
+            <div id="below-bar">
+                <div id="buttons">
+                    <button>Join the network</button>
+                    <button>I'm feeling lucky</button>
+                </div>
+            </div>
+        </section>
+    </main>
+    <script>
+        // https://css-tricks.com/the-trick-to-viewport-units-on-mobile/
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    </script>
+</body>
+</html>
