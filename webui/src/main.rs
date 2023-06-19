@@ -1,6 +1,7 @@
 mod app;
 mod prelude;
 mod util;
+mod result;
 
 #[path = "search/search.rs"]
 mod search;

@@ -6,5 +6,6 @@ pub use wasm_bindgen_futures::{spawn_local, JsFuture};
 pub use yew::{html::Scope, prelude::*};
 pub use yew_template::template_html;
 pub use web_sys::HtmlInputElement;
+pub use serde::{Serialize, Deserialize};
 
 pub type AppLink = Scope<App>;
