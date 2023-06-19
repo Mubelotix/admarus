@@ -19,6 +19,7 @@
 #first-header-row>h1 {
     width: 10rem;
     font-size: 1.5rem;
+    cursor: pointer;
     font-weight: normal;
     text-align: right;
     flex-shrink: 0;
@@ -27,6 +28,7 @@
 }
 
 #first-header-row>img {
+    cursor: pointer;
     width: 3.3rem;
     margin: .35rem 2rem .35rem .7rem;
     aspect-ratio: 1 / 1;

@@ -6,7 +6,7 @@ use crate::prelude::*;
 
 #[derive(Clone)]
 pub enum Page {
-    Search,
+    Home,
     Results(Rc<String>),
     Settings,
 }
@@ -26,7 +26,7 @@ impl Component for App {
 
     fn create(ctx: &Context<Self>) -> Self {
         Self {
-            page: Page::Search,
+            page: Page::Home,
         }
     }
 
@@ -41,7 +41,7 @@ impl Component for App {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         match self.page {
-            Page::Search => html!(<SearchPage app_link={ctx.link().clone()} />),
+            Page::Home => html!(<SearchPage app_link={ctx.link().clone()} />),
             Page::Settings => html!(<SettingsPage app_link={ctx.link().clone()} />),
             Page::Results(ref query) => html!(<ResultsPage app_link={ctx.link().clone()} query={Rc::clone(query)} />),
         }

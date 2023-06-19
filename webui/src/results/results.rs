@@ -48,6 +48,7 @@ impl Component for ResultsPage {
             "results/results.html",
             query = { ctx.props().query.to_string() },
             onclick_glass = { ctx.link().callback(|_| ResultsMessage::RelaunchSearch) },
+            onclick_home = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) }
         )
     }
