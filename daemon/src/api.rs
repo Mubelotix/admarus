@@ -49,7 +49,7 @@ async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>
     let search_controler = kamilata.search(SearchQueries::from(words)).await;
     let id = search_park.insert(search_controler).await;
 
-    Ok(Response::builder().header("Content-Type", "application/json").body("{\"id\": ".to_string() + &id.to_string() + "}").unwrap())
+    Ok(Response::builder().header("Content-Type", "application/json").header("Access-Control-Allow-Origin", "*").body("{\"id\": ".to_string() + &id.to_string() + "}").unwrap())
 }
 
 #[derive(Deserialize, Serialize)]
@@ -60,7 +60,7 @@ struct FetchResultsQuery {
 async fn fetch_results((query, search_park): (FetchResultsQuery, Arc<SearchPark>)) -> Result<impl warp::Reply, Infallible> {
     let id = query.id;
     let search_results: Vec<_> = search_park.get_results(id).await.into_iter().map(|(d, p)| (d, p.to_string())).collect();
-    Ok(Response::builder().header("Content-Type", "application/json").body(serde_json::to_string(&search_results).unwrap()).unwrap())
+    Ok(Response::builder().header("Content-Type", "application/json").header("Access-Control-Allow-Origin", "*").body(serde_json::to_string(&search_results).unwrap()).unwrap())
 }
 
 pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: NodeController) {

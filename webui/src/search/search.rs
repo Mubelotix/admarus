@@ -32,7 +32,7 @@ impl Component for SearchPage {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             SearchPageMessage::LaunchSearch => {
-                let document = window().document().unwrap();
+                let document = wndw().document().unwrap();
                 let el = document.get_element_by_id("search-query-input").unwrap();
                 let el: HtmlInputElement = el.dyn_into().unwrap();
                 let query = Rc::new(el.value());

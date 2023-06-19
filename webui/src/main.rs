@@ -2,6 +2,7 @@ mod app;
 mod prelude;
 mod util;
 mod result;
+mod api;
 
 #[path = "search/search.rs"]
 mod search;

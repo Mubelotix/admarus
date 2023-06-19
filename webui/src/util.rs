@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub fn window() -> web_sys::Window {
+pub fn wndw() -> web_sys::Window {
     unsafe {
         web_sys::window().unwrap_unchecked()
     }
@@ -8,7 +8,10 @@ pub fn window() -> web_sys::Window {
 
 pub async fn sleep(duration: Duration) {
     let promise = Promise::new(&mut |resolve, _| {
-        window().set_timeout_with_callback_and_timeout_and_arguments_0(&resolve, duration.as_millis() as i32).unwrap();
+        wndw().set_timeout_with_callback_and_timeout_and_arguments_0(
+            &resolve,
+            duration.as_millis() as i32,
+        ).unwrap();
     });
     JsFuture::from(promise).await.unwrap();
 }
