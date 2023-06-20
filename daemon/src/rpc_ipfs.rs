@@ -110,7 +110,7 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
 
     let mut links = Vec::new();
     for new_link in links_json {
-        let hash = new_link
+        let child_cid = new_link
             .get("Hash").ok_or(InvalidResponse("Hash expected on link"))?
             .get("/").ok_or(InvalidResponse("/ expected on Hash"))?
             .as_str().ok_or(InvalidResponse("Hash expected to be a string"))?;
@@ -120,11 +120,12 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
         let size = new_link
             .get("Tsize").ok_or(InvalidResponse("Tsize expected on link"))?
             .as_u64().ok_or(InvalidResponse("Tsize expected to be a u64"))?;
-        let mut pathes = metadata.paths.clone();
-        pathes.iter_mut().for_each(|p| p.push(name.to_owned()));
+        let mut paths = metadata.paths.clone();
+        paths.iter_mut().for_each(|p| p.push(name.to_owned()));
+        paths.push(vec![cid.to_owned(), name.to_owned()]);
 
-        links.push((hash.to_owned(), Metadata {
-            paths: pathes,
+        links.push((child_cid.to_owned(), Metadata {
+            paths,
             size: Some(size),
         }));
     }
