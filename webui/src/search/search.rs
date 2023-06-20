@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 pub struct SearchPage {
-    
+    _onkeypress: Closure<dyn FnMut(web_sys::KeyboardEvent)>,
 }
 
 pub enum SearchPageMessage {
@@ -23,9 +23,17 @@ impl Component for SearchPage {
     type Message = SearchPageMessage;
     type Properties = SearchPageProps;
 
-    fn create(_ctx: &Context<Self>) -> Self {
+    fn create(ctx: &Context<Self>) -> Self {
+        let link = ctx.link().clone();
+        let onkeypress = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+            if e.key() == "Enter" {
+                link.send_message(SearchPageMessage::LaunchSearch);
+            }
+        }) as Box<dyn FnMut(_)>);
+        wndw().add_event_listener_with_callback("keypress", onkeypress.as_ref().unchecked_ref()).unwrap();
+
         Self {
-            
+            _onkeypress: onkeypress,
         }
     }
 
