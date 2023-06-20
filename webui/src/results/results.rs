@@ -97,8 +97,8 @@ impl Component for ResultsPage {
             onclick_glass = { ctx.link().callback(|_| ResultsMessage::RelaunchSearch) },
             onclick_home = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) },
-            cid_iter = { self.results.iter().map(|result| format!("{}", result.0.cid)) },
-            cid2_iter = { self.results.iter().map(|result| format!("{}", result.0.cid)) },
+            addr_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
+            addr2_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
             title_iter = { self.results.iter().map(|result| format!("{}", result.0.title)) },
             description_iter = { self.results.iter().map(|result| format!("{}", result.0.description)) },
         )
