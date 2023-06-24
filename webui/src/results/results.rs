@@ -19,7 +19,6 @@ pub struct ResultsPage {
 }
 
 pub enum ResultsMessage {
-    RelaunchSearch,
     SearchSuccess(u64),
     SearchFailure(ApiError),
     FetchResultsSuccess(Vec<(DocumentResult, String)>),
@@ -79,14 +78,6 @@ impl Component for ResultsPage {
                 log!("search failure: {e:?}"); // TODO: display error
                 false
             }
-            ResultsMessage::RelaunchSearch => {
-                let document = wndw().document().unwrap();
-                let el = document.get_element_by_id("search-query-input").unwrap();
-                let el: HtmlInputElement = el.dyn_into().unwrap();
-                let query = Rc::new(el.value());
-                ctx.props().app_link.animate_message(AppMsg::ChangePage(Page::Results(query)));
-                false
-            },
         }
     }
 
@@ -94,7 +85,7 @@ impl Component for ResultsPage {
         template_html!(
             "results/results.html",
             query = { ctx.props().query.to_string() },
-            onclick_glass = { ctx.link().callback(|_| ResultsMessage::RelaunchSearch) },
+            onsearch = { ctx.props().app_link.animate_callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
             onclick_home = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) },
             addr_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
