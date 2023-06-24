@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 #[derive(Properties, PartialEq)]
 pub struct SearchBarProps {
-    on_search: Callback<String>,
+    pub onsearch: Callback<String>,
 }
 
 pub enum SearchBarMsg {
@@ -12,6 +12,7 @@ pub enum SearchBarMsg {
 pub struct SearchBar {
     _onkeypress: Closure<dyn FnMut(web_sys::KeyboardEvent)>,
 }
+pub use SearchBar as searchbar;
 
 impl Component for SearchBar {
     type Message = SearchBarMsg;
@@ -38,7 +39,7 @@ impl Component for SearchBar {
                 let el = document.get_element_by_id("search-query-input").unwrap();
                 let el: HtmlInputElement = el.dyn_into().unwrap();
                 let query = el.value();
-                ctx.props().on_search.emit(query);
+                ctx.props().onsearch.emit(query);
                 false
             }
         }
