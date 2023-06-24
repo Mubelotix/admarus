@@ -3,16 +3,19 @@ use crate::prelude::*;
 #[derive(Properties, PartialEq)]
 pub struct SearchBarProps {
     pub onsearch: Callback<String>,
+    #[prop_or_default]
+    pub value: Option<String>,
 }
 
 pub enum SearchBarMsg {
     Search,
+    Input(String),
 }
 
 pub struct SearchBar {
     _onkeypress: Closure<dyn FnMut(web_sys::KeyboardEvent)>,
+    value: String,
 }
-pub use SearchBar as searchbar;
 
 impl Component for SearchBar {
     type Message = SearchBarMsg;
@@ -29,19 +32,20 @@ impl Component for SearchBar {
 
         SearchBar {
             _onkeypress: onkeypress,
+            value: ctx.props().value.clone().unwrap_or_default(),
         }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             SearchBarMsg::Search => {
-                let document = wndw().document().unwrap();
-                let el = document.get_element_by_id("search-query-input").unwrap();
-                let el: HtmlInputElement = el.dyn_into().unwrap();
-                let query = el.value();
-                ctx.props().onsearch.emit(query);
+                ctx.props().onsearch.emit(self.value.clone());
                 false
-            }
+            },
+            SearchBarMsg::Input(value) => {
+                self.value = value;
+                false
+            },
         }
     }
 
@@ -49,6 +53,8 @@ impl Component for SearchBar {
         template_html!(
             "components/search_bar/search_bar.html",
             onclick_search = { ctx.link().callback(|_| SearchBarMsg::Search) },
+            oninput = { ctx.link().callback(SearchBarMsg::Input) },
+            value = { self.value.clone() },
         )
     }
 }
