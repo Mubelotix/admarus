@@ -10,6 +10,8 @@ mod search;
 mod settings;
 #[path = "results/results.rs"]
 mod results;
+#[path = "components/search_bar/search_bar.rs"]
+mod search_bar;
 
 use crate::prelude::*;
 
