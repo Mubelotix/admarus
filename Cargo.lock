@@ -5816,7 +5816,9 @@ dependencies = [
 
 [[package]]
 name = "yew-template"
-version = "0.9.0"
+version = "0.10.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "394410193159fa9d9946609a1a7f8f48e85cb35dbd0eab9d130157dd1eba7676"
 dependencies = [
  "html5ever",
  "poreader",

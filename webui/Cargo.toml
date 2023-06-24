@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 yew = { version="0.20", features=["csr"] }
-yew-template = {path="../../insagenda/yew-template", features = ["log"]}
+yew-template = "0.10"
 js-sys = "0.3"
 wasm-bindgen = "0.2"
 wasm-bindgen-futures = "0.4"
