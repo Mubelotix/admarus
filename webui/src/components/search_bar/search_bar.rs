@@ -9,7 +9,7 @@ pub struct SearchBarProps {
 
 pub enum SearchBarMsg {
     Search,
-    Input(String),
+    Input(yew::InputEvent),
 }
 
 pub struct SearchBar {
@@ -42,14 +42,17 @@ impl Component for SearchBar {
                 ctx.props().onsearch.emit(self.value.clone());
                 false
             },
-            SearchBarMsg::Input(value) => {
-                self.value = value;
+            SearchBarMsg::Input(e) => {
+                let target = e.target().unwrap();
+                self.value = target.dyn_ref::<web_sys::HtmlInputElement>().unwrap().value();
+                log!("Search bar value changed to {}", self.value);
                 false
             },
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        log!("Rendering search bar {}", self.value);
         template_html!(
             "components/search_bar/search_bar.html",
             onclick_search = { ctx.link().callback(|_| SearchBarMsg::Search) },
