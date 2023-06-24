@@ -85,9 +85,9 @@ impl Component for ResultsPage {
         template_html!(
             "results/results.html",
             query = { ctx.props().query.to_string() },
-            onsearch = { ctx.props().app_link.animate_callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
-            onclick_home = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Home)) },
-            onclick_settings = { ctx.props().app_link.animate_callback(|_| AppMsg::ChangePage(Page::Settings)) },
+            onsearch = { ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
+            onclick_home = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) },
+            onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) },
             addr_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
             addr2_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
             title_iter = { self.results.iter().map(|result| format!("{}", result.0.title)) },

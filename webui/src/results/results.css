@@ -24,7 +24,6 @@
     text-align: right;
     flex-shrink: 0;
     margin: 0;
-    view-transition-name: name;
 }
 
 #first-header-row>img {
@@ -32,7 +31,6 @@
     width: 3.3rem;
     margin: .35rem 2rem .35rem .7rem;
     aspect-ratio: 1 / 1;
-    view-transition-name: logo;
 }
 
 #result-selectors {
@@ -103,65 +101,4 @@
     color: #006d21;
     margin: .3rem 0;
     font-size: .9rem;
-}
-
-/* Animation */
-
-#search-bar {
-    view-transition-name: search-bar;
-}
-
-@keyframes search-bar-slide-to-top {
-    from {
-        /*position: fixed;*/
-    }
-    to {
-        /*position: fixed;*/
-        /*top: calc(0.5rem - 1px);
-        left: 16rem;*/
-    }
-}
-
-
-
-::view-transition-group(search-bar) {
-    z-index: 2;
-    transition-duration: 300ms;
-}
-
-@keyframes fade-in {
-    from {
-        opacity: 0;
-    }
-    to {
-        opacity: 1;
-    }
-}
-
-@keyframes fade-out {
-    from {
-        opacity: 1;
-    }
-    to {
-        opacity: 0;
-    }
-}
-
-::view-transition-group(name) {
-    animation-duration: 150ms !important;
-    animation-fill-mode: forwards !important;
-}
-::view-transition-image-pair(name) {
-    animation-duration: 150ms !important;
-    animation-fill-mode: forwards !important;
-}
-::view-transition-new(name) {
-    animation: none;
-    animation-fill-mode: forwards !important;
-    animation: 150ms ease-out fade-in;
-}
-::view-transition-old(name) {
-    animation: unset;
-    animation-fill-mode: forwards !important;
-    animation: 100ms ease-out fade-out;
 }

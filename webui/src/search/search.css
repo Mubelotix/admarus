@@ -7,17 +7,6 @@ body {
     padding: 0;
 }
 
-#search-page {
-    view-transition-name: search-page;
-}
-
-::view-transition-new(search-page) {
-    animation: none;
-}
-::view-transition-old(search-page) {
-    animation: none;
-}
-
 section {
     height: 100vh;
     height: calc(var(--vh, 1vh) * 100 - 0.01px);
@@ -82,14 +71,12 @@ main>section:first-child {
 #search-page #logo {
     width: 10rem;
     aspect-ratio: 1 / 1;
-    view-transition-name: logo;
 }
 
 #search-page h1 {
     font-size: 4rem;
     font-weight: normal;
     margin: 0;
-    view-transition-name: name;
 }
 
 h1~p {
