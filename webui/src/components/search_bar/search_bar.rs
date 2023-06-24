@@ -10,7 +10,7 @@ pub enum SearchBarMsg {
 }
 
 pub struct SearchBar {
-
+    _onkeypress: Closure<dyn FnMut(web_sys::KeyboardEvent)>,
 }
 
 impl Component for SearchBar {
@@ -18,8 +18,17 @@ impl Component for SearchBar {
     type Properties = SearchBarProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        // TODO event listeners
-        SearchBar {  }
+        let link = ctx.link().clone();
+        let onkeypress = Closure::wrap(Box::new(move |e: web_sys::KeyboardEvent| {
+            if e.key() == "Enter" {
+                link.send_message(SearchBarMsg::Search);
+            }
+        }) as Box<dyn FnMut(_)>);
+        wndw().add_event_listener_with_callback("keypress", onkeypress.as_ref().unchecked_ref()).unwrap();
+
+        SearchBar {
+            _onkeypress: onkeypress,
+        }
     }
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
