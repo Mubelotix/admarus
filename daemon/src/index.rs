@@ -50,11 +50,12 @@ impl<const N: usize> DocumentIndexInner<N> {
 
     pub fn add_document(&mut self, cid: String, document: Document, metadata: Metadata) {
         self.metadata.insert(cid.clone(), metadata);
-        let word_count = document.words().count() as f64;
-        for word in document.words() {
+        let words = document.words();
+        let word_count = words.len() as f64;
+        for word in words {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
             *frequencies.entry(cid.clone()).or_insert(0.) += 1. / word_count;
-            self.filter.add_word::<DocumentIndex<N>>(word);
+            self.filter.add_word::<DocumentIndex<N>>(&word);
         }
     }
 
@@ -70,8 +71,8 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
 
         let mut matching_cids = HashMap::new();
-        for word in words {
-            for (document, _freqency) in self.index.get(&word).into_iter().flatten() {
+        for word in &words {
+            for (document, _freqency) in self.index.get(word).into_iter().flatten() {
                 *matching_cids.entry(document.to_owned()).or_insert(0) += 1;
             }
         }
@@ -81,7 +82,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         for (cid, _) in matching_cids {
             let Ok(Some(document)) = fetch_document(&self.config.ipfs_rpc, &cid).await else {continue};
             let Some(metadata) = self.metadata.get(&cid) else {continue};
-            results.push(document.into_result(cid, metadata.to_owned()));
+            results.push(document.into_result(cid, metadata.to_owned(), &words));
         }
         results
     }
