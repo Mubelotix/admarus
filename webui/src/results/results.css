@@ -102,3 +102,13 @@
     margin: .3rem 0;
     font-size: .9rem;
 }
+
+.result-scores {
+    display: flex;
+    flex-direction: row;
+}
+
+.result-scores>span {
+    margin-right: 1rem;
+    font-size: .9rem;
+}

@@ -76,6 +76,14 @@ impl DocumentResult {
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
         term_sum / word_count_sum
     }
+
+    fn length_score(&self) -> Score {
+        let preferred_lenght = 500.0;
+        let length = self.word_count.sum() as f64;
+        let length_score = 1.0 / (1.0 + (-0.017 * (length - (preferred_lenght / 2.0))).exp());
+
+        Score::from(length_score)
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -121,9 +129,41 @@ impl std::fmt::Debug for Score {
     }
 }
 
+pub struct Scores {
+    pub tf_score: Score,
+    pub length_score: Score,
+}
+
+impl Scores {
+    pub fn general_score(&self) -> Score {
+        Score::from(self.tf_score.val * 0.5 + self.length_score.val * 0.5)
+    }
+}
+
+impl PartialEq for Scores {
+    fn eq(&self, other: &Self) -> bool {
+        self.tf_score == other.tf_score && self.length_score == other.length_score
+    }
+}
+
+impl Eq for Scores {}
+
+impl PartialOrd for Scores {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.general_score().partial_cmp(&other.general_score())
+    }
+}
+
+impl Ord for Scores {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.partial_cmp(other).unwrap()
+    }
+}
+
 pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
-    tf_ranking: Vec<(String, Score)>
+    tf_ranking: Vec<(String, Score)>,
+    length_scores: HashMap<String, Score>,
 }
 
 impl RankedResults {
@@ -131,38 +171,52 @@ impl RankedResults {
         Self {
             results: HashMap::new(),
             tf_ranking: Vec::new(),
+            length_scores: HashMap::new(),
         }
     }
 
-    pub fn insert(&mut self, doc: DocumentResult) {
-        let tf_score = Score::from(doc.tf());
+    pub fn insert(&mut self, res: DocumentResult) {
+        let tf_score = Score::from(res.tf());
         let tf_rank = self.tf_ranking.binary_search_by_key(&tf_score, |(_,s)| *s).unwrap_or_else(|i| i);
-        self.tf_ranking.insert(tf_rank, (doc.cid.clone(), tf_score));
-        self.results.insert(doc.cid.clone(), doc);
+        self.tf_ranking.insert(tf_rank, (res.cid.clone(), tf_score));
+
+        self.length_scores.insert(res.cid.clone(), res.length_score());
+
+        self.results.insert(res.cid.clone(), res);
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = &DocumentResult> {
+    pub fn get_all_scores(&self) -> Vec<(String, Scores)> {
         let res_count = self.results.len() as f64;
 
         let mut tf_scores = HashMap::new();
         for (i, (cid, _)) in self.tf_ranking.iter().enumerate() {
             tf_scores.insert(cid, i as f64 / res_count);
         }
-        
-        let mut other_score = HashMap::new();
-        for (cid, _) in self.results.iter() {
-            other_score.insert(cid, 1.0);
-        }
 
-        let mut scores = Vec::new();
+        let length_scores = &self.length_scores;
+
+        let mut all_scores = Vec::new();
         for (cid, _) in self.results.iter() {
             let tf_score = tf_scores.get(cid).unwrap();
-            let other_score = other_score.get(cid).unwrap();
-            let score = Score::from(tf_score * 0.5 + other_score * 0.5);
-            let i = scores.binary_search_by_key(&score, |(_,s)| *s).unwrap_or_else(|i| i);
-            scores.insert(i, (cid, score));
+            let length_score = length_scores.get(cid).unwrap();
+            let scores = Scores {
+                tf_score: Score::from(*tf_score),
+                length_score: *length_score,
+            };
+            let i = all_scores.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
+            all_scores.insert(i, (cid.clone(), scores));
         }
 
-        scores.into_iter().rev().map(move |(cid, _)| self.results.get(cid).unwrap())
+        all_scores
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &DocumentResult> {
+        let scores = self.get_all_scores();
+        scores.into_iter().rev().map(move |(cid, _)| self.results.get(&cid).unwrap())
+    }
+
+    pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, Scores)> {
+        let scores = self.get_all_scores();
+        scores.into_iter().rev().map(move |(cid, scores)| (self.results.get(&cid).unwrap(), scores))
     }
 }

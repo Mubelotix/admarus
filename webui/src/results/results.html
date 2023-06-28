@@ -31,6 +31,10 @@
             <h3><a href="{{addr_iter}}">{{title_iter}}</a></h3>
             <div class="result-path">{{addr2_iter}}</div>
             <p>{{description_iter}}</p>
+            <div present-if={{display_scores}} class="result-scores">
+                <span>Term frequency: {{term_frequency_score_iter}}</span>
+                <span>Lenght: {{length_score_iter}}</span>
+            </div>
         </div>
     </div>
 </main>

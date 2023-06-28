@@ -89,16 +89,22 @@ impl Component for ResultsPage {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let results = self.results.iter_with_scores().collect::<Vec<_>>();
+
         template_html!(
             "results/results.html",
             query = { ctx.props().query.to_string() },
             onsearch = { ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
             onclick_home = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) },
-            addr_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
-            addr2_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
-            title_iter = { self.results.iter().map(|result| format!("{}", result.title)) },
-            description_iter = { self.results.iter().map(|result| format!("{}", result.description)) },
+            addr_iter = { results.iter().map(|(result,_)| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
+            addr2_iter = { results.iter().map(|(result,_)| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
+            title_iter = { results.iter().map(|(result,_)| format!("{}", result.title)) },
+            description_iter = { results.iter().map(|(result,_)| format!("{}", result.description)) },
+            
+            term_frequency_score_iter = { results.iter().map(|(_, scores)| scores.tf_score) },
+            length_score_iter = { results.iter().map(|(_, scores)| scores.length_score) },
+            display_scores = true,
         )
     }
 }
