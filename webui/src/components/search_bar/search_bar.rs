@@ -45,14 +45,12 @@ impl Component for SearchBar {
             SearchBarMsg::Input(e) => {
                 let target = e.target().unwrap();
                 self.value = target.dyn_ref::<web_sys::HtmlInputElement>().unwrap().value();
-                log!("Search bar value changed to {}", self.value);
                 false
             },
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        log!("Rendering search bar {}", self.value);
         template_html!(
             "components/search_bar/search_bar.html",
             onclick_search = { ctx.link().callback(|_| SearchBarMsg::Search) },
