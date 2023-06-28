@@ -15,7 +15,7 @@ impl PartialEq for ResultsPageProps {
 pub struct ResultsPage {
     search_id: Option<u64>,
     search_failure: Option<ApiError>,
-    results: Vec<(DocumentResult, String)>
+    results: Vec<DocumentResult>
 }
 
 pub enum ResultsMessage {
@@ -61,7 +61,16 @@ impl Component for ResultsPage {
                 false
             }
             ResultsMessage::FetchResultsSuccess(results) => {
-                self.results.extend(results);
+                let new_results = !results.is_empty();
+                for (result, _) in results {
+                    let i = self.results.binary_search_by_key(&result.score(), |r| r.score()).unwrap_or_else(|i| i);
+                    self.results.insert(i, result);
+                }
+                if new_results {
+                    for result in &self.results {
+                        log!("result: {} {}", result.title, result.score());
+                    }
+                }
                 if let Some(search_id) = self.search_id {
                     let link = ctx.link().clone();
                     spawn_local(async move {
@@ -88,10 +97,10 @@ impl Component for ResultsPage {
             onsearch = { ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
             onclick_home = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) },
-            addr_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
-            addr2_iter = { self.results.iter().map(|result| format!("ipfs://{}", result.0.paths.first().map(|p| p.join("/")).unwrap_or(result.0.cid.clone()))) },
-            title_iter = { self.results.iter().map(|result| format!("{}", result.0.title)) },
-            description_iter = { self.results.iter().map(|result| format!("{}", result.0.description)) },
+            addr_iter = { self.results.iter().rev().map(|result| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
+            addr2_iter = { self.results.iter().rev().map(|result| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
+            title_iter = { self.results.iter().rev().map(|result| format!("{}", result.title)) },
+            description_iter = { self.results.iter().rev().map(|result| format!("{}", result.description)) },
         )
     }
 }
