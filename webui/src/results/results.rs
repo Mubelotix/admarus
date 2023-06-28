@@ -90,6 +90,11 @@ impl Component for ResultsPage {
         }
     }
 
+    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
+        *self = Component::create(ctx);
+        true
+    }
+
     fn view(&self, ctx: &Context<Self>) -> Html {
         template_html!(
             "results/results.html",
