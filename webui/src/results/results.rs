@@ -68,7 +68,7 @@ impl Component for ResultsPage {
                 }
                 if new_results {
                     for result in &self.results {
-                        log!("result: {} {}", result.title, result.score());
+                        log!("result: {} {} {}", result.title, result.score(), result.word_count.sum());
                     }
                 }
                 if let Some(search_id) = self.search_id {

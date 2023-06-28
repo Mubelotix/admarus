@@ -36,6 +36,10 @@ pub struct WordCount {
 }
 
 impl WordCount {
+    pub fn sum(&self) -> usize {
+        self.h1 + self.h2 + self.h3 + self.h4 + self.h5 + self.h6 + self.strong + self.em + self.regular + self.small + self.s
+    }
+    
     fn weighted_sum(&self) -> f64 {
         self.h1 as f64 * 10.0
             + self.h2 as f64 * 9.0
