@@ -61,8 +61,8 @@ impl Component for ResultsPage {
                 false
             }
             ResultsMessage::FetchResultsSuccess(results) => {
-                for (result, _) in results {
-                    self.results.insert(result);
+                for (result, provider) in results {
+                    self.results.insert(result, provider);
                 }
                 if let Some(search_id) = self.search_id {
                     let link = ctx.link().clone();
@@ -104,6 +104,7 @@ impl Component for ResultsPage {
             
             term_frequency_score_iter = { results.iter().map(|(_, scores)| scores.tf_score) },
             length_score_iter = { results.iter().map(|(_, scores)| scores.length_score) },
+            popularity_score_iter = { results.iter().map(|(_, scores)| scores.popularity_score) },
             display_scores = true,
         )
     }

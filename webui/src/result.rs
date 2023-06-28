@@ -132,11 +132,12 @@ impl std::fmt::Debug for Score {
 pub struct Scores {
     pub tf_score: Score,
     pub length_score: Score,
+    pub popularity_score: Score,
 }
 
 impl Scores {
     pub fn general_score(&self) -> Score {
-        Score::from(self.tf_score.val * 0.5 + self.length_score.val * 0.5)
+        Score::from(self.tf_score.val * 0.25 + self.length_score.val * 0.25 + self.popularity_score.val * 0.5)
     }
 }
 
@@ -164,6 +165,7 @@ pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
     tf_ranking: Vec<(String, Score)>,
     length_scores: HashMap<String, Score>,
+    providers: HashMap<String, Vec<String>>,
 }
 
 impl RankedResults {
@@ -172,10 +174,17 @@ impl RankedResults {
             results: HashMap::new(),
             tf_ranking: Vec::new(),
             length_scores: HashMap::new(),
+            providers: HashMap::new(),
         }
     }
 
-    pub fn insert(&mut self, res: DocumentResult) {
+    pub fn insert(&mut self, res: DocumentResult, provider: String) {
+        self.providers.entry(res.cid.clone()).or_default().push(provider);
+
+        if self.results.contains_key(&res.cid) {
+            return;
+        }
+
         let tf_score = Score::from(res.tf());
         let tf_rank = self.tf_ranking.binary_search_by_key(&tf_score, |(_,s)| *s).unwrap_or_else(|i| i);
         self.tf_ranking.insert(tf_rank, (res.cid.clone(), tf_score));
@@ -195,24 +204,22 @@ impl RankedResults {
 
         let length_scores = &self.length_scores;
 
+        let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
         let mut all_scores = Vec::new();
         for (cid, _) in self.results.iter() {
             let tf_score = tf_scores.get(cid).unwrap();
             let length_score = length_scores.get(cid).unwrap();
+            let popularity_score = Score::from(self.providers.get(cid).unwrap().len() as f64 / max_provider_count);
             let scores = Scores {
                 tf_score: Score::from(*tf_score),
                 length_score: *length_score,
+                popularity_score,
             };
             let i = all_scores.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
             all_scores.insert(i, (cid.clone(), scores));
         }
 
         all_scores
-    }
-
-    pub fn iter(&self) -> impl Iterator<Item = &DocumentResult> {
-        let scores = self.get_all_scores();
-        scores.into_iter().rev().map(move |(cid, _)| self.results.get(&cid).unwrap())
     }
 
     pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, Scores)> {
