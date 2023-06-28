@@ -1,6 +1,6 @@
 pub use crate::{app::*, search::*, settings::*, util::*, results::*, result::*, api::*, search_bar::*, *};
 pub use js_sys::{Array, Function, Promise, Reflect::*};
-pub use std::{time::Duration, rc::Rc};
+pub use std::{time::Duration, rc::Rc, cmp::Ordering, collections::HashMap};
 pub use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 pub use wasm_bindgen_futures::{spawn_local, JsFuture};
 pub use yew::{html::Scope, prelude::*};

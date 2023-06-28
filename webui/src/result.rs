@@ -1,5 +1,3 @@
-use std::cmp::Ordering;
-
 use crate::prelude::*;
 
 /// Used to count words but counts different types of words separately.
@@ -78,12 +76,9 @@ impl DocumentResult {
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
         term_sum / word_count_sum
     }
-
-    pub fn score(&self) -> Score {
-        Score::from(self.tf() * 1.0)
-    }
 }
 
+#[derive(Clone, Copy)]
 pub struct Score {
     val: f64,
 }
@@ -123,5 +118,51 @@ impl std::fmt::Display for Score {
 impl std::fmt::Debug for Score {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.val)
+    }
+}
+
+pub struct RankedResults {
+    pub results: HashMap<String, DocumentResult>,
+    tf_ranking: Vec<(String, Score)>
+}
+
+impl RankedResults {
+    pub fn new() -> Self {
+        Self {
+            results: HashMap::new(),
+            tf_ranking: Vec::new(),
+        }
+    }
+
+    pub fn insert(&mut self, doc: DocumentResult) {
+        let tf_score = Score::from(doc.tf());
+        let tf_rank = self.tf_ranking.binary_search_by_key(&tf_score, |(_,s)| *s).unwrap_or_else(|i| i);
+        self.tf_ranking.insert(tf_rank, (doc.cid.clone(), tf_score));
+        self.results.insert(doc.cid.clone(), doc);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &DocumentResult> {
+        let res_count = self.results.len() as f64;
+
+        let mut tf_scores = HashMap::new();
+        for (i, (cid, _)) in self.tf_ranking.iter().enumerate() {
+            tf_scores.insert(cid, i as f64 / res_count);
+        }
+        
+        let mut other_score = HashMap::new();
+        for (cid, _) in self.results.iter() {
+            other_score.insert(cid, 1.0);
+        }
+
+        let mut scores = Vec::new();
+        for (cid, _) in self.results.iter() {
+            let tf_score = tf_scores.get(cid).unwrap();
+            let other_score = other_score.get(cid).unwrap();
+            let score = Score::from(tf_score * 0.5 + other_score * 0.5);
+            let i = scores.binary_search_by_key(&score, |(_,s)| *s).unwrap_or_else(|i| i);
+            scores.insert(i, (cid, score));
+        }
+
+        scores.into_iter().rev().map(move |(cid, _)| self.results.get(cid).unwrap())
     }
 }
