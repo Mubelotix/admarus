@@ -70,11 +70,18 @@ pub struct DocumentResult {
 }
 
 impl DocumentResult {
-    fn tf(&self) -> f64 {
-        // todo: check returned data
+    fn tf(&self, query: &[String]) -> f64 {
         let word_count_sum = self.word_count.weighted_sum();
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
-        term_sum / word_count_sum
+        
+        // Title is counted separately as it is not part of the document body
+        let title_words: Vec<_> = self.title.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
+        let title_word_count = title_words.len();
+        let title_term_count = title_words.iter().filter(|w| query.contains(w)).count();
+        let title_term_sum = title_term_count as f64 * 12.0;
+        let title_word_sum = title_word_count as f64 * 12.0;
+
+        (term_sum + title_term_sum) / (word_count_sum + title_word_sum)
     }
 
     fn length_score(&self) -> Score {
@@ -103,14 +110,14 @@ impl RankedResults {
         }
     }
 
-    pub fn insert(&mut self, res: DocumentResult, provider: String) {
+    pub fn insert(&mut self, res: DocumentResult, provider: String, query: &[String]) {
         self.providers.entry(res.cid.clone()).or_default().push(provider);
 
         if self.results.contains_key(&res.cid) {
             return;
         }
 
-        let tf_score = Score::from(res.tf());
+        let tf_score = Score::from(res.tf(query));
         let tf_rank = self.tf_ranking.binary_search_by_key(&tf_score, |(_,s)| *s).unwrap_or_else(|i| i);
         self.tf_ranking.insert(tf_rank, (res.cid.clone(), tf_score));
 

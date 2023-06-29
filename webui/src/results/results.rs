@@ -15,6 +15,7 @@ impl PartialEq for ResultsPageProps {
 }
 
 pub struct ResultsPage {
+    query: Vec<String>,
     search_id: Option<u64>,
     search_failure: Option<ApiError>,
     update_counter: u32,
@@ -43,6 +44,7 @@ impl Component for ResultsPage {
         });
 
         Self {
+            query: ctx.props().query.split_whitespace().map(|s| s.to_string()).collect(),
             search_id: None,
             search_failure: None,
             update_counter: 0,
@@ -67,7 +69,7 @@ impl Component for ResultsPage {
             ResultsMessage::FetchResultsSuccess(results) => {
                 self.update_counter += 1;
                 for (result, provider) in results {
-                    self.results.insert(result, provider);
+                    self.results.insert(result, provider, &self.query);
                 }
                 if let Some(search_id) = self.search_id {
                     let link = ctx.link().clone();
