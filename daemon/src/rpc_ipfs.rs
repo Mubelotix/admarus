@@ -205,12 +205,9 @@ pub async fn put_dag(ipfs_rpc: &str, dag_json: String, pin: bool) -> Result<Stri
     Ok(cid.to_owned())
 }
 
-pub async fn replace_pin(ipfs_rpc: &str, old_cid: &str, new_cid: &str) -> Result<(), IpfsRpcError> {
-    if old_cid == new_cid {
-        return Ok(());
-    }
+pub async fn add_pin(ipfs_rpc: &str, cid: &str) -> Result<(), IpfsRpcError> {
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/update?arg={old_cid}&arg={new_cid}&unpin=true")).send().await?;
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/add?arg={cid}&recursive=true")).send().await?;
     match rep.status() {
         StatusCode::OK => Ok(()),
         _ => {
@@ -221,9 +218,9 @@ pub async fn replace_pin(ipfs_rpc: &str, old_cid: &str, new_cid: &str) -> Result
     }
 }
 
-pub async fn add_pin(ipfs_rpc: &str, cid: &str) -> Result<(), IpfsRpcError> {
+pub async fn remove_pin(ipfs_rpc: &str, cid: &str) -> Result<(), IpfsRpcError> {
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/add?arg={cid}&recursive=true")).send().await?;
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/rm?arg={cid}&recursive=true")).send().await?;
     match rep.status() {
         StatusCode::OK => Ok(()),
         _ => {

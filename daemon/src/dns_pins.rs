@@ -28,7 +28,7 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
             Vec::new()
         }
     };
-    let mut previous_dns_pins = None;
+    let mut previous_dns_pins = Vec::new();
     for cid in old_pins {
         let dag = match get_dag(&config.ipfs_rpc, &cid).await {
             Ok(dag) => dag,
@@ -38,8 +38,7 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
             }
         };
         if let Some(serde_json::Value::Bool(true)) = dag.get("DNS-Pins") {
-            previous_dns_pins = Some(cid);
-            break;
+            previous_dns_pins.push(cid);
         }
     }
 
@@ -113,7 +112,7 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
             }
         }
         dag_json.push_str("]}");
-        let cid = match put_dag(&config.ipfs_rpc, dag_json, previous_dns_pins.is_none()).await {
+        let cid = match put_dag(&config.ipfs_rpc, dag_json, true).await {
             Ok(cid) => cid,
             Err(err) => {
                 error!("Failed to put DAG for DNS pins on IPFS: {err}");
@@ -123,14 +122,19 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         };
 
         // Replace old dag with new one
-        if let Some(previous_dns_pins) = &previous_dns_pins {
-            if let Err(e) = replace_pin(&config.ipfs_rpc, previous_dns_pins, &cid).await {
-                error!("Failed to replace old DNS pins with new ones: {e}");
+        if !(previous_dns_pins.len() == 1 && previous_dns_pins[0] == cid) {
+            if let Err(e) = add_pin(&config.ipfs_rpc, &cid).await {
+                error!("Failed to pin new DNS pins: {e}");
                 sleep(Duration::from_secs(dns_pins_interval)).await;
                 continue;
             }
+            for old_pin in previous_dns_pins {
+                if let Err(e) = remove_pin(&config.ipfs_rpc, &old_pin).await {
+                    error!("Failed to remove old DNS pin {old_pin}: {e}");
+                }
+            }
+            previous_dns_pins = vec![cid];
         }
-        previous_dns_pins = Some(cid);
 
         sleep(Duration::from_secs(dns_pins_interval).saturating_sub(start.elapsed())).await;
     }
