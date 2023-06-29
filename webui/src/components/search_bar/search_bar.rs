@@ -69,3 +69,8 @@ impl Component for SearchBar {
     }
 }
 
+impl Drop for SearchBar {
+    fn drop(&mut self) {
+        wndw().remove_event_listener_with_callback("keypress", self._onkeypress.as_ref().unchecked_ref()).unwrap();
+    }
+}
