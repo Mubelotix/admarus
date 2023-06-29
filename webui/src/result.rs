@@ -75,15 +75,18 @@ impl DocumentResult {
     }
 
     pub fn format_best_addr(&self) -> String {
-        let best_addr = match self.paths.first() {
-            Some(f) => f,
+        let mut best_addr = match self.paths.first() {
+            Some(f) => f.as_slice(),
             None => return format!("ipfs://{}", self.cid),
         };
 
-        if best_addr.first().map(|f| f.contains('.')).unwrap_or(false) {
-            format!("ipns://{}", best_addr.join("/"))
-        } else {
-            format!("ipfs://{}", best_addr.join("/"))
+        if best_addr.last().map(|l| l == "index.html").unwrap_or(false) {
+            best_addr = &best_addr[..best_addr.len() - 1];
+        }
+
+        match best_addr.first().map(|f| f.contains('.')).unwrap_or(false) {
+            true => format!("ipns://{}", best_addr.join("/")),
+            false => format!("ipfs://{}", best_addr.join("/")),
         }
     }
 
