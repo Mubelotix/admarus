@@ -67,6 +67,14 @@
     stroke-width: 2px;
 }
 
+/* Result counter */
+
+#result-counter {
+    color: #666;
+    font-size: .95rem;
+    margin: .8rem 0;
+}
+
 /* Individual result */
 
 #result-list {
@@ -75,7 +83,7 @@
 
 .result {
     width: 50%;
-    padding: 1rem 0;
+    padding: 0 0 2rem 0;
 }
 
 .result>h3, .result>p {

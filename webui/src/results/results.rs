@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use crate::prelude::*;
 
 const RANDOM_QUERIES: &[&str] = &["ipfs", "rust language", "bitcoin", "blog", "founder", "libp2p", "filecoin", "protocol labs", "peer to peer", "github"];
@@ -20,6 +22,7 @@ pub struct ResultsPage {
     search_failure: Option<ApiError>,
     update_counter: u32,
     results: RankedResults,
+    providers: HashSet<String>,
 }
 
 pub enum ResultsMessage {
@@ -49,6 +52,7 @@ impl Component for ResultsPage {
             search_failure: None,
             update_counter: 0,
             results: RankedResults::new(),
+            providers: HashSet::new(),
         }
     }
     
@@ -69,7 +73,8 @@ impl Component for ResultsPage {
             ResultsMessage::FetchResultsSuccess(results) => {
                 self.update_counter += 1;
                 for (result, provider) in results {
-                    self.results.insert(result, provider, &self.query);
+                    self.results.insert(result, provider.clone(), &self.query);
+                    self.providers.insert(provider);
                 }
                 if let Some(search_id) = self.search_id {
                     let link = ctx.link().clone();
@@ -106,6 +111,14 @@ impl Component for ResultsPage {
             onclick_home = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) },
 
+            opt_result_counter = {
+                match (results.len(), self.providers.len()) {
+                    (0, _) => None,
+                    (1, _) => Some(format!("1 result")),
+                    (n, 1) => Some(format!("{} results from 1 provider", n)),
+                    (n, p) => Some(format!("{} results from {} providers", n, p)),
+                }
+            },
             no_results = { results.is_empty() && self.update_counter >= 10 },
             many_keywords = { ctx.props().query.split_whitespace().count() >= 1 },
             random_query,
@@ -116,10 +129,10 @@ impl Component for ResultsPage {
             title_iter = { results.iter().map(|(result,_)| format!("{}", result.title)) },
             description_iter = { results.iter().map(|(result,_)| format!("{}", result.description)) },
             
+            display_scores = true,
             term_frequency_score_iter = { results.iter().map(|(_, scores)| scores.tf_score) },
             length_score_iter = { results.iter().map(|(_, scores)| scores.length_score) },
             popularity_score_iter = { results.iter().map(|(_, scores)| scores.popularity_score) },
-            display_scores = true,
         )
     }
 }

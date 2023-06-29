@@ -16,11 +16,11 @@
     <main id="results-page">
         <div id="results-header">
             <div id="first-header-row">
-                <h1>Admarus</h1>
-                <img src="assets/logo.png" />
+                <h1 onclick={{onclick_home}}>Admarus</h1>
+                <img src="assets/logo.png" onclick={{onclick_home}} />
                 <div id="search-bar">
-                    <input type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
-                    <button>
+                    <input value={{value}} oninput={{oninput}} type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
+                    <button onclick={{onclick_search}}>
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </button>
                 </div>
@@ -47,19 +47,20 @@
             </div>
         </div>
         <div id="result-list">
-            <div present-if={{no_results}} id="no-results-message">
-                <h3>This query yields no results.</h3>
-                Here is what you can do:
-                <ul>
-                    <li>Check that your daemon is connected to the network</li>
-                    <li present-if={{many_keywords}}>Remove keywords. The more keywords you enter, the fewer results you will get</li>
-                    <li>Try another query. Here is a random one we know will work: <span onclick={{onclick_search_random}}>{{random_query}}</span></li>
-                    <li>Contribute to the network by adding your own content!</li>
-                </ul>
+            <p id="result-counter">12 results from 1 node</p>
+            <div class="result" iter>
+                <h3><a href="{{addr_iter}}">{{title_iter}}</a></h3>
+                <div class="result-path">{{addr2_iter}}</div>
+                <p>{{description_iter}}</p>
+                <div present-if={{display_scores}} class="result-scores">
+                    <span>Term frequency: {{term_frequency_score_iter}}</span>
+                    <span>Lenght: {{length_score_iter}}</span>
+                    <span>Popularity: {{popularity_score_iter}}</span>
+                </div>
             </div>
         </div>
-    </main>
-        <script>
+    </main>    
+    <script>
         // https://css-tricks.com/the-trick-to-viewport-units-on-mobile/
         let vh = window.innerHeight * 0.01;
         document.documentElement.style.setProperty('--vh', `${vh}px`);
