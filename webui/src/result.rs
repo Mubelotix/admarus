@@ -70,6 +70,23 @@ pub struct DocumentResult {
 }
 
 impl DocumentResult {
+    fn rank_paths(&mut self) {
+        self.paths.sort_by(|a, b| b.first().map(|f| f.contains('.')).cmp(&a.first().map(|f| f.contains('.'))).then_with(|| a.len().cmp(&b.len())));
+    }
+
+    pub fn format_best_addr(&self) -> String {
+        let best_addr = match self.paths.first() {
+            Some(f) => f,
+            None => return format!("ipfs://{}", self.cid),
+        };
+
+        if best_addr.first().map(|f| f.contains('.')).unwrap_or(false) {
+            format!("ipns://{}", best_addr.join("/"))
+        } else {
+            format!("ipfs://{}", best_addr.join("/"))
+        }
+    }
+
     fn tf(&self, query: &[String]) -> f64 {
         let word_count_sum = self.word_count.weighted_sum();
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
@@ -91,6 +108,10 @@ impl DocumentResult {
 
         Score::from(length_score)
     }
+
+    fn has_ipns(&self) -> bool {
+        self.paths.iter().any(|p| p.first().map(|f| f.contains('.')).unwrap_or(false))
+    }
 }
 
 pub struct RankedResults {
@@ -110,7 +131,8 @@ impl RankedResults {
         }
     }
 
-    pub fn insert(&mut self, res: DocumentResult, provider: String, query: &[String]) {
+    pub fn insert(&mut self, mut res: DocumentResult, provider: String, query: &[String]) {
+        res.rank_paths();
         self.providers.entry(res.cid.clone()).or_default().push(provider);
 
         if self.results.contains_key(&res.cid) {
@@ -142,10 +164,12 @@ impl RankedResults {
             let tf_score = tf_scores.get(cid).unwrap();
             let length_score = length_scores.get(cid).unwrap();
             let popularity_score = Score::from(self.providers.get(cid).unwrap().len() as f64 / max_provider_count);
+            let ipns_score = Score::from(self.results.get(cid).unwrap().has_ipns() as usize as f64);
             let scores = Scores {
                 tf_score: Score::from(*tf_score),
                 length_score: *length_score,
                 popularity_score,
+                ipns_score,
             };
             let i = all_scores.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
             all_scores.insert(i, (cid.clone(), scores));

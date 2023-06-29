@@ -47,11 +47,13 @@ pub struct Scores {
     pub tf_score: Score,
     pub length_score: Score,
     pub popularity_score: Score,
+    pub ipns_score: Score,
 }
 
 impl Scores {
+    /// This computes the final score for a document.
     pub fn general_score(&self) -> Score {
-        Score::from(self.tf_score.val * 0.25 + self.length_score.val * 0.25 + self.popularity_score.val * 0.5)
+        Score::from(self.tf_score.val * 0.25 + self.length_score.val * 0.2 + self.ipns_score.val * 0.1 + self.popularity_score.val * 0.45)
     }
 }
 

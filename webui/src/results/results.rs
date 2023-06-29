@@ -111,8 +111,8 @@ impl Component for ResultsPage {
             random_query,
             onclick_search_random = { ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::Results(Rc::new(String::from(random_query))))) },
 
-            addr_iter = { results.iter().map(|(result,_)| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
-            addr2_iter = { results.iter().map(|(result,_)| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
+            addr_iter = { results.iter().map(|(result,_)| result.format_best_addr()) },
+            addr2_iter = { results.iter().map(|(result,_)| result.format_best_addr()) },
             title_iter = { results.iter().map(|(result,_)| format!("{}", result.title)) },
             description_iter = { results.iter().map(|(result,_)| format!("{}", result.description)) },
             
