@@ -1,4 +1,4 @@
-pub use crate::{app::*, search::*, settings::*, util::*, results::*, result::*, api::*, search_bar::*, *};
+pub use crate::{app::*, search::*, settings::*, util::*, results::*, result::*, api::*, score::*, search_bar::*, *};
 pub use js_sys::{Array, Function, Promise, Reflect::*};
 pub use std::{time::Duration, rc::Rc, cmp::Ordering, collections::HashMap};
 pub use wasm_bindgen::{prelude::Closure, JsCast, JsValue};

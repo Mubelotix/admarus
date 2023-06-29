@@ -3,6 +3,7 @@ mod prelude;
 mod util;
 mod result;
 mod api;
+mod score;
 
 #[path = "search/search.rs"]
 mod search;
