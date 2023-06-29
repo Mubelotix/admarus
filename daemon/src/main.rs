@@ -18,6 +18,9 @@ use crate::prelude::*;
 #[tokio::main]
 async fn main() {
     let config = Arc::new(Args::parse());
+    if config.api_addr != "127.0.0.1:3030" {
+        warn!("The webui doesn't currently support custom api addresses, so you probably don't want to change this.")
+    }
 
     env_logger::init();
 
