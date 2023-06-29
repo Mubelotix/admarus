@@ -82,7 +82,8 @@ impl<const N: usize> DocumentIndexInner<N> {
         for (cid, _) in matching_cids {
             let Ok(Some(document)) = fetch_document(&self.config.ipfs_rpc, &cid).await else {continue};
             let Some(metadata) = self.metadata.get(&cid) else {continue};
-            results.push(document.into_result(cid, metadata.to_owned(), &words));
+            let Some(result) = document.into_result(cid, metadata.to_owned(), &words) else {continue};
+            results.push(result);
         }
         results
     }

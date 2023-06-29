@@ -12,7 +12,7 @@ impl Document {
         }
     }
 
-    pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> DocumentResult {
+    pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
         match self {
             Document::Html(html) => html.into_result(cid, metadata, query),
         }
@@ -38,12 +38,18 @@ impl HtmlDocument {
         body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect()
     }
 
-    pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> DocumentResult {
+    pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
         let document = Html::parse_document(&self.raw);
 
         let title_selector = Selector::parse("title").unwrap();
-        let title_el = document.select(&title_selector).next();
-        let title = title_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
+        let title_el = match document.select(&title_selector).next() {
+            Some(el) => el,
+            None => {
+                let h1_selector = Selector::parse("h1").unwrap();
+                document.select(&h1_selector).next()?
+            },
+        };
+        let title = title_el.text().collect::<Vec<_>>().join(" ");
 
         let description_selector = Selector::parse("meta[name=description]").unwrap();
         let description_el = document.select(&description_selector).next();
@@ -97,16 +103,16 @@ impl HtmlDocument {
         let mut word_count = WordCount::default();
         count_words(body, query, &mut term_counts, &mut word_count, false, false, false, false, false, false, false, false, false, false);
 
-        DocumentResult {
+        Some(DocumentResult {
             cid,
             paths: metadata.paths,
             icon_cid: None,
             domain: None,
-            title: title.unwrap_or_default(),
+            title,
             description: description.unwrap_or_default(),
 
             term_counts,
             word_count,
-        }
+        })
     }
 }
