@@ -61,7 +61,7 @@ impl Metadata {
 pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<String, Metadata> {
     let mut metadatas: HashMap<String, Metadata> = HashMap::new();
     while let Some(cid) = cids.pop() {
-        let metadata = metadatas.entry(cid.clone()).or_default().to_owned();
+        let metadata = metadatas.get(&cid);
 
         match explore_dag(ipfs_rpc, cid, metadata).await {
             Ok(Some(new_links)) => for (cid, metadata) in new_links {
@@ -84,7 +84,7 @@ pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, Ipf
     Ok(rep)
 }
 
-pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Result<Option<Vec<(String, Metadata)>>, IpfsRpcError> {
+pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Result<Option<Vec<(String, Metadata)>>, IpfsRpcError> {
     let dag = get_dag(ipfs_rpc, &cid).await?;
     
     let data = dag
@@ -103,6 +103,11 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
         .map(|l| l.to_owned())
         .unwrap_or_default();
 
+    let is_dns_pins = dag
+        .get("DNS-Pins")
+        .and_then(|l| l.as_bool())
+        .unwrap_or(false);
+
     let mut links = Vec::new();
     for new_link in links_json {
         let child_cid = new_link
@@ -113,15 +118,21 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
             .get("Name").ok_or(InvalidResponse("Name expected on link"))?
             .as_str().ok_or(InvalidResponse("Name expected to be a string"))?;
         let size = new_link
-            .get("Tsize").ok_or(InvalidResponse("Tsize expected on link"))?
-            .as_u64().ok_or(InvalidResponse("Tsize expected to be a u64"))?;
-        let mut paths = metadata.paths.clone();
+            .get("Tsize").and_then(|l| l.as_u64());
+        let mut paths = metadata.map(|m| m.paths.clone()).unwrap_or_default();
         paths.iter_mut().for_each(|p| p.push(name.to_owned()));
-        paths.push(vec![cid.to_owned(), name.to_owned()]);
+        match is_dns_pins && metadata.is_none() {
+            true => {
+                let domain = name.split_whitespace().next().unwrap_or(name);
+                paths.push(vec![domain.to_owned()]);
+            },
+            false => paths.push(vec![cid.to_owned(), name.to_owned()]),
+        }
+        paths.push(vec![String::from(child_cid)]);
 
         links.push((child_cid.to_owned(), Metadata {
             paths,
-            size: Some(size),
+            size,
         }));
     }
 
