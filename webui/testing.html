@@ -10,6 +10,7 @@
     <link rel="stylesheet" href="src/search/search.css" />
     <link rel="stylesheet" href="src/settings/settings.css" />
     <link rel="stylesheet" href="src/results/results.css" />
+    <link rel="stylesheet" href="src/components/search_bar/search_bar.css" />
 </head>
 <body>
     <main id="results-page">
@@ -18,9 +19,9 @@
                 <h1>Admarus</h1>
                 <img src="assets/logo.png" />
                 <div id="search-bar">
-                    <input type="text" id="search-query-input" value={{query}} placeholder="Search the decentralized web" disabled=true />
-                    <button id="glass-button">
-                        <img src="assets/magnifying-glass.svg"/>
+                    <input type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
+                    <button>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
                     </button>
                 </div>
                 <div class="grower-separator"></div>
@@ -46,20 +47,15 @@
             </div>
         </div>
         <div id="result-list">
-            <div class="result">
-                <h3><a href="ipns://filecoin.io">Filecoin: A decentralized storage network</a></h3>
-                <div class="result-path">ipns://filecoin.io</div>
-                <p>Filecoin is making the web more secure and efficient with a decentralized data storage marketplace, protocol, and cryptocurrency.</p>
-            </div>
-            <div class="result">
-                <h3><a href="ipns://en.wikipedia-on-ipfs.org/wiki/Filecoin">Filecoin - Wikipedia</a></h3>
-                <div class="result-path">ipns://en.wikipedia-on-ipfs.org/wiki/Filecoin</div>
-                <p>Filecoin (⨎) is an open-source, public cryptocurrency and digital payment system intended to be a blockchain-based cooperative digital storage and data retrieval method.</p>
-            </div>
-            <div class="result">
-                <h3><a href="ipns://coinmarketcap.com/currencies/filecoin/">Filecoin price today, FIL live marketcap, chart, and info | CoinMarketCap</a></h3>
-                <div class="result-path">ipns://coinmarketcap.com/currencies/filecoin/</div>
-                <p>Get the latest Filecoin price, FIL market cap, trading pairs, charts and data today from the world’s number one cryptocurrency price-tracking website</p>
+            <div present-if={{no_results}} id="no-results-message">
+                <h3>This query yields no results.</h3>
+                Here is what you can do:
+                <ul>
+                    <li>Check that your daemon is connected to the network</li>
+                    <li present-if={{many_keywords}}>Remove keywords. The more keywords you enter, the fewer results you will get</li>
+                    <li>Try another query. Here is a random one we know will work: <span onclick={{onclick_search_random}}>{{random_query}}</span></li>
+                    <li>Contribute to the network by adding your own content!</li>
+                </ul>
             </div>
         </div>
     </main>

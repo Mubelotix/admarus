@@ -1,5 +1,7 @@
 use crate::prelude::*;
 
+const RANDOM_QUERIES: &[&str] = &["ipfs", "rust language", "bitcoin", "blog", "founder", "libp2p", "filecoin", "protocol labs", "peer to peer", "github"];
+
 #[derive(Properties, Clone)]
 pub struct ResultsPageProps {
     pub app_link: AppLink,
@@ -15,6 +17,7 @@ impl PartialEq for ResultsPageProps {
 pub struct ResultsPage {
     search_id: Option<u64>,
     search_failure: Option<ApiError>,
+    update_counter: u32,
     results: RankedResults,
 }
 
@@ -42,6 +45,7 @@ impl Component for ResultsPage {
         Self {
             search_id: None,
             search_failure: None,
+            update_counter: 0,
             results: RankedResults::new(),
         }
     }
@@ -61,6 +65,7 @@ impl Component for ResultsPage {
                 false
             }
             ResultsMessage::FetchResultsSuccess(results) => {
+                self.update_counter += 1;
                 for (result, provider) in results {
                     self.results.insert(result, provider);
                 }
@@ -90,6 +95,7 @@ impl Component for ResultsPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let results = self.results.iter_with_scores().collect::<Vec<_>>();
+        let random_query = RANDOM_QUERIES[self.search_id.unwrap_or(0) as usize % RANDOM_QUERIES.len()];
 
         template_html!(
             "results/results.html",
@@ -97,6 +103,12 @@ impl Component for ResultsPage {
             onsearch = { ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
             onclick_home = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) },
             onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) },
+
+            no_results = { results.is_empty() && self.update_counter >= 10 },
+            many_keywords = { ctx.props().query.split_whitespace().count() >= 1 },
+            random_query,
+            onclick_search_random = { ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::Results(Rc::new(String::from(random_query))))) },
+
             addr_iter = { results.iter().map(|(result,_)| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
             addr2_iter = { results.iter().map(|(result,_)| format!("ipfs://{}", result.paths.first().map(|p| p.join("/")).unwrap_or(result.cid.clone()))) },
             title_iter = { results.iter().map(|(result,_)| format!("{}", result.title)) },

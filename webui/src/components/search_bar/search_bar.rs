@@ -50,6 +50,15 @@ impl Component for SearchBar {
         }
     }
 
+    fn changed(&mut self, ctx: &Context<Self>, old_props: &Self::Properties) -> bool {
+        if ctx.props().value != old_props.value {
+            self.value = ctx.props().value.clone().unwrap_or_default();
+            true
+        } else {
+            false
+        }
+    }
+
     fn view(&self, ctx: &Context<Self>) -> Html {
         template_html!(
             "components/search_bar/search_bar.html",
