@@ -24,6 +24,18 @@ pub struct Args {
     #[arg(long, default_value_t = String::from("127.0.0.1:3030"))]
     pub api_addr: String,
 
+    /// Domain names to keep pinned
+    #[arg(long)]
+    pub dns_pins: Vec<String>,
+
+    /// Update interval for DNS pins (in seconds)
+    #[arg(long, default_value = "1800")]
+    pub dns_pins_interval: u64,
+
+    /// Address of the DNS provider
+    #[arg(long, default_value = "8.8.8.8:53")]
+    pub dns_provider: String,
+
     /// Number of seeders to connect to
     #[arg(long, default_value = "8")]
     pub first_class: usize,

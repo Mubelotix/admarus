@@ -13,7 +13,7 @@ tokio = { version = "1.0", features = ["full"] }
 async-trait = "0.1"
 scraper = "0.16"
 warp = {version="0.3", default-features = false}
-reqwest = {version="0.11", default-features = false}
+reqwest = {version="0.11", features=["multipart"], default-features = false}
 futures = "0.3"
 rand = "0.8"
 log = "0.4"
@@ -21,3 +21,4 @@ env_logger = "0.10"
 clap = {version="4.3", features = ["derive"]}
 sha2 = "0.10"
 sha2-derive = "0.1"
+trust-dns-client = "0.22"

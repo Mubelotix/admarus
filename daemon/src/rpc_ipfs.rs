@@ -32,27 +32,17 @@ impl std::fmt::Display for IpfsRpcError {
 }
 
 use IpfsRpcError::InvalidResponse;
+use reqwest::StatusCode;
 
 pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, IpfsRpcError> {
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/ls")).send().await?;
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/ls?type=recursive")).send().await?;
     let rep = rep.text().await?;
     let data = serde_json::from_str::<serde_json::Value>(&rep)?;
     let keys = data
         .get("Keys").ok_or(InvalidResponse("Keys expected on data"))?
         .as_object().ok_or(InvalidResponse("Keys expected to be an object"))?;
-
-    let mut pinned = Vec::new();
-    for (key, value) in keys.into_iter() {
-        let ty = value
-            .get("Type").ok_or(InvalidResponse("Type expected on value"))?
-            .as_str().ok_or(InvalidResponse("Type expected to be a string"))?;
-        if ty != "indirect" {
-            pinned.push(key.clone());
-        }
-    }
-
-    Ok(pinned)
+    Ok(keys.into_iter().map(|(k,_)| k).cloned().collect())
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -86,14 +76,19 @@ pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<Strin
     metadatas
 }
 
-pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Result<Option<Vec<(String, Metadata)>>, IpfsRpcError> {
+pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, IpfsRpcError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/get?arg={cid}")).send().await?;
     let rep = rep.text().await?;
     let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
+    Ok(rep)
+}
+
+pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Result<Option<Vec<(String, Metadata)>>, IpfsRpcError> {
+    let dag = get_dag(ipfs_rpc, &cid).await?;
     
-    let data = rep
-        .get("Data").unwrap_or(&rep)
+    let data = dag
+        .get("Data").unwrap_or(&dag)
         .get("/").ok_or(InvalidResponse("/ expected on Data"))?
         .get("bytes").ok_or(InvalidResponse("bytes expected on /"))?
         .as_str().ok_or(InvalidResponse("bytes expected to be a string"))?;
@@ -102,7 +97,7 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Metadata) -> Res
         return Ok(None);
     }
 
-    let links_json = rep
+    let links_json = dag
         .get("Links")
         .and_then(|l| l.as_array())
         .map(|l| l.to_owned())
@@ -194,4 +189,47 @@ pub async fn get_ipfs_peers(ipfs_rpc: &str) -> Result<Vec<(PeerId, Multiaddr)>, 
     }
 
     Ok(results)
+}
+
+pub async fn put_dag(ipfs_rpc: &str, dag_json: String, pin: bool) -> Result<String, IpfsRpcError> {
+    let client = Client::new();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/put?pin={pin}"))
+        .multipart(reqwest::multipart::Form::new().text("object data", dag_json))
+        .send().await?;
+    let rep = rep.text().await?;
+    let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
+    let cid = rep
+        .get("Cid").ok_or(InvalidResponse("Cid expected on data"))?
+        .get("/").ok_or(InvalidResponse("/ expected on Cid"))?
+        .as_str().ok_or(InvalidResponse("Cid expected to be a string"))?;
+    Ok(cid.to_owned())
+}
+
+pub async fn replace_pin(ipfs_rpc: &str, old_cid: &str, new_cid: &str) -> Result<(), IpfsRpcError> {
+    if old_cid == new_cid {
+        return Ok(());
+    }
+    let client = Client::new();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/update?arg={old_cid}&arg={new_cid}&unpin=true")).send().await?;
+    match rep.status() {
+        StatusCode::OK => Ok(()),
+        _ => {
+            let rep = rep.text().await?;
+            error!("Failed to replace pin: {rep}");
+            Err(InvalidResponse("Status code not OK"))
+        },
+    }
+}
+
+pub async fn add_pin(ipfs_rpc: &str, cid: &str) -> Result<(), IpfsRpcError> {
+    let client = Client::new();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/pin/add?arg={cid}&recursive=true")).send().await?;
+    match rep.status() {
+        StatusCode::OK => Ok(()),
+        _ => {
+            let rep = rep.text().await?;
+            error!("Failed to replace pin: {rep}");
+            Err(InvalidResponse("Status code not OK"))
+        },
+    }
 }

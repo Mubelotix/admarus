@@ -8,6 +8,7 @@ pub use crate::{
     node::*,
     clap::*,
     swarm::*,
+    dns_pins::*,
     discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig, Response as DiscoveryResponse, PeerListQuery}
 };
 pub use clap::Parser;
@@ -17,11 +18,12 @@ pub use serde::{Serialize, Deserialize};
 pub use async_trait::async_trait;
 pub use std::{
     time::{SystemTime, Duration, Instant, UNIX_EPOCH},
-    collections::HashMap, sync::Arc, pin::Pin, future::Future, cmp::Ordering, io::Error as IoError
+    collections::HashMap, sync::Arc, pin::Pin, future::Future, cmp::Ordering, iter::zip, net::SocketAddr, str::FromStr, io::Error as IoError
 };
 pub use tokio::{
     sync::{RwLock, mpsc::*, oneshot::{Sender as OneshotSender, channel as oneshot_channel}},
-    time::{sleep, timeout}
+    time::{sleep, timeout},
+    net::TcpStream as TokioTcpStream
 };
 pub use libp2p::{
     swarm::{dial_opts::DialOpts, Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour, AddressRecord},

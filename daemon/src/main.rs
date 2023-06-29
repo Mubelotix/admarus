@@ -11,6 +11,7 @@ mod node;
 mod clap;
 mod swarm;
 mod discovery;
+mod dns_pins;
 
 use crate::prelude::*;
 
@@ -36,5 +37,6 @@ async fn main() {
     let f3 = maintain_swarm_task(node.clone(), Arc::clone(&config));
     let f4 = cleanup_db_task(node.clone());
     let f5 = update_census_task(node.clone(), keypair.clone(), Arc::clone(&config));
-    tokio::join!(f1, f2, f3, f4, f5);
+    let f6 = manage_dns_pins(Arc::clone(&config));
+    tokio::join!(f1, f2, f3, f4, f5, f6);
 }
