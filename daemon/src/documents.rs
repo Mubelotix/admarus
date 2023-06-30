@@ -63,6 +63,9 @@ impl HtmlDocument {
         let mut best_extract = "";
         let mut best_extract_score = 0;
         for fragment in fragments {
+            if fragment.len() >= 350 || fragment.len() <= 50 {
+                continue;
+            }
             let mut score = 0;
             let mut fragment_words = fragment.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase());
             let Some(first_word) = fragment_words.next() else {continue};
