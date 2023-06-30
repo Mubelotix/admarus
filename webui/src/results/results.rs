@@ -62,7 +62,7 @@ impl Component for ResultsPage {
                 let link = ctx.link().clone();
                 self.search_id = Some(search_id);
                 spawn_local(async move {
-                    sleep(Duration::from_secs(1)).await;
+                    sleep(Duration::from_millis(100)).await;
                     match fetch_results(search_id).await {
                         Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
                         Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
@@ -78,8 +78,13 @@ impl Component for ResultsPage {
                 }
                 if let Some(search_id) = self.search_id {
                     let link = ctx.link().clone();
+                    let update_counter = self.update_counter;
                     spawn_local(async move {
-                        sleep(Duration::from_secs(1)).await;
+                        match update_counter {
+                            0..=10 => sleep(Duration::from_millis(100)).await,
+                            11..=20 => sleep(Duration::from_millis(300)).await,
+                            _ => sleep(Duration::from_secs(1)).await,
+                        }
                         match fetch_results(search_id).await {
                             Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
                             Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
