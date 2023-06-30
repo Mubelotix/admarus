@@ -58,6 +58,23 @@ impl HtmlDocument {
         let description = description_el.map(|el| el.value().attr("content").unwrap().to_string());
 
         // Retrieve the most relevant extract
+        fn extract_score(extract: &str, query: &[String]) -> usize {
+            let mut score = 0;
+            let mut extract_words = extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase()).collect::<Vec<_>>();
+            if extract_words.is_empty() {
+                return 0;
+            }
+            let first_word = extract_words.remove(0);
+            if query.contains(&first_word) {
+                score += 4;
+            }
+            for word in query {
+                if extract_words.contains(word) {
+                    score += 1;
+                }
+            }
+            score
+        }
         let body = document.select(&Selector::parse("body").unwrap()).next().unwrap();
         let fragments = body.text().collect::<Vec<_>>();
         let mut best_extract = "";
@@ -66,17 +83,7 @@ impl HtmlDocument {
             if fragment.len() >= 350 || fragment.len() <= 50 {
                 continue;
             }
-            let mut score = 0;
-            let mut fragment_words = fragment.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase());
-            let Some(first_word) = fragment_words.next() else {continue};
-            if query.contains(&first_word) {
-                score += 4;
-            }
-            for word in query {
-                if fragment.contains(word) {
-                    score += 1;
-                }
-            }
+            let score = extract_score(fragment, query);
             if score > best_extract_score {
                 best_extract_score = score;
                 best_extract = fragment;

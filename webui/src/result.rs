@@ -96,7 +96,30 @@ impl DocumentResult {
     }
 
     pub fn view_desc(&self, query: &[String]) -> VList {
-        let desc = self.extract.clone().unwrap_or(self.description.clone());
+        // TODO: this is a copy of daemon code
+        fn extract_score(extract: &str, query: &[String]) -> usize {
+            let mut score = 0;
+            let mut extract_words = extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase()).collect::<Vec<_>>();
+            if extract_words.is_empty() {
+                return 0;
+            }
+            let first_word = extract_words.remove(0);
+            if query.contains(&first_word) {
+                score += 4;
+            }
+            for word in query {
+                if extract_words.contains(word) {
+                    score += 1;
+                }
+            }
+            score
+        }
+
+        let desc = if extract_score(&self.description, query) >= self.extract.as_ref().map(|e| extract_score(e, query)).unwrap_or(0) {
+            &self.description
+        } else {
+            self.extract.as_ref().unwrap_or(&self.description)
+        };
         let mut i = 0;
         let mut added = 0;
         let mut vlist = VList::new();
