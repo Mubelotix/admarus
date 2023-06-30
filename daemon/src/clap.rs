@@ -16,11 +16,15 @@ pub struct Args {
     #[arg(long, default_value = "http://localhost:5001")]
     pub ipfs_rpc: String,
 
+    /// Enables getting peers from IPFS
+    #[arg(long, default_value = "true")]
+    pub ipfs_peers_enabled: bool,
+
     /// Census public RPC url
     #[arg(long, default_value = "http://localhost:14364")]
     pub census_rpc: String,
 
-    /// Enable census RPC server
+    /// Enables census RPC server
     #[arg(long, default_value = "true")]
     pub census_enabled: bool,
 

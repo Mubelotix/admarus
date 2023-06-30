@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// Asks a central server for a list of peers.
-pub async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
+async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
     let mut exclude = vec![node.peer_id()];
     exclude.extend(node.sw.connected_peers.read().await.keys().cloned());
 
@@ -35,7 +35,7 @@ pub async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
 
 /// Some of our IPFS peers might run Admarus.
 /// We try to infer their potential Admarus listen addresses from their IPFS addresses.
-pub async fn get_peers_from_ipfs(node: NodeController, config: Arc<Args>) {
+async fn get_peers_from_ipfs(node: NodeController, config: Arc<Args>) {
     let ipfs_peers = match get_ipfs_peers(&config.ipfs_rpc).await {
         Ok(peers) => peers,
         Err(e) => {
@@ -76,7 +76,7 @@ pub async fn get_peers_from_ipfs(node: NodeController, config: Arc<Args>) {
 }
 
 /// Asks our peers for a list of their peers.
-pub async fn get_peers_from_others(node: NodeController, _config: Arc<Args>) {
+async fn get_peers_from_others(node: NodeController, _config: Arc<Args>) {
     let connected_peers = node.sw.connected_peers.read().await.keys().cloned().collect::<Vec<_>>();
 
     let queries = connected_peers.into_iter().map(|p| {
@@ -100,8 +100,10 @@ pub async fn get_peers(node: NodeController, config: Arc<Args>) {
         tasks.push(Box::pin(census_task));
     }
 
-    let ipfs_task = get_peers_from_ipfs(node.clone(), Arc::clone(&config));
-    tasks.push(Box::pin(ipfs_task));
+    if config.ipfs_peers_enabled {
+        let ipfs_task = get_peers_from_ipfs(node.clone(), Arc::clone(&config));
+        tasks.push(Box::pin(ipfs_task));
+    }
 
     let discovery_task = get_peers_from_others(node, Arc::clone(&config));
     tasks.push(Box::pin(discovery_task));
