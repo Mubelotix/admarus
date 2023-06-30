@@ -11,7 +11,11 @@ struct SearchUrlQuery {
 async fn local_search<const N: usize>((query, index): (SearchUrlQuery, DocumentIndex<N>)) -> Result<impl warp::Reply, Infallible> {
     let words: Vec<_> = query.q.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
     let words_len = words.len();
-    let results = index.search(words, words_len).await;
+    let mut results = Vec::new();
+    let mut stream = index.search(words, words_len).await;
+    while let Some(result) = stream.next().await {
+        results.push(result);
+    }
     Ok(Response::builder().header("Content-Type", "application/json").body(serde_json::to_string(&results).unwrap()).unwrap())
 }
 

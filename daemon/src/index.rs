@@ -65,27 +65,33 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
     }
 
-    pub async fn search(&self, words: Vec<String>, min_matching: usize) -> Vec<DocumentResult> {
-        if words.iter().filter(|w| self.filter.get_word::<DocumentIndex<N>>(w)).count() < min_matching {
-            return Vec::new();
-        }
-
+    // TODO: switching self to static may improve performance by a lot
+    pub async fn search(&self, query: Vec<String>, min_matching: usize) -> ResultStream<DocumentResult> {
         let mut matching_cids = HashMap::new();
-        for word in &words {
-            for (document, _freqency) in self.index.get(word).into_iter().flatten() {
-                *matching_cids.entry(document.to_owned()).or_insert(0) += 1;
+        if query.iter().filter(|w| self.filter.get_word::<DocumentIndex<N>>(w)).count() >= min_matching {
+            for word in &query {
+                for (document, _freqency) in self.index.get(word).into_iter().flatten() {
+                    *matching_cids.entry(document.to_owned()).or_insert(0) += 1;
+                }
             }
+            matching_cids.retain(|_,c| *c>=min_matching);
         }
-        matching_cids.retain(|_,c| *c>=min_matching);
 
-        let mut results = Vec::new();
-        for (cid, _) in matching_cids {
-            let Ok(Some(document)) = fetch_document(&self.config.ipfs_rpc, &cid).await else {continue};
-            let Some(metadata) = self.metadata.get(&cid) else {continue};
-            let Some(result) = document.into_result(cid, metadata.to_owned(), &words) else {continue};
-            results.push(result);
+        async fn cid_to_result(query: Vec<String>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
+            let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
+            let Some(result) = document.into_result(cid, metadata.to_owned(), &query) else {return None};
+            Some(result)
         }
-        results
+
+        let stream: FuturesUnordered<_> = matching_cids
+            .into_iter()
+            .filter_map(|(cid, _)|
+                self.metadata.get(&cid).map(|metadata|
+                    cid_to_result(query.clone(), cid, metadata.to_owned(), Arc::clone(&self.config))
+                )
+            ).collect();
+        
+        Box::pin(stream.filter_map(|r| async move {r}))
     }
 
 }
@@ -177,7 +183,7 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
         self.inner.read().await.filter.clone()
     }
 
-    fn search(&self, words: Vec<String>, min_matching: usize) -> std::pin::Pin<Box<dyn std::future::Future<Output = Vec<Self::SearchResult> > +Send+Sync+'static> >  {
+    fn search(&self, words: Vec<String>, min_matching: usize) -> ResultStreamBuilderFut<DocumentResult> {
         let inner2 = Arc::clone(&self.inner);
         Box::pin(async move {
             inner2.read().await.search(words, min_matching).await

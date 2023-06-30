@@ -13,7 +13,7 @@ pub use crate::{
 };
 pub use clap::Parser;
 pub use log::{info, warn, error, debug, trace};
-pub use kamilata::{prelude::*, db::TooManyLeechers, behaviour::KamilataEvent};
+pub use kamilata::{prelude::*, db::TooManyLeechers, behaviour::KamilataEvent, store::{ResultStream, ResultStreamBuilderFut}};
 pub use serde::{Serialize, Deserialize};
 pub use async_trait::async_trait;
 pub use std::{
@@ -32,7 +32,7 @@ pub use libp2p::{
 };
 pub use futures::{
     future::{BoxFuture, join_all, Either},
-    StreamExt
+    stream::{FuturesUnordered, StreamExt, Stream},
 };
 pub use reqwest::Client;
 pub use sha2_derive::Hashable;
