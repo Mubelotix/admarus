@@ -107,37 +107,44 @@ impl Component for ResultsPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let results = self.results.iter_with_scores().collect::<Vec<_>>();
+
+        // General
+        let query = ctx.props().query.to_string();
+        let onsearch = ctx.props().app_link.callback(move |query| AppMsg::ChangePage(Page::Results(Rc::new(query))));
+        let onclick_home = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home));
+        let onclick_settings = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings));
+
+        // Result counter
+        let opt_result_counter = match (results.len(), self.providers.len()) {
+            (0, _) => None,
+            (1, _) => Some(String::from("1 result")),
+            (n, 1) => Some(format!("{} results from 1 provider", n)),
+            (n, p) => Some(format!("{} results from {} providers", n, p)),
+        };
+
+        // No-results page
+        let no_results = results.is_empty() && self.update_counter >= 10;
+        let many_keywords = ctx.props().query.split_whitespace().count() >= 3;
         let random_query = RANDOM_QUERIES[self.search_id.unwrap_or(0) as usize % RANDOM_QUERIES.len()];
+        let onclick_search_random = ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::Results(Rc::new(String::from(random_query)))));
+
+        // Results
+        let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();
+        let title_iter = results.iter().map(|(result,_)| result.title.to_owned());
+        let description_iter = results.iter().map(|(result,_)| result.view_desc(&self.query));
+
+        // Scores
+        let display_scores = true;
+        let term_frequency_score_iter = results.iter().map(|(_, scores)| scores.tf_score);
+        let length_score_iter = results.iter().map(|(_, scores)| scores.length_score);
+        let popularity_score_iter = results.iter().map(|(_, scores)| scores.popularity_score);
 
         template_html!(
             "results/results.html",
-            query = { ctx.props().query.to_string() },
-            onsearch = { ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
-            onclick_home = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) },
-            onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) },
-
-            opt_result_counter = {
-                match (results.len(), self.providers.len()) {
-                    (0, _) => None,
-                    (1, _) => Some(format!("1 result")),
-                    (n, 1) => Some(format!("{} results from 1 provider", n)),
-                    (n, p) => Some(format!("{} results from {} providers", n, p)),
-                }
-            },
-            no_results = { results.is_empty() && self.update_counter >= 10 },
-            many_keywords = { ctx.props().query.split_whitespace().count() >= 1 },
-            random_query,
-            onclick_search_random = { ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::Results(Rc::new(String::from(random_query))))) },
-
-            addr_iter = { results.iter().map(|(result,_)| result.format_best_addr()) },
-            addr2_iter = { results.iter().map(|(result,_)| result.format_best_addr()) },
-            title_iter = { results.iter().map(|(result,_)| format!("{}", result.title)) },
-            description_iter = { results.iter().map(|(result,_)| result.view_desc(&self.query)) },
-            
-            display_scores = true,
-            term_frequency_score_iter = { results.iter().map(|(_, scores)| scores.tf_score) },
-            length_score_iter = { results.iter().map(|(_, scores)| scores.length_score) },
-            popularity_score_iter = { results.iter().map(|(_, scores)| scores.popularity_score) },
+            onclick_home = { onclick_home.clone() },
+            addr_iter = { addr_iter.clone().into_iter() },
+            addr2_iter = { addr_iter.iter() },
+            ...
         )
     }
 }
