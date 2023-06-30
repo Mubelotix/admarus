@@ -122,24 +122,36 @@
     color: #666;
 }
 
-/* No-results messsage */
+/* Search error messsages */
 
-#no-results-message {
+.search-error {
     margin-top: 3rem;
 }
 
-#no-results-message>h3 {
+.search-error>h3 {
     margin: 0 0 .5rem 0;
     font-size: 1.5rem;
     font-weight: normal;
 }
 
-#no-results-message>ul {
+.search-error>ul {
     margin: 0;
 }
 
-#no-results-message>ul>li>a {
+.search-error>ul>li>a {
     color: blue;
     text-decoration: underline;
     cursor: pointer;
+}
+
+.search-error>h4 {
+    margin: 2rem 0 0 0;
+    font-size: 1rem;
+    font-weight: normal;
+}
+
+.search-error>p {
+    margin: 0;
+    font-size: .9rem;
+    color: #666;
 }

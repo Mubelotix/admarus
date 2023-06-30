@@ -17,7 +17,7 @@ impl PartialEq for ResultsPageProps {
 pub struct ResultsPage {
     query: Vec<String>,
     search_id: Option<u64>,
-    search_failure: Option<ApiError>,
+    search_error: Option<ApiError>,
     update_counter: u32,
     results: RankedResults,
     providers: HashSet<String>,
@@ -47,7 +47,7 @@ impl Component for ResultsPage {
         Self {
             query: ctx.props().query.split_whitespace().map(|s| s.to_string()).collect(),
             search_id: None,
-            search_failure: None,
+            search_error: None,
             update_counter: 0,
             results: RankedResults::new(),
             providers: HashSet::new(),
@@ -92,8 +92,8 @@ impl Component for ResultsPage {
                 true
             }
             ResultsMessage::SearchFailure(e) | ResultsMessage::FetchResultsFailure(e) => {
-                log!("search failure: {e:?}"); // TODO: display error
-                false
+                self.search_error = Some(e);
+                true
             }
         }
     }
@@ -121,11 +121,21 @@ impl Component for ResultsPage {
             (n, p) => Some(format!("{} results from {} providers", n, p)),
         };
 
-        // No-results page
-        let no_results = results.is_empty() && self.update_counter >= 10;
+        // No-results message
+        let no_results = results.is_empty() && self.search_error.is_none() && self.update_counter >= 10;
         let many_keywords = ctx.props().query.split_whitespace().count() >= 3;
         let lucky_query = get_lucky_query(search_id);
         let onclick_lucky = ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::lucky(search_id)));
+
+        // Error message
+        let (opt_error_title, error_recommandations, opt_error_details) = match &self.search_error {
+            Some(e) => {
+                let (title, recommandations, details) = e.to_format_parts();
+                (Some(title), recommandations, Some(details))
+            },
+            None => (None, Vec::new(), None)
+        };
+        let error_recommandation_iter = error_recommandations.into_iter();
 
         // Results
         let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();

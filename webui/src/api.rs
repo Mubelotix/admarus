@@ -11,6 +11,78 @@ pub enum ApiError {
     Unknown(String),
 }
 
+impl ApiError {
+    pub fn to_format_parts(&self) -> (&'static str, Vec<String>, String) {
+        let (title, recommandations, details) = match self {
+            ApiError::InputJson(e) => (
+                "Failed to craft request",
+                vec![
+                    String::from("Open an issue on GitHub"),
+                    String::from("Try again"),
+                ],
+                format!("InputJson: {e}")
+            ),
+            ApiError::OutputJson(e) => (
+                "Failed to read results",
+                vec![
+                    String::from("Make sure your daemon is up to date"),
+                    String::from("Make sure the daemon address is correct"),
+                    String::from("Open an issue on GitHub"),
+                    String::from("Try again"),
+                ],
+                format!("OutputJson: {e}")
+            ),
+            ApiError::Fetch(e) => (
+                "Failed to send query",
+                vec![
+                    String::from("Make sure the daemon is running"),
+                    String::from("Make sure the daemon address is correct"),
+                    String::from("Make sure CORS is properly configured"),
+                    String::from("Try again"),
+                ],
+                format!("Fetch: {}", e.clone().dyn_into::<js_sys::Error>().unwrap().message())
+            ),
+            ApiError::NotText(e) => (
+                "Invalid response",
+                vec![
+                    String::from("Make sure the daemon address is correct"),
+                    String::from("Open an issue on GitHub"),
+                    String::from("Try again"),
+                ],
+                format!("NotText: {}", e.clone().dyn_into::<js_sys::Error>().unwrap().message())
+            ),
+            ApiError::BadRequest(e) => (
+                "Failed to communicate with daemon",
+                vec![
+                    String::from("Make sur the daemon is up to date"),
+                    String::from("Make sure the daemon address is correct"),
+                    String::from("Open an issue on GitHub"),
+                    String::from("Try again"),
+                ],
+                format!("BadRequest: {e}")
+            ),
+            ApiError::Server(e) => (
+                "Daemon is having issues",
+                vec![
+                    String::from("Make sure the daemon is up to date"),
+                    String::from("Open an issue on GitHub"),
+                    String::from("Try again"),
+                ],
+                format!("Server: {e}")
+            ),
+            ApiError::Unknown(e) => (
+                "Unknown error",
+                vec![
+                    String::from("Make sure the daemon address is correct"),
+                    String::from("Try again"),
+                ],
+                format!("Unknown: {e}")
+            ),
+        };
+        (title, recommandations, details)
+    }
+}
+
 impl From<serde_json::Error> for ApiError {
     fn from(e: serde_json::Error) -> Self {
         ApiError::OutputJson(e)
