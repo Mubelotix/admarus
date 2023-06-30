@@ -23,10 +23,13 @@ impl Component for SearchPage {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
+        let onsearch = ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query))));
+        let onclick_settings = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings));
+        let onclick_lucky = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::lucky(None)));
+
         template_html!(
             "search/search.html",
-            onsearch = { ctx.props().app_link.callback(|query| AppMsg::ChangePage(Page::Results(Rc::new(query)))) },
-            onclick_settings = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings)) }
+            ...
         )
     }
 }

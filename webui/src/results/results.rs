@@ -125,7 +125,7 @@ impl Component for ResultsPage {
         let no_results = results.is_empty() && self.update_counter >= 10;
         let many_keywords = ctx.props().query.split_whitespace().count() >= 3;
         let lucky_query = get_lucky_query(search_id);
-        let onclick_lucky = ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::lucky_query(search_id)));
+        let onclick_lucky = ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::lucky(search_id)));
 
         // Results
         let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();

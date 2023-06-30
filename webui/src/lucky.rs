@@ -17,7 +17,7 @@ pub fn get_lucky_query(rng: Option<u64>) -> &'static str {
 }
 
 impl Page {
-    pub fn lucky_query(rng: Option<u64>) -> Self {
+    pub fn lucky(rng: Option<u64>) -> Self {
         Self::Results(Rc::new(get_lucky_query(rng).to_string()))
     }
 }
