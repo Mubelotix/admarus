@@ -1,3 +1,5 @@
+use yew::virtual_dom::{VList, VText, VTag};
+
 use crate::prelude::*;
 
 /// Used to count words but counts different types of words separately.
@@ -61,6 +63,9 @@ pub struct DocumentResult {
     pub domain: Option<String>,
     pub title: String,
     pub description: String,
+    /// This is a piece of text from the document that the provider thinks is relevant to the query.
+    /// It is arbitrarily selected.
+    pub extract: Option<String>,
 
     /// Each query term is mapped to the number of times it appears in the document.
     /// Along with `word_count`, this can be used to calculate the tf-idf score.
@@ -88,6 +93,35 @@ impl DocumentResult {
             true => format!("ipns://{}", best_addr.join("/")),
             false => format!("ipfs://{}", best_addr.join("/")),
         }
+    }
+
+    pub fn view_desc(&self, query: &[String]) -> VList {
+        let desc = self.extract.clone().unwrap_or(self.description.clone());
+        let mut i = 0;
+        let mut added = 0;
+        let mut vlist = VList::new();
+        for part in desc.split_inclusive(|c: char| !c.is_ascii_alphanumeric()) {
+            let part_len = part.len();
+            let word = part.trim_end_matches(|c: char| !c.is_ascii_alphanumeric());
+            if word.len() >= 3 && query.contains(&word.to_lowercase()) {
+                if i - added > 0 {
+                    let unbolded_text = desc[added..i].to_string();
+                    vlist.add_child(VText::new(unbolded_text).into());
+                }
+                let bolded_text = desc[i..i + word.len()].to_string();
+                let mut b_el = VTag::new("b");
+                b_el.add_child(VText::new(bolded_text).into());
+                vlist.add_child(b_el.into());
+                added = i + word.len();
+            }
+            i += part_len;
+        }
+        if i - added > 0 {
+            let unbolded_text = desc[added..i].to_string();
+            vlist.add_child(VText::new(unbolded_text).into());
+        }
+
+        vlist
     }
 
     fn tf(&self, query: &[String]) -> f64 {

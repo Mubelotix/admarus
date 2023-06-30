@@ -127,7 +127,7 @@ impl Component for ResultsPage {
             addr_iter = { results.iter().map(|(result,_)| result.format_best_addr()) },
             addr2_iter = { results.iter().map(|(result,_)| result.format_best_addr()) },
             title_iter = { results.iter().map(|(result,_)| format!("{}", result.title)) },
-            description_iter = { results.iter().map(|(result,_)| format!("{}", result.description)) },
+            description_iter = { results.iter().map(|(result,_)| result.view_desc(&self.query)) },
             
             display_scores = true,
             term_frequency_score_iter = { results.iter().map(|(_, scores)| scores.tf_score) },
