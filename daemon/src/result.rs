@@ -64,6 +64,9 @@ pub struct DocumentResult {
     pub domain: Option<String>,
     pub title: String,
     pub description: String,
+    /// This is a piece of text from the document that the provider thinks is relevant to the query.
+    /// It is arbitrarily selected.
+    pub extract: Option<String>,
 
     /// Each query term is mapped to the number of times it appears in the document.
     /// Along with `word_count`, this can be used to calculate the tf-idf score.

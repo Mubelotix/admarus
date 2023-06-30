@@ -41,6 +41,7 @@ impl HtmlDocument {
     pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
         let document = Html::parse_document(&self.raw);
 
+        // Retrieve title
         let title_selector = Selector::parse("title").unwrap();
         let title_el = match document.select(&title_selector).next() {
             Some(el) => el,
@@ -51,10 +52,39 @@ impl HtmlDocument {
         };
         let title = title_el.text().collect::<Vec<_>>().join(" ");
 
+        // Retrieve description
         let description_selector = Selector::parse("meta[name=description]").unwrap();
         let description_el = document.select(&description_selector).next();
         let description = description_el.map(|el| el.value().attr("content").unwrap().to_string());
 
+        // Retrieve the most relevant extract
+        let body = document.select(&Selector::parse("body").unwrap()).next().unwrap();
+        let fragments = body.text().collect::<Vec<_>>();
+        let mut best_extract = "";
+        let mut best_extract_score = 0;
+        for fragment in fragments {
+            let mut score = 0;
+            let mut fragment_words = fragment.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase());
+            let Some(first_word) = fragment_words.next() else {continue};
+            if query.contains(&first_word) {
+                score += 4;
+            }
+            for word in query {
+                if fragment.contains(word) {
+                    score += 1;
+                }
+            }
+            if score > best_extract_score {
+                best_extract_score = score;
+                best_extract = fragment;
+            }
+        }
+        let extract = match best_extract_score > 0 {
+            true => Some(best_extract.to_string()),
+            false => None,
+        };
+
+        // Count words
         #[allow(clippy::too_many_arguments)]
         fn count_words(
             el: ElementRef, query: &[String], term_counts: &mut Vec<WordCount>, word_count: &mut WordCount, 
@@ -97,8 +127,6 @@ impl HtmlDocument {
                 }
             }
         }
-
-        let body = document.select(&Selector::parse("body").unwrap()).next().unwrap();
         let mut term_counts = query.iter().map(|_| WordCount::default()).collect::<Vec<_>>();
         let mut word_count = WordCount::default();
         count_words(body, query, &mut term_counts, &mut word_count, false, false, false, false, false, false, false, false, false, false);
@@ -110,6 +138,7 @@ impl HtmlDocument {
             domain: None,
             title,
             description: description.unwrap_or_default(),
+            extract,
 
             term_counts,
             word_count,
