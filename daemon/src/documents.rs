@@ -43,14 +43,22 @@ impl HtmlDocument {
 
         // Retrieve title
         let title_selector = Selector::parse("title").unwrap();
-        let title_el = match document.select(&title_selector).next() {
-            Some(el) => el,
-            None => {
+        let title_el = document.select(&title_selector).next();
+        let title = title_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
+        let title = match title {
+            title if title.as_ref().map(|t| t.is_empty()).unwrap_or(true) => {
                 let h1_selector = Selector::parse("h1").unwrap();
-                document.select(&h1_selector).next()?
-            },
+                let h1_el = document.select(&h1_selector).next();
+                let h1 = h1_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
+                match h1 {
+                    h1 if h1.as_ref().map(|t| t.is_empty()).unwrap_or(true) => return None,
+                    Some(h1) => h1,
+                    None => unreachable!(),
+                }
+            }
+            Some(title) => title,
+            None => unreachable!(),
         };
-        let title = title_el.text().collect::<Vec<_>>().join(" ");
 
         // Retrieve description
         let description_selector = Selector::parse("meta[name=description]").unwrap();
