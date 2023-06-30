@@ -95,8 +95,8 @@ pub async fn get_peers_from_others(node: NodeController, _config: Arc<Args>) {
 
 pub async fn get_peers(node: NodeController, config: Arc<Args>) {
     let mut tasks: Vec<BoxFuture<_>> = Vec::new();
-    if let Some(census_rpc) = &config.census_rpc {
-        let census_task = get_peers_from_census(node.clone(), census_rpc);
+    if config.census_enabled {
+        let census_task = get_peers_from_census(node.clone(), &config.census_rpc);
         tasks.push(Box::pin(census_task));
     }
 

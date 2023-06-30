@@ -1,10 +1,9 @@
 use crate::prelude::*;
 
 pub async fn update_census_task(node: NodeController, keypair: Keypair, config: Arc<Args>) {
-    let census_rpc = match config.census_rpc {
-        Some(ref census_rpc) => census_rpc,
-        None => return,
-    };
+    if !config.census_enabled {
+        return;
+    }
     let external_addrs = match config.external_addrs.clone() {
         Some(external_addrs) => external_addrs,
         None => {
@@ -33,7 +32,7 @@ pub async fn update_census_task(node: NodeController, keypair: Keypair, config: 
             addrs: external_addrs.clone(),
         };
 
-        match submit_census_record(census_rpc, record, keypair.clone()).await {
+        match submit_census_record(&config.census_rpc, record, keypair.clone()).await {
             Ok(()) => trace!("Submitted census record"),
             Err(e) => error!("Failed to publish census record: {:?}", e),
         }

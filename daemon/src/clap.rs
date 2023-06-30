@@ -18,7 +18,11 @@ pub struct Args {
 
     /// Census public RPC url
     #[arg(long, default_value = "http://localhost:14364")]
-    pub census_rpc: Option<String>,
+    pub census_rpc: String,
+
+    /// Enable census RPC server
+    #[arg(long, default_value = "true")]
+    pub census_enabled: bool,
 
     /// Address on which the API will listen
     #[arg(long, default_value_t = String::from("127.0.0.1:3030"))]
