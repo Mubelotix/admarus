@@ -129,7 +129,7 @@ impl Component for ResultsPage {
 
         // Results
         let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();
-        let title_iter = results.iter().map(|(result,_)| result.title.to_owned());
+        let title_iter = results.iter().map(|(result,_)| result.format_result_title());
         let description_iter = results.iter().map(|(result,_)| result.view_desc(&self.query));
 
         // Scores

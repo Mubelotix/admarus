@@ -61,10 +61,16 @@ pub struct DocumentResult {
     pub paths: Vec<Vec<String>>,
     pub icon_cid: Option<String>,
     pub domain: Option<String>,
-    pub title: String,
-    pub description: String,
+    /// Content of the title tag
+    pub title: Option<String>,
+    /// Content of the h1 tag  
+    /// Required if title is not present
+    pub h1: Option<String>,
+    /// Content of the meta description tag
+    pub description: Option<String>,
     /// This is a piece of text from the document that the provider thinks is relevant to the query.
-    /// It is arbitrarily selected.
+    /// It is arbitrarily selected.  
+    /// Required if description is not present
     pub extract: Option<String>,
 
     /// Each query term is mapped to the number of times it appears in the document.
@@ -77,6 +83,19 @@ pub struct DocumentResult {
 impl DocumentResult {
     fn rank_paths(&mut self) {
         self.paths.sort_by(|a, b| b.first().map(|f| f.contains('.')).cmp(&a.first().map(|f| f.contains('.'))).then_with(|| a.len().cmp(&b.len())));
+    }
+    
+    pub fn format_result_title(&self) -> String {
+        match self.title {
+            Some(ref title) => title.clone(),
+            None => match self.h1 {
+                Some(ref h1) => h1.clone(),
+                None => match self.paths.first() {
+                    Some(path) => path.last().unwrap_or(&self.cid).clone(),
+                    None => self.cid.clone(),
+                }
+            }
+        }
     }
 
     pub fn format_best_addr(&self) -> String {
@@ -115,10 +134,17 @@ impl DocumentResult {
             score
         }
 
-        let desc = if extract_score(&self.description, query) >= self.extract.as_ref().map(|e| extract_score(e, query)).unwrap_or(0) {
-            &self.description
-        } else {
-            self.extract.as_ref().unwrap_or(&self.description)
+        let desc = match (&self.description, &self.extract) {
+            (Some(desc), Some(extract)) => {
+                if extract_score(desc, query) >= extract_score(extract, query) {
+                    desc
+                } else {
+                    extract
+                }
+            }
+            (Some(desc), None) => desc,
+            (None, Some(extract)) => extract,
+            (None, None) => return VList::new(),
         };
         let mut i = 0;
         let mut added = 0;
@@ -152,7 +178,15 @@ impl DocumentResult {
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
         
         // Title is counted separately as it is not part of the document body
-        let title_words: Vec<_> = self.title.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
+        let title_words  = self.title
+            .as_ref()
+            .map(|t| t
+                .to_lowercase()
+                .split(|c: char| !c.is_ascii_alphanumeric())
+                .filter(|w| w.len() >= 3)
+                .map(|w| w.to_string())
+            .collect::<Vec<_>>())
+            .unwrap_or_default();
         let title_word_count = title_words.len();
         let title_term_count = title_words.iter().filter(|w| query.contains(w)).count();
         let title_term_sum = title_term_count as f64 * 12.0;
