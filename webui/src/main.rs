@@ -4,6 +4,7 @@ mod util;
 mod result;
 mod api;
 mod score;
+mod lucky;
 
 #[path = "search/search.rs"]
 mod search;

@@ -2,8 +2,6 @@ use std::collections::HashSet;
 
 use crate::prelude::*;
 
-const RANDOM_QUERIES: &[&str] = &["ipfs", "rust language", "bitcoin", "blog", "founder", "libp2p", "filecoin", "protocol labs", "peer to peer", "github"];
-
 #[derive(Properties, Clone)]
 pub struct ResultsPageProps {
     pub app_link: AppLink,
@@ -107,6 +105,7 @@ impl Component for ResultsPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let results = self.results.iter_with_scores().collect::<Vec<_>>();
+        let search_id = self.search_id;
 
         // General
         let query = ctx.props().query.to_string();
@@ -125,8 +124,8 @@ impl Component for ResultsPage {
         // No-results page
         let no_results = results.is_empty() && self.update_counter >= 10;
         let many_keywords = ctx.props().query.split_whitespace().count() >= 3;
-        let random_query = RANDOM_QUERIES[self.search_id.unwrap_or(0) as usize % RANDOM_QUERIES.len()];
-        let onclick_search_random = ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::Results(Rc::new(String::from(random_query)))));
+        let lucky_query = get_lucky_query(search_id);
+        let onclick_lucky = ctx.props().app_link.callback(move |_| AppMsg::ChangePage(Page::lucky_query(search_id)));
 
         // Results
         let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();
