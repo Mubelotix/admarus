@@ -38,27 +38,32 @@ impl HtmlDocument {
         body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect()
     }
 
+    #[allow(clippy::question_mark)]
     pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
         let document = Html::parse_document(&self.raw);
 
         // Retrieve title
         let title_selector = Selector::parse("title").unwrap();
         let title_el = document.select(&title_selector).next();
-        let title = title_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
-        let title = match title {
-            title if title.as_ref().map(|t| t.is_empty()).unwrap_or(true) => {
-                let h1_selector = Selector::parse("h1").unwrap();
-                let h1_el = document.select(&h1_selector).next();
-                let h1 = h1_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
-                match h1 {
-                    h1 if h1.as_ref().map(|t| t.is_empty()).unwrap_or(true) => return None,
-                    Some(h1) => h1,
-                    None => unreachable!(),
-                }
+        let mut title = title_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
+        if title.as_ref().map(|t| t.trim().is_empty()).unwrap_or(false) {
+            title = None;
+        }
+
+        // Retrieve h1
+        let mut h1 = None;
+        if title.is_none() {
+            let h1_selector = Selector::parse("h1").unwrap();
+            let h1_el = document.select(&h1_selector).next();
+            h1 = h1_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
+            if h1.as_ref().map(|t| t.trim().is_empty()).unwrap_or(false) {
+                h1 = None;
             }
-            Some(title) => title,
-            None => unreachable!(),
-        };
+        }
+        
+        if title.is_none() && h1.is_none() {
+            return None;
+        }
 
         // Retrieve description
         let description_selector = Selector::parse("meta[name=description]").unwrap();
@@ -101,6 +106,10 @@ impl HtmlDocument {
             true => Some(best_extract.to_string()),
             false => None,
         };
+        
+        if description.is_none() && extract.is_none() {
+            return None;
+        }
 
         // Count words
         #[allow(clippy::too_many_arguments)]
@@ -155,7 +164,8 @@ impl HtmlDocument {
             icon_cid: None,
             domain: None,
             title,
-            description: description.unwrap_or_default(),
+            h1,
+            description,
             extract,
 
             term_counts,

@@ -62,10 +62,16 @@ pub struct DocumentResult {
     pub paths: Vec<Vec<String>>,
     pub icon_cid: Option<String>,
     pub domain: Option<String>,
-    pub title: String,
-    pub description: String,
+    /// Content of the title tag
+    pub title: Option<String>,
+    /// Content of the h1 tag  
+    /// Required if title is not present
+    pub h1: Option<String>,
+    /// Content of the meta description tag
+    pub description: Option<String>,
     /// This is a piece of text from the document that the provider thinks is relevant to the query.
-    /// It is arbitrarily selected.
+    /// It is arbitrarily selected.  
+    /// Required if description is not present
     pub extract: Option<String>,
 
     /// Each query term is mapped to the number of times it appears in the document.
