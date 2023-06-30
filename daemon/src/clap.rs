@@ -1,4 +1,5 @@
 use crate::prelude::*;
+use clap::ArgAction::Set;
 
 /// Admarus search engine daemon
 #[derive(Parser, Debug)]
@@ -17,7 +18,7 @@ pub struct Args {
     pub ipfs_rpc: String,
 
     /// Enables getting peers from IPFS
-    #[arg(long, default_value = "true")]
+    #[arg(long, default_value = "true", action = Set)]
     pub ipfs_peers_enabled: bool,
 
     /// Census public RPC url
@@ -25,7 +26,7 @@ pub struct Args {
     pub census_rpc: String,
 
     /// Enables census RPC server
-    #[arg(long, default_value = "true")]
+    #[arg(long, default_value = "true", action = Set)]
     pub census_enabled: bool,
 
     /// Address on which the API will listen
