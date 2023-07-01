@@ -1,11 +1,7 @@
 mod parsing;
 pub use parsing::*;
 
-pub struct Query {
-    pub root: QueryComp,
-}
-
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub enum QueryComp {
     // word
     Word(String),
