@@ -60,7 +60,7 @@ async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>
         Err(e) => {
             error!("Error parsing query:");
             e.print(&query.q);
-            return Ok(Response::builder().status(400).body("Error parsing query".to_string()).unwrap());
+            return Ok(Response::builder().status(400).header("Access-Control-Allow-Origin", "*").body("Error parsing query".to_string()).unwrap());
         },
     };
     info!("Searching for {:?}", query);
