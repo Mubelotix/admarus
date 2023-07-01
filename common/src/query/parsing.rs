@@ -1,6 +1,6 @@
 use faster_pest::*;
 
-use super::SearchQueryComp;
+use super::QueryComp;
 
 #[derive(Parser)]
 #[grammar = "common/src/query/query.pest"]
@@ -8,12 +8,12 @@ pub struct Parser {
 
 }
 
-fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
+fn build_comp(ident: IdentRef<Ident>) -> QueryComp {
     match ident.as_rule() {
         Rule::word_comp => {
             let word = ident.children().next().unwrap();
             let word = word.children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
-            SearchQueryComp::Word(word)
+            QueryComp::Word(word)
         },
         Rule::and_comp => {
             let mut children = ident.children().collect::<Vec<_>>();
@@ -26,7 +26,7 @@ fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
                     i += 1;
                 }
             }
-            SearchQueryComp::NAmong {
+            QueryComp::NAmong {
                 n: children.len(),
                 among: children.into_iter().map(build_comp).collect::<Vec<_>>(),
             }
@@ -42,19 +42,19 @@ fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
                     i += 1;
                 }
             }
-            SearchQueryComp::NAmong {
+            QueryComp::NAmong {
                 n: 1,
                 among: children.into_iter().map(build_comp).collect::<Vec<_>>(),
             }
         },
         Rule::not_comp => {
             let child = ident.children().next().unwrap();
-            SearchQueryComp::Not(Box::new(build_comp(child)))
+            QueryComp::Not(Box::new(build_comp(child)))
         },
         Rule::namong_comp => {
             let mut children = ident.children();
             let n = children.next().unwrap().as_str().parse::<usize>().unwrap();
-            SearchQueryComp::NAmong {
+            QueryComp::NAmong {
                 n,
                 among: children.map(build_comp).collect::<Vec<_>>(),
             }
@@ -63,7 +63,7 @@ fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
             let mut children = ident.children();
             let name = children.next().unwrap().children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
             let value = children.next().unwrap().children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
-            SearchQueryComp::Filter {
+            QueryComp::Filter {
                 name,
                 value,
             }
@@ -72,7 +72,7 @@ fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
     }
 }
 
-fn parse_search_query(query: &str) -> Result<SearchQueryComp, Error> {
+fn parse_search_query(query: &str) -> Result<QueryComp, Error> {
     let idents = Parser::parse_query(query)?;
     Ok(build_comp(idents.root()))
 }

@@ -1,12 +1,12 @@
 mod parsing;
 pub use parsing::*;
 
-pub struct SearchQuery {
-    root: SearchQueryComp,
+pub struct Query {
+    pub root: QueryComp,
 }
 
 #[derive(Debug)]
-pub enum SearchQueryComp {
+pub enum QueryComp {
     // word
     Word(String),
     // name=value
@@ -15,10 +15,10 @@ pub enum SearchQueryComp {
         value: String,
     },
     // not(comp)
-    Not(Box<SearchQueryComp>),
+    Not(Box<QueryComp>),
     // n(comp, comp, comp)
     NAmong {
         n: usize,
-        among: Vec<SearchQueryComp>,
+        among: Vec<QueryComp>,
     },
 }
