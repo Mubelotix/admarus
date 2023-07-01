@@ -12,12 +12,13 @@ number = { digit+ }
 word_comp = { word }
 and_comp = { comp_no_fast ~ ("&" | "+" | "AND") ~ comp }
 or_comp = { comp_no_fast ~ ("|" | "/" | "OR") ~ comp }
+quick_or_comp = { (!"AND" ~ !"OR" ~ word_comp){2, } }
 namong_comp = { number ~ "(" ~ comp ~ ("," ~ comp)* ~ ")" }
 not_comp = { ("!" | "NOT") ~ comp }
 filter_comp = { word ~ "=" ~ word }
 
 comp = _{ and_comp | or_comp | comp_no_fast }
 paren_comp = _{ "(" ~ comp ~ ")"~ _WSP* }
-comp_no_fast = _{ namong_comp | paren_comp | not_comp | filter_comp | word_comp }
+comp_no_fast = _{ namong_comp | paren_comp | not_comp | filter_comp | quick_or_comp | word_comp }
 
 query = _{ comp ~ EOI }

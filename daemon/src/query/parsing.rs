@@ -46,6 +46,13 @@ pub(super) fn build_comp(ident: IdentRef<Ident>) -> QueryComp {
                 among: children.into_iter().map(build_comp).collect::<Vec<_>>(),
             }
         },
+        Rule::quick_or_comp => {
+            let words = ident.children().map(|c| c.children().map(|c| c.as_str()).collect::<Vec<_>>().join(""));
+            QueryComp::NAmong {
+                n: 1,
+                among: words.map(QueryComp::Word).collect::<Vec<_>>(),
+            }
+        },
         Rule::not_comp => {
             let child = ident.children().next().unwrap();
             QueryComp::Not(Box::new(build_comp(child)))
@@ -88,7 +95,10 @@ fn test() {
     println!("{:#?}", field);
 
     let input = "word AND test AND test AND 2(word, word, word) AND NOT(word) AND lang=en";
-    let output = Query::parse(input).unwrap();
+    let output = Query::parse(input).unwrap_or_else(|e| {e.print(input); panic!()});
     println!("{:#?}", output);
 
+    let input = "chloe helloco";
+    let output = Query::parse(input).unwrap_or_else(|e| {e.print(input); panic!()});
+    println!("{:#?}", output);
 }
