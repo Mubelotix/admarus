@@ -67,8 +67,17 @@ impl QueryComp {
 
 impl Query {
     pub fn matching_docs(&self, index: &HashMap<String, HashMap<String, f64>>) -> Vec<String> {
-        let mut matching = index.keys().map(|cid| (cid, self.root.match_score_index(cid, index))).filter(|(_, score)| *score > 0).collect::<Vec<_>>();
-        matching.sort_by(|(_, score1), (_, score2)| score2.cmp(score1));
-        matching.into_iter().map(|(cid, _)| cid.clone()).collect::<Vec<_>>()
+        let positive_terms = self.positive_terms();
+
+        let mut candidates = Vec::new();
+        for positive_term in positive_terms {
+            if let Some(new_candidates) = index.get(positive_term) {
+                candidates.extend(new_candidates.keys().cloned());
+            }
+        }
+
+        let mut matching = candidates.into_iter().map(|cid| (self.root.match_score_index(&cid, index), cid)).filter(|(score, _)| *score > 0).collect::<Vec<_>>();
+        matching.sort_by(|(score1, _), (score2, _)| score2.cmp(score1));
+        matching.into_iter().map(|(_, cid)| cid).collect::<Vec<_>>()
     }
 }

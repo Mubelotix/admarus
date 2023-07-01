@@ -63,6 +63,7 @@ async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>
             return Ok(Response::builder().status(400).body("Error parsing query".to_string()).unwrap());
         },
     };
+    info!("Searching for {:?}", query);
     let search_controler = kamilata.search(query).await;
     let id = search_park.insert(search_controler).await;
 
