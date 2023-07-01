@@ -39,8 +39,8 @@ impl QueryComp {
     pub fn positive_terms(&self) -> Vec<&String> {
         match self {
             QueryComp::Word(word) => vec![word],
-            QueryComp::Filter { name, value } => Vec::new(),
-            QueryComp::Not(comp) => Vec::new(),
+            QueryComp::Filter { .. } => Vec::new(),
+            QueryComp::Not(_) => Vec::new(),
             QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.positive_terms()).collect::<Vec<_>>(),
         }
     }
