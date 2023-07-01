@@ -12,6 +12,12 @@ impl Document {
         }
     }
 
+    pub fn language(&self) -> Option<String> {
+        match self {
+            Document::Html(html) => Some(html.language()),
+        }
+    }
+
     pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
         match self {
             Document::Html(html) => html.into_result(cid, metadata, query),
@@ -21,26 +27,41 @@ impl Document {
 
 pub struct HtmlDocument {
     raw: String,
+    parsed: scraper::Html,
 }
 
 impl HtmlDocument {
     pub fn init(raw: String) -> HtmlDocument {
+        let parsed = Html::parse_document(&raw);
         HtmlDocument {
             raw,
+            parsed,
         }
     }
 
     pub fn words(&self) -> Vec<String> {
-        let document = Html::parse_document(&self.raw);
+        let document = &self.parsed;
         let body_selector = Selector::parse("body").unwrap();
         let body_el = document.select(&body_selector).next();
         let body = body_el.map(|el| el.text().collect::<Vec<_>>().join(" ")).unwrap_or_default();
         body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect()
     }
 
+    pub fn language(&self) -> String {
+        let document = &self.parsed;
+        let html_selector = Selector::parse("html").unwrap();
+        let html_el = document.select(&html_selector).next();
+        let Some(lang) = html_el.and_then(|el| el.value().attr("lang").map(|lang| lang.trim().to_string())) else {
+            return String::from("unknown");
+        };
+        let mut lang = lang.split('-');
+        
+        lang.next().unwrap_or("unknown").to_string()
+    }
+
     #[allow(clippy::question_mark)]
     pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
-        let document = Html::parse_document(&self.raw);
+        let document = &self.parsed;
 
         // Retrieve title
         let title_selector = Selector::parse("title").unwrap();

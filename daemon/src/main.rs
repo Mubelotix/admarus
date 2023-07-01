@@ -12,6 +12,7 @@ mod clap;
 mod swarm;
 mod discovery;
 mod dns_pins;
+mod query;
 
 use crate::prelude::*;
 
