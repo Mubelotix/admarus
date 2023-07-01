@@ -1,0 +1,21 @@
+WSP = { " " }
+_WSP = _{ " " }
+
+escaped_space = _{ "\\" ~ WSP }
+raw_string = { (!"(" ~ !")" ~ !"," ~ !"&" ~ !"+" ~ !"|" ~ !"/" ~ !"!" ~ !" " ~ !"\\" ~ ANY)+ }
+word = _{ (raw_string | escaped_space)+ }
+digit = _{ '0'..'9' }
+number = { digit+ }
+
+word_comp = { _WSP* ~ word ~ _WSP* }
+and_comp = { _WSP* ~ comp_no_fast ~ _WSP* ~ ("&" | "+" | "AND") ~ _WSP* ~ comp ~ _WSP* }
+or_comp = { _WSP* ~ comp_no_fast ~ _WSP* ~ ("|" | "/" | "OR") ~ _WSP* ~ comp ~ _WSP* }
+namong_comp = { _WSP* ~ number ~ "(" ~ _WSP* ~ comp ~ (_WSP* ~ "," ~ _WSP* ~ comp)* ~ _WSP* ~ ")" ~ _WSP* }
+not_comp = { _WSP* ~ ("!" | "NOT") ~ _WSP* ~ comp ~ _WSP* }
+comp = _{ and_comp | or_comp | comp_no_fast }
+paren_comp = _{ _WSP* ~ "(" ~ _WSP* ~ comp ~ _WSP* ~ ")"~ _WSP* }
+comp_no_fast = _{ namong_comp | paren_comp | not_comp | word_comp }
+
+query = _{ comp ~ _WSP* ~ EOI }
+
+//and_comp = { WSP+ ~ ("&" | "+" | "AND") ~ WSP+ }
