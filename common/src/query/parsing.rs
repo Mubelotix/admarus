@@ -11,7 +11,8 @@ pub struct Parser {
 fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
     match ident.as_rule() {
         Rule::word_comp => {
-            let word = ident.children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
+            let word = ident.children().next().unwrap();
+            let word = word.children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
             SearchQueryComp::Word(word)
         },
         Rule::and_comp => {
@@ -58,7 +59,16 @@ fn build_comp(ident: IdentRef<Ident>) -> SearchQueryComp {
                 among: children.map(build_comp).collect::<Vec<_>>(),
             }
         },
-        _ => todo!()
+        Rule::filter_comp => {
+            let mut children = ident.children();
+            let name = children.next().unwrap().children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
+            let value = children.next().unwrap().children().map(|c| c.as_str()).collect::<Vec<_>>().join("");
+            SearchQueryComp::Filter {
+                name,
+                value,
+            }
+        }
+        _ => unreachable!()
     }
 }
 
@@ -69,12 +79,12 @@ fn parse_search_query(query: &str) -> Result<SearchQueryComp, Error> {
 
 #[test]
 fn test() {
-    let input = "word AND (word AND word) OR other AND 3(word, NOT(word2), word3) AND NOT word";
+    let input = "word AND (word AND word) OR other AND 3(word, NOT(word2), word3) AND NOT word AND lang=en";
     let output = Parser::parse_query(input).map_err(|e| e.print(input)).unwrap();
     let field = output.into_iter().next().unwrap();
     println!("{:#?}", field);
 
-    let input = "word AND test AND test AND 2(word, word, word) AND NOT(word)";
+    let input = "word AND test AND test AND 2(word, word, word) AND NOT(word) AND lang=en";
     let output = parse_search_query(input).unwrap();
     println!("{:#?}", output);
 
