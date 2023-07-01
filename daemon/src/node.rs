@@ -123,7 +123,7 @@ impl Node {
                 match value {
                     // Client commands
                     Either::Left((Some(command), _)) => match command {
-                        ClientCommand::Search { queries, config, sender } => {
+                        ClientCommand::Search { query: queries, config, sender } => {
                             let controller = self.kam_mut().search_with_config(queries, config).await;
                             let _ = sender.send(controller);
                         },
@@ -223,9 +223,9 @@ impl Node {
 
 enum ClientCommand {
     Search {
-        queries: SearchQueries,
+        query: Query,
         config: SearchConfig,
-        sender: OneshotSender<OngoingSearchController<DocumentResult>>,
+        sender: OneshotSender<OngoingSearchController<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>>,
     },
     GetExternalAddrs {
         sender: OneshotSender<Vec<AddressRecord>>,
@@ -253,10 +253,10 @@ impl NodeController {
         self.peer_id
     }
 
-    pub async fn search(&self, queries: SearchQueries) -> OngoingSearchController<DocumentResult> {
+    pub async fn search(&self, query: Query) -> OngoingSearchController<FILTER_SIZE, DocumentIndex<FILTER_SIZE>> {
         let (sender, receiver) = oneshot_channel();
         let _ = self.sender.send(ClientCommand::Search {
-            queries,
+            query,
             config: SearchConfig::default(),
             sender,
         }).await;

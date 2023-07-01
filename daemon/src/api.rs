@@ -9,10 +9,16 @@ struct SearchUrlQuery {
 }
 
 async fn local_search<const N: usize>((query, index): (SearchUrlQuery, DocumentIndex<N>)) -> Result<impl warp::Reply, Infallible> {
-    let words: Vec<_> = query.q.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
-    let words_len = words.len();
+    let query = match Query::parse(&query.q) {
+        Ok(query) => query,
+        Err(e) => {
+            error!("Error parsing query:");
+            e.print(&query.q);
+            return Ok(Response::builder().status(400).body("Error parsing query".to_string()).unwrap());
+        },
+    };
     let mut results = Vec::new();
-    let mut stream = index.search(words, words_len).await;
+    let mut stream = index.search(Arc::new(query)).await;
     while let Some(result) = stream.next().await {
         results.push(result);
     }
@@ -31,12 +37,12 @@ impl SearchPark {
         }
     }
 
-    pub async fn insert(self: Arc<Self>, controller: OngoingSearchController<DocumentResult>) -> usize {
+    pub async fn insert(self: Arc<Self>, controller: SearchController) -> usize {
         let id = rand::random();
         self.search_controllers.write().await.insert(id, Vec::new());
         tokio::spawn(async move {
             let mut controller = controller;
-            while let Some((document, _, peer_id)) = controller.recv().await {
+            while let Some((document, peer_id)) = controller.recv().await {
                 self.search_controllers.write().await.entry(id).and_modify(|v| v.push((document, peer_id)));
             }
         });
@@ -49,8 +55,15 @@ impl SearchPark {
 }
 
 async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>, NodeController)) -> Result<impl warp::Reply, Infallible> {
-    let words: Vec<_> = query.q.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
-    let search_controler = kamilata.search(SearchQueries::from(words)).await;
+    let query = match Query::parse(&query.q) {
+        Ok(query) => query,
+        Err(e) => {
+            error!("Error parsing query:");
+            e.print(&query.q);
+            return Ok(Response::builder().status(400).body("Error parsing query".to_string()).unwrap());
+        },
+    };
+    let search_controler = kamilata.search(query).await;
     let id = search_park.insert(search_controler).await;
 
     Ok(Response::builder().header("Content-Type", "application/json").header("Access-Control-Allow-Origin", "*").body("{\"id\": ".to_string() + &id.to_string() + "}").unwrap())

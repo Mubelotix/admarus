@@ -18,7 +18,7 @@ impl Document {
         }
     }
 
-    pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
+    pub fn into_result(self, cid: String, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
         match self {
             Document::Html(html) => html.into_result(cid, metadata, query),
         }
@@ -60,7 +60,7 @@ impl HtmlDocument {
     }
 
     #[allow(clippy::question_mark)]
-    pub fn into_result(self, cid: String, metadata: Metadata, query: &[String]) -> Option<DocumentResult> {
+    pub fn into_result(self, cid: String, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
         let document = &self.parsed;
 
         // Retrieve title
@@ -92,24 +92,25 @@ impl HtmlDocument {
         let description = description_el.map(|el| el.value().attr("content").unwrap().to_string());
 
         // Retrieve the most relevant extract
-        fn extract_score(extract: &str, query: &[String]) -> usize {
+        fn extract_score(extract: &str, query_positive_terms: &[&String]) -> usize {
             let mut score = 0;
             let mut extract_words = extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase()).collect::<Vec<_>>();
             if extract_words.is_empty() {
                 return 0;
             }
             let first_word = extract_words.remove(0);
-            if query.contains(&first_word) {
+            if query_positive_terms.contains(&&first_word) {
                 score += 4;
             }
-            for word in query {
-                if extract_words.contains(word) {
+            for query_positive_term in query_positive_terms {
+                if extract_words.contains(query_positive_term) {
                     score += 1;
                 }
             }
             score
         }
         let body = document.select(&Selector::parse("body").unwrap()).next().unwrap();
+        let query_positive_terms = query.positive_terms();
         let fragments = body.text().collect::<Vec<_>>();
         let mut best_extract = "";
         let mut best_extract_score = 0;
@@ -117,7 +118,7 @@ impl HtmlDocument {
             if fragment.len() >= 350 || fragment.len() <= 50 {
                 continue;
             }
-            let score = extract_score(fragment, query);
+            let score = extract_score(fragment, &query_positive_terms);
             if score > best_extract_score {
                 best_extract_score = score;
                 best_extract = fragment;
@@ -135,7 +136,7 @@ impl HtmlDocument {
         // Count words
         #[allow(clippy::too_many_arguments)]
         fn count_words(
-            el: ElementRef, query: &[String], term_counts: &mut Vec<WordCount>, word_count: &mut WordCount, 
+            el: ElementRef, query_positive_terms: &[&String], term_counts: &mut Vec<WordCount>, word_count: &mut WordCount, 
             mut h1: bool, mut h2: bool, mut h3: bool, mut h4: bool, mut h5: bool, mut h6: bool, mut strong: bool, mut em: bool, mut small: bool, mut s: bool
         ) {
             match el.value().name() {
@@ -155,7 +156,7 @@ impl HtmlDocument {
                 match child.value() {
                     scraper::node::Node::Element(_) => {
                         let child_ref = ElementRef::wrap(child).unwrap();
-                        count_words(child_ref, query, term_counts, word_count, h1, h2, h3, h4, h5, h6, strong, em, small, s)
+                        count_words(child_ref, query_positive_terms, term_counts, word_count, h1, h2, h3, h4, h5, h6, strong, em, small, s)
                     },
                     scraper::node::Node::Text(text) => {
                         let text = text.to_lowercase();
@@ -164,7 +165,7 @@ impl HtmlDocument {
                             .filter(|w| w.len() >= 3)
                             .map(|w| w.to_string());
                         for word in words {
-                            if let Some(i) = query.iter().position(|q| q == &word) {
+                            if let Some(i) = query_positive_terms.iter().position(|q| *q == &word) {
                                 let term_count = term_counts.get_mut(i).unwrap();
                                 term_count.add(h1, h2, h3, h4, h5, h6, strong, em, small, s)
                             }
@@ -175,9 +176,9 @@ impl HtmlDocument {
                 }
             }
         }
-        let mut term_counts = query.iter().map(|_| WordCount::default()).collect::<Vec<_>>();
+        let mut term_counts = query_positive_terms.iter().map(|_| WordCount::default()).collect::<Vec<_>>();
         let mut word_count = WordCount::default();
-        count_words(body, query, &mut term_counts, &mut word_count, false, false, false, false, false, false, false, false, false, false);
+        count_words(body, &query_positive_terms, &mut term_counts, &mut word_count, false, false, false, false, false, false, false, false, false, false);
 
         Some(DocumentResult {
             cid,

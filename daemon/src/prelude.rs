@@ -9,6 +9,7 @@ pub use crate::{
     clap::*,
     swarm::*,
     dns_pins::*,
+    query::*,
     discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig, Response as DiscoveryResponse, PeerListQuery}
 };
 pub use clap::Parser;
@@ -37,6 +38,8 @@ pub use futures::{
 pub use reqwest::Client;
 pub use sha2_derive::Hashable;
 pub use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
+
+pub type SearchController = OngoingSearchController<125000, DocumentIndex<125000>>;
 
 pub fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid system time").as_secs()

@@ -93,7 +93,7 @@ pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata
         .get("bytes").ok_or(InvalidResponse("bytes expected on /"))?
         .as_str().ok_or(InvalidResponse("bytes expected to be a string"))?;
 
-    if data != "CAE" {
+    if data != "CAE" { // This is the legacy IPFS UnixFS format according to ipfs-search.com guys. I personnaly think it indicates the ADL used.
         return Ok(None);
     }
 

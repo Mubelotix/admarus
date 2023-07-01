@@ -66,28 +66,23 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     // TODO: switching self to static may improve performance by a lot
-    pub async fn search(&self, query: Vec<String>, min_matching: usize) -> ResultStream<DocumentResult> {
-        let mut matching_cids = HashMap::new();
-        if query.iter().filter(|w| self.filter.get_word::<DocumentIndex<N>>(w)).count() >= min_matching {
-            for word in &query {
-                for (document, _freqency) in self.index.get(word).into_iter().flatten() {
-                    *matching_cids.entry(document.to_owned()).or_insert(0) += 1;
-                }
-            }
-            matching_cids.retain(|_,c| *c>=min_matching);
-        }
+    pub async fn search(&self, query: Arc<Query>) -> ResultStream<DocumentResult> {
+        let matching_docs = match query.match_score(&self.filter) > 0 {
+            true => query.matching_docs(&self.index),
+            false => Vec::new(),
+        };
 
-        async fn cid_to_result(query: Vec<String>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
+        async fn cid_to_result(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
             let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
             let Some(result) = document.into_result(cid, metadata.to_owned(), &query) else {return None};
             Some(result)
         }
 
-        let stream: FuturesUnordered<_> = matching_cids
+        let stream: FuturesUnordered<_> = matching_docs
             .into_iter()
-            .filter_map(|(cid, _)|
+            .filter_map(|cid|
                 self.metadata.get(&cid).map(|metadata|
-                    cid_to_result(query.clone(), cid, metadata.to_owned(), Arc::clone(&self.config))
+                    cid_to_result(Arc::clone(&query), cid, metadata.to_owned(), Arc::clone(&self.config))
                 )
             ).collect();
         
@@ -163,9 +158,11 @@ impl <const N: usize> DocumentIndex<N> {
     }
 }
 
+
 #[async_trait]
 impl <const N: usize> Store<N> for DocumentIndex<N> {
-    type SearchResult = DocumentResult;
+    type Result = DocumentResult;
+    type Query = Query;
 
     fn hash_word(word: &str) -> Vec<usize>  {
         let mut result = 1usize;
@@ -183,10 +180,10 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
         self.inner.read().await.filter.clone()
     }
 
-    fn search(&self, words: Vec<String>, min_matching: usize) -> ResultStreamBuilderFut<DocumentResult> {
+    fn search(&self, query: Arc<Query>) -> ResultStreamBuilderFut<DocumentResult> {
         let inner2 = Arc::clone(&self.inner);
         Box::pin(async move {
-            inner2.read().await.search(words, min_matching).await
+            inner2.read().await.search(query).await
         })
     }
 }
