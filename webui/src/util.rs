@@ -16,6 +16,10 @@ pub async fn sleep(duration: Duration) {
     JsFuture::from(promise).await.unwrap();
 }
 
+pub fn url_encode(s: &str) -> String {
+    js_sys::encode_uri_component(s).into()
+}
+
 const LEAK_MEMORY: bool = false;
 
 pub trait HackTraitAnimation<COMP: Component> {

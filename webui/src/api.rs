@@ -136,7 +136,7 @@ pub async fn search(query: impl AsRef<str>) -> Result<u64, ApiError> {
     struct Rep {
         id: u64,
     }
-    let rep: Rep = get(format!("http://localhost:3030/search?q={}", query.as_ref())).await?;
+    let rep: Rep = get(format!("http://localhost:3030/search?q={}", url_encode(query.as_ref()))).await?;
     Ok(rep.id)
 }
 
