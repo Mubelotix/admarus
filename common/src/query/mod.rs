@@ -1,4 +1,5 @@
 mod parsing;
+pub use parsing::*;
 
 pub struct SearchQuery {
     root: SearchQueryComp,
