@@ -8,10 +8,15 @@ struct DocumentIndexInner<const N: usize> {
     pub filter: Filter<N>,
     filter_needs_update: bool,
 
+    /// This reduces RAM usage as we can now store u32 instead of Strings in the index.
+    /// Saves 2.5kB per document in average.
+    ids: HashMap<u32, String>,
+    id_counter: u32,
+
     metadata: HashMap<String, Metadata>,
 
     /// word -> [cid -> frequency]
-    pub index: HashMap<String, HashMap<String, f64>>, // FIXME: no field should be public
+    pub index: HashMap<String, HashMap<u32, f64>>, // FIXME: no field should be public
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
@@ -20,6 +25,8 @@ impl<const N: usize> DocumentIndexInner<N> {
             config,
             filter: Filter::new(),
             filter_needs_update: false,
+            ids: HashMap::new(),
+            id_counter: 0,
             metadata: HashMap::new(),
             index: HashMap::new(),
         }
@@ -37,9 +44,11 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     pub fn remove_document(&mut self, cid: &str) {
+        let id = self.ids.iter().find(|(_, c)| *c == cid).map(|(id, _)| *id).unwrap();
+        self.ids.remove(&id);
         self.metadata.remove(cid);
         for frequencies in self.index.values_mut() {
-            frequencies.remove(cid);
+            frequencies.remove(&id);
         }
         let previous_len = self.index.len();
         self.index.retain(|_, frequencies| !frequencies.is_empty());
@@ -49,12 +58,21 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     pub fn add_document(&mut self, cid: String, document: Document, metadata: Metadata) {
+        if self.metadata.contains_key(&cid) {
+            return;
+        }
         self.metadata.insert(cid.clone(), metadata);
+
         let words = document.words();
         let word_count = words.len() as f64;
+
+        let id = self.id_counter;
+        self.id_counter += 1;
+        self.ids.insert(id, cid);
+
         for word in words {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
-            *frequencies.entry(cid.clone()).or_insert(0.) += 1. / word_count;
+            *frequencies.entry(id).or_insert(0.) += 1. / word_count;
             self.filter.add_word::<DocumentIndex<N>>(&word);
         }
     }
@@ -68,7 +86,7 @@ impl<const N: usize> DocumentIndexInner<N> {
     // TODO: switching self to static may improve performance by a lot
     pub async fn search(&self, query: Arc<Query>) -> ResultStream<DocumentResult> {
         let matching_docs = match query.match_score(&self.filter) > 0 {
-            true => query.matching_docs(&self.index),
+            true => query.matching_docs(&self.index).into_iter().map(|id| self.ids.get(&id).unwrap().to_owned()).collect::<Vec<_>>(),
             false => Vec::new(),
         };
 

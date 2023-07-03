@@ -40,16 +40,16 @@ impl QueryComp {
         }
     }
 
-    fn match_score_index(&self, cid: &str, index: &HashMap<String, HashMap<String, f64>>) -> u32 {
+    fn match_score_index(&self, id: u32, index: &HashMap<String, HashMap<u32, f64>>) -> u32 {
         match self {
-            QueryComp::Word(word) => index.get(word).map(|l| l.contains_key(cid) as u32).unwrap_or(0),
+            QueryComp::Word(word) => index.get(word).map(|l| l.contains_key(&id) as u32).unwrap_or(0),
             QueryComp::Filter { .. } => unimplemented!(),
-            QueryComp::Not(comp) => match comp.match_score_index(cid, index) { 0 => 1, _ => 0 }
+            QueryComp::Not(comp) => match comp.match_score_index(id, index) { 0 => 1, _ => 0 }
             QueryComp::NAmong { n, among } => {
                 let mut sum = 0;
                 let mut matching = 0;
                 for comp in among {
-                    let score = comp.match_score_index(cid, index);
+                    let score = comp.match_score_index(id, index);
                     sum += score;
                     if score > 0 {
                         matching += 1;
@@ -66,7 +66,7 @@ impl QueryComp {
 }
 
 impl Query {
-    pub fn matching_docs(&self, index: &HashMap<String, HashMap<String, f64>>) -> Vec<String> {
+    pub fn matching_docs(&self, index: &HashMap<String, HashMap<u32, f64>>) -> Vec<u32> {
         let positive_terms = self.positive_terms();
 
         let mut candidates = Vec::new();
@@ -76,7 +76,7 @@ impl Query {
             }
         }
 
-        let mut matching = candidates.into_iter().map(|cid| (self.root.match_score_index(&cid, index), cid)).filter(|(score, _)| *score > 0).collect::<Vec<_>>();
+        let mut matching = candidates.into_iter().map(|id| (self.root.match_score_index(id, index), id)).filter(|(score, _)| *score > 0).collect::<Vec<_>>();
         matching.sort_by(|(score1, _), (score2, _)| score2.cmp(score1));
         matching.into_iter().map(|(_, cid)| cid).collect::<Vec<_>>()
     }
