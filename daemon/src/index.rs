@@ -50,12 +50,18 @@ impl<const N: usize> DocumentIndexInner<N> {
 
     pub fn add_document(&mut self, cid: String, document: Document, metadata: Metadata) {
         self.metadata.insert(cid.clone(), metadata);
-        let words = document.words();
+        let (words, language) = match document.into_parts() {
+            Some((words, language)) => (words, language),
+            None => return,
+        };
         let word_count = words.len() as f64;
         for word in words {
             let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
             *frequencies.entry(cid.clone()).or_insert(0.) += 1. / word_count;
             self.filter.add_word::<DocumentIndex<N>>(&word);
+        }
+        if let Some(language) = language {
+            self.filter.add_word::<DocumentIndex<N>>(&format!("lang={}", language));
         }
     }
 

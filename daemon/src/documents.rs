@@ -1,20 +1,13 @@
-use scraper::{Selector, Html, ElementRef};
 use crate::prelude::*;
-
+use html5ever::{tokenizer::{TokenSink, Token as HtmlToken, TokenSinkResult, TagKind, Tokenizer, TokenizerOpts, BufferQueue}, LocalName};
 pub enum Document {
     Html(HtmlDocument),
 }
 
 impl Document {
-    pub fn words(&self) -> Vec<String> {
+    pub fn into_parts(self) -> Option<(Vec<String>, Option<String>)> {
         match self {
-            Document::Html(html) => html.words(),
-        }
-    }
-
-    pub fn language(&self) -> Option<String> {
-        match self {
-            Document::Html(html) => Some(html.language()),
+            Document::Html(html) => html.into_parts(),
         }
     }
 
@@ -24,44 +17,93 @@ impl Document {
         }
     }
 }
-
 pub struct HtmlDocument {
     raw: String,
-    parsed: scraper::Html,
 }
 
 impl HtmlDocument {
     pub fn init(raw: String) -> HtmlDocument {
-        let parsed = Html::parse_document(&raw);
         HtmlDocument {
             raw,
-            parsed,
         }
     }
 
-    pub fn words(&self) -> Vec<String> {
-        let document = &self.parsed;
+    pub fn into_parts(self) -> Option<(Vec<String>, Option<String>)> {
+        /*let document = &self.parsed;
         let body_selector = Selector::parse("body").unwrap();
         let body_el = document.select(&body_selector).next();
         let body = body_el.map(|el| el.text().collect::<Vec<_>>().join(" ")).unwrap_or_default();
-        body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect()
-    }
-
-    pub fn language(&self) -> String {
-        let document = &self.parsed;
-        let html_selector = Selector::parse("html").unwrap();
-        let html_el = document.select(&html_selector).next();
-        let Some(lang) = html_el.and_then(|el| el.value().attr("lang").map(|lang| lang.trim().to_string())) else {
-            return String::from("unknown");
-        };
-        let mut lang = lang.split('-');
+        body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect()*/
+        pub(crate) struct HtmlSink<'a> {
+            pub(crate) words: &'a mut Vec<String>,
+            pub(crate) panic: &'a mut Option<String>,
+            pub(crate) opened_elements: Vec<LocalName>,
+        }
         
-        lang.next().unwrap_or("unknown").to_string()
+        impl<'a> TokenSink for HtmlSink<'a> {
+            type Handle = ();
+        
+            fn process_token(&mut self, token: HtmlToken, line_number: u64) -> TokenSinkResult<()> {
+                if self.panic.is_some() { return TokenSinkResult::Continue }
+
+                match token {
+                    HtmlToken::TagToken(tag) => {
+                        if tag.self_closing || ["area", "base", "br", "col", "embed", "hr", "img", "input", "keygen", "link", "meta", "param", "source", "track", "wbr"].contains(&tag.name.as_ref()) {
+                            return TokenSinkResult::Continue;
+                        }
+                        match tag.kind {
+                            TagKind::StartTag => self.opened_elements.push(tag.name),
+                            TagKind::EndTag => match self.opened_elements.pop() {
+                                Some(name) => {
+                                    if name != tag.name {
+                                        *self.panic = Some(format!("Unexpected closing tag </{}> at line {line_number} (expected {name})", tag.name));
+                                        return TokenSinkResult::Continue;
+                                    }
+                                },
+                                None => {
+                                    *self.panic = Some(format!("Unexpected closing tag </{}> at line {line_number} (no opening tag)", tag.name));
+                                    return TokenSinkResult::Continue;
+                                }
+                            }
+                        }
+                    },
+                    HtmlToken::CharacterTokens(text) => {
+                        let text = text.to_lowercase();
+                        let new_words = text.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string());
+                        self.words.extend(new_words);
+                    },
+                    HtmlToken::NullCharacterToken | HtmlToken::CommentToken(_) | HtmlToken::EOFToken | HtmlToken::DoctypeToken(_) => (),
+                    HtmlToken::ParseError(e) => {
+                        //*self.panic = Some(format!("Parse error: {e}"));
+                        return TokenSinkResult::Continue;
+                    },
+                }
+                TokenSinkResult::Continue
+            }
+        }
+
+        let mut words = Vec::new();
+        let mut panic = None;
+
+        let html_sink = HtmlSink { words: &mut words, opened_elements: Vec::new(), panic: &mut panic };
+        let mut html_tokenizer = Tokenizer::new(html_sink, TokenizerOpts::default());
+        let mut buffer_queue = BufferQueue::new();
+        buffer_queue.push_back(self.raw.into());
+        let _  = html_tokenizer.feed(&mut buffer_queue);
+        html_tokenizer.end();
+
+        match panic {
+            Some(panic) => {
+                error!("{}", panic);
+                None
+            },
+            None => Some((words, None)),
+        }
     }
 
     #[allow(clippy::question_mark)]
     pub fn into_result(self, cid: String, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
-        let document = &self.parsed;
+        /*let document = &self.parsed;
 
         // Retrieve title
         let title_selector = Selector::parse("title").unwrap();
@@ -192,6 +234,7 @@ impl HtmlDocument {
 
             term_counts,
             word_count,
-        })
+        })*/
+        todo!()
     }
 }

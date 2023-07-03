@@ -11,7 +11,6 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }
 async-trait = "0.1"
-scraper = "0.16"
 warp = {version="0.3", default-features = false}
 reqwest = {version="0.11", features=["multipart"], default-features = false}
 futures = "0.3"
@@ -23,3 +22,4 @@ sha2 = "0.10"
 sha2-derive = "0.1"
 trust-dns-client = "0.22"
 faster-pest = "0.1"
+html5ever = "0.26"
