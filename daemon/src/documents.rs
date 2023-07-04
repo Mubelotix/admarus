@@ -6,15 +6,9 @@ pub enum Document {
 }
 
 impl Document {
-    pub fn words(&self) -> Vec<String> {
+    pub fn into_parts(self) -> (Vec<String>, HashMap<&'static str, String>) {
         match self {
-            Document::Html(html) => html.words(),
-        }
-    }
-
-    pub fn language(&self) -> Option<String> {
-        match self {
-            Document::Html(html) => Some(html.language()),
+            Document::Html(html) => html.into_parts(),
         }
     }
 
@@ -39,24 +33,27 @@ impl HtmlDocument {
         }
     }
 
-    pub fn words(&self) -> Vec<String> {
+    pub fn into_parts(self) -> (Vec<String>, HashMap<&'static str, String>) {
+        let mut filters = HashMap::new();
+
+        // Get words
         let document = &self.parsed;
         let body_selector = Selector::parse("body").unwrap();
         let body_el = document.select(&body_selector).next();
         let body = body_el.map(|el| el.text().collect::<Vec<_>>().join(" ")).unwrap_or_default();
-        body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect()
-    }
+        let words = body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
 
-    pub fn language(&self) -> String {
-        let document = &self.parsed;
+        // Get lang
         let html_selector = Selector::parse("html").unwrap();
         let html_el = document.select(&html_selector).next();
-        let Some(lang) = html_el.and_then(|el| el.value().attr("lang").map(|lang| lang.trim().to_string())) else {
-            return String::from("unknown");
-        };
-        let mut lang = lang.split('-');
-        
-        lang.next().unwrap_or("unknown").to_string()
+        let lang = html_el
+            .and_then(|el| el.value().attr("lang").map(|lang| lang.trim()))
+            .and_then(|l| l.split('-').next())
+            .map(|l| l.to_string())
+            .unwrap_or(String::from("unknown"));
+        filters.insert("lang", lang);
+
+        (words, filters)
     }
 
     #[allow(clippy::question_mark)]

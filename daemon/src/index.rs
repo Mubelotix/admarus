@@ -17,6 +17,7 @@ struct DocumentIndexInner<const N: usize> {
 
     /// word -> [cid -> frequency]
     pub index: HashMap<String, HashMap<u32, f64>>, // FIXME: no field should be public
+    filters: HashMap<(String, String), Vec<u32>>,
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
@@ -29,6 +30,7 @@ impl<const N: usize> DocumentIndexInner<N> {
             id_counter: 0,
             metadata: HashMap::new(),
             index: HashMap::new(),
+            filters: HashMap::new(),
         }
     }
 
@@ -47,12 +49,23 @@ impl<const N: usize> DocumentIndexInner<N> {
         let id = self.ids.iter().find(|(_, c)| *c == cid).map(|(id, _)| *id).unwrap();
         self.ids.remove(&id);
         self.metadata.remove(cid);
+
+        // Remove from index
         for frequencies in self.index.values_mut() {
             frequencies.remove(&id);
         }
-        let previous_len = self.index.len();
+        let prev_index_len = self.index.len();
         self.index.retain(|_, frequencies| !frequencies.is_empty());
-        if previous_len != self.index.len() {
+
+        // Remove from filters
+        for ids in self.filters.values_mut() {
+            ids.retain(|i| *i != id);
+        }
+        let prev_filters_len = self.filters.len();
+        self.filters.retain(|_, ids| !ids.is_empty());
+
+        // Update filter if necessary
+        if prev_index_len != self.index.len() || prev_filters_len != self.filters.len() {
             self.filter_needs_update = true;
         }
     }
@@ -63,7 +76,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
         self.metadata.insert(cid.clone(), metadata);
 
-        let words = document.words();
+        let (words, filters) = document.into_parts();
         let word_count = words.len() as f64;
 
         let id = self.id_counter;
@@ -71,9 +84,14 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.ids.insert(id, cid);
 
         for word in words {
-            let frequencies = self.index.entry(word.clone()).or_insert_with(HashMap::new);
+            let frequencies = self.index.entry(word.clone()).or_default();
             *frequencies.entry(id).or_insert(0.) += 1. / word_count;
             self.filter.add_word::<DocumentIndex<N>>(&word);
+        }
+        
+        for (key, value) in filters {
+            self.filters.entry((key.to_string(), value.clone())).or_default().push(id);
+            self.filter.add_word::<DocumentIndex<N>>(&format!("{key}={value}"));
         }
     }
 
