@@ -104,7 +104,7 @@ impl<const N: usize> DocumentIndexInner<N> {
     // TODO: switching self to static may improve performance by a lot
     pub async fn search(&self, query: Arc<Query>) -> ResultStream<DocumentResult> {
         let matching_docs = match query.match_score(&self.filter) > 0 {
-            true => query.matching_docs(&self.index).into_iter().map(|id| self.ids.get(&id).unwrap().to_owned()).collect::<Vec<_>>(),
+            true => query.matching_docs(&self.index, &self.filters).into_iter().map(|id| self.ids.get(&id).unwrap().to_owned()).collect::<Vec<_>>(),
             false => Vec::new(),
         };
 
@@ -124,7 +124,6 @@ impl<const N: usize> DocumentIndexInner<N> {
         
         Box::pin(stream.filter_map(|r| async move {r}))
     }
-
 }
 
 #[derive(Clone)]

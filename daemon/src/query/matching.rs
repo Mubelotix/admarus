@@ -40,16 +40,16 @@ impl QueryComp {
         }
     }
 
-    fn match_score_index(&self, id: u32, index: &HashMap<String, HashMap<u32, f64>>) -> u32 {
+    fn match_score_index(&self, id: u32, index: &HashMap<String, HashMap<u32, f64>>, filters: &HashMap<(String, String), Vec<u32>>) -> u32 {
         match self {
             QueryComp::Word(word) => index.get(word).map(|l| l.contains_key(&id) as u32).unwrap_or(0),
-            QueryComp::Filter { .. } => unimplemented!(),
-            QueryComp::Not(comp) => match comp.match_score_index(id, index) { 0 => 1, _ => 0 }
+            QueryComp::Filter { name, value } => filters.get(&(name.clone(), value.clone())).map(|l| l.contains(&id) as u32).unwrap_or(0),
+            QueryComp::Not(comp) => match comp.match_score_index(id, index, filters) { 0 => 1, _ => 0 }
             QueryComp::NAmong { n, among } => {
                 let mut sum = 0;
                 let mut matching = 0;
                 for comp in among {
-                    let score = comp.match_score_index(id, index);
+                    let score = comp.match_score_index(id, index, filters);
                     sum += score;
                     if score > 0 {
                         matching += 1;
@@ -66,8 +66,9 @@ impl QueryComp {
 }
 
 impl Query {
-    pub fn matching_docs(&self, index: &HashMap<String, HashMap<u32, f64>>) -> Vec<u32> {
+    pub fn matching_docs(&self, index: &HashMap<String, HashMap<u32, f64>>, filters: &HashMap<(String, String), Vec<u32>>) -> Vec<u32> {
         let positive_terms = self.positive_terms();
+        let positive_filters = self.positive_filters();
 
         let mut candidates = Vec::new();
         for positive_term in positive_terms {
@@ -75,8 +76,13 @@ impl Query {
                 candidates.extend(new_candidates.keys().cloned());
             }
         }
+        for (name, value) in positive_filters {
+            if let Some(new_candidates) = filters.get(&(name.clone(), value.clone())) {
+                candidates.extend(new_candidates.iter().cloned());
+            }
+        }
 
-        let mut matching = candidates.into_iter().map(|id| (self.root.match_score_index(id, index), id)).filter(|(score, _)| *score > 0).collect::<Vec<_>>();
+        let mut matching = candidates.into_iter().map(|id| (self.root.match_score_index(id, index, filters), id)).filter(|(score, _)| *score > 0).collect::<Vec<_>>();
         matching.sort_by(|(score1, _), (score2, _)| score2.cmp(score1));
         matching.into_iter().map(|(_, cid)| cid).collect::<Vec<_>>()
     }

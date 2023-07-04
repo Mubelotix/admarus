@@ -15,6 +15,10 @@ impl Query {
     pub fn positive_terms(&self) -> Vec<&String> {
         self.root.positive_terms()
     }
+
+    pub fn positive_filters(&self) -> Vec<(&String, &String)> {
+        self.root.positive_filters()
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -42,6 +46,15 @@ impl QueryComp {
             QueryComp::Filter { .. } => Vec::new(),
             QueryComp::Not(_) => Vec::new(),
             QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.positive_terms()).collect::<Vec<_>>(),
+        }
+    }
+
+    pub fn positive_filters(&self) -> Vec<(&String, &String)> {
+        match self {
+            QueryComp::Word(_) => Vec::new(),
+            QueryComp::Filter { name, value } => vec![(name, value)],
+            QueryComp::Not(_) => Vec::new(),
+            QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.positive_filters()).collect::<Vec<_>>(),
         }
     }
 }
