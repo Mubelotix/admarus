@@ -49,12 +49,15 @@ pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, IpfsRpcError> {
 pub struct Metadata {
     pub paths: Vec<Vec<String>>,
     pub size: Option<u64>,
+    /// True if we know it's a file. False might be either a directory or a file.
+    pub is_file: bool,
 }
 
 impl Metadata {
     fn merge(&mut self, other: Metadata) {
         self.paths.extend(other.paths);
         self.size = self.size.or(other.size);
+        self.is_file = self.is_file || other.is_file;
     }
 }
 
@@ -62,14 +65,18 @@ pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<Strin
     let mut metadatas: HashMap<String, Metadata> = HashMap::new();
     while let Some(cid) = cids.pop() {
         let metadata = metadatas.get(&cid);
+        // FIXME: top level files are ignored later
 
-        match explore_dag(ipfs_rpc, cid, metadata).await {
-            Ok(Some(new_links)) => for (cid, metadata) in new_links {
-                cids.push(cid.clone());
-                metadatas.entry(cid).or_default().merge(metadata);
+        match ls(ipfs_rpc, cid, metadata).await {
+            Ok(new_links) => {
+                for (cid, metadata) in new_links {
+                    if !metadata.is_file {
+                        cids.push(cid.clone());
+                    }
+                    metadatas.entry(cid).or_default().merge(metadata);
+                }
             }
-            Ok(None) => (),
-            Err(e) => warn!("Error while exploring dag: {e:?}"),
+            Err(e) => warn!("Error listing potential directory: {e:?}"),
         }
     }
 
@@ -84,63 +91,89 @@ pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, Ipf
     Ok(rep)
 }
 
-pub async fn explore_dag(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Result<Option<Vec<(String, Metadata)>>, IpfsRpcError> {
-    let dag = get_dag(ipfs_rpc, &cid).await?;
-    
-    let data = dag
-        .get("Data").unwrap_or(&dag)
-        .get("/").ok_or(InvalidResponse("/ expected on Data"))?
-        .get("bytes").ok_or(InvalidResponse("bytes expected on /"))?
-        .as_str().ok_or(InvalidResponse("bytes expected to be a string"))?;
+pub async fn ls(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Result<Vec<(String, Metadata)>, IpfsRpcError> {
+    // TODO: streaming
 
-    if data != "CAE" { // This is the legacy IPFS UnixFS format according to ipfs-search.com guys. I personnaly think it indicates the ADL used.
-        return Ok(None);
-    }
+    let client = Client::new();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/ls?arg={cid}")).send().await?;
+    let rep = rep.text().await?;
+    let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
 
-    let links_json = dag
-        .get("Links")
-        .and_then(|l| l.as_array())
-        .map(|l| l.to_owned())
-        .unwrap_or_default();
+    let objects = rep
+        .get("Objects").ok_or(InvalidResponse("Objects expected on data"))?
+        .as_array().ok_or(InvalidResponse("Objects expected to be an array"))?;
 
-    let is_dns_pins = dag
-        .get("DNS-Pins")
-        .and_then(|l| l.as_bool())
-        .unwrap_or(false);
+    // TODO: dns pins
 
-    let mut links = Vec::new();
-    for new_link in links_json {
-        let child_cid = new_link
-            .get("Hash").ok_or(InvalidResponse("Hash expected on link"))?
-            .get("/").ok_or(InvalidResponse("/ expected on Hash"))?
-            .as_str().ok_or(InvalidResponse("Hash expected to be a string"))?;
-        let name = new_link
-            .get("Name").ok_or(InvalidResponse("Name expected on link"))?
-            .as_str().ok_or(InvalidResponse("Name expected to be a string"))?;
-        let size = new_link
-            .get("Tsize").and_then(|l| l.as_u64());
-        let mut paths = metadata.map(|m| m.paths.clone()).unwrap_or_default();
-        paths.iter_mut().for_each(|p| p.push(name.to_owned()));
-        match is_dns_pins && metadata.is_none() {
-            true => {
-                let domain = name.split_whitespace().next().unwrap_or(name);
-                paths.push(vec![domain.to_owned()]);
-            },
-            false => paths.push(vec![cid.to_owned(), name.to_owned()]),
+    let mut rep = Vec::new();
+    for object in objects {
+        let links = object
+            .get("Links").ok_or(InvalidResponse("Links expected on object"))?
+            .as_array().ok_or(InvalidResponse("Links expected to be an array"))?;
+
+        for link in links {
+            let child_cid = link
+                .get("Hash").ok_or(InvalidResponse("Hash expected on link"))?
+                .as_str().ok_or(InvalidResponse("Hash expected to be a string"))?;
+            let name = link
+                .get("Name").ok_or(InvalidResponse("Name expected on link"))?
+                .as_str().ok_or(InvalidResponse("Name expected to be a string"))?;
+            let mut size = link
+                .get("Size").and_then(|l| l.as_u64());
+            let ty = link
+                .get("Type").ok_or(InvalidResponse("Type expected on link"))?
+                .as_u64().ok_or(InvalidResponse("Type expected to be a number"))?;
+
+            if ty == 1 {
+                size = None;
+            }
+
+            let paths = match name.is_empty() {
+                true => Vec::new(),
+                false => {
+                    let mut paths = metadata.map(|m| m.paths.clone()).unwrap_or_default();
+                    paths.push(vec![cid.to_owned()]);
+                    paths.iter_mut().for_each(|p| p.push(name.to_owned()));
+                    paths
+                }
+            };
+
+            rep.push((child_cid.to_owned(), Metadata {
+                paths,
+                size,
+                is_file: ty == 2,
+            }));
         }
-        paths.push(vec![String::from(child_cid)]);
-
-        links.push((child_cid.to_owned(), Metadata {
-            paths,
-            size,
-        }));
     }
 
-    Ok(Some(links))
+    Ok(rep)
+}
+
+#[tokio::test]
+async fn test_ls() {
+    let ipfs_rpc = "http://127.0.0.1:5001";
+    /*let cids = vec![
+        String::from("QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"),
+        String::from("QmUjs9ADLHsQkqRbRjDcC9XMqva7vfgFumDdzGxNjgW2Hr"),
+        String::from("QmXKd3xTtfu7bcZ5V7yVWojZK59bSVg8FQVe4BuyAFzMaR"),
+        String::from("QmaQEoprbFrakfT9rT3uZEuZxQo5fRZWxbp1SjFwr1zYLL"),
+        String::from("bafkreidhgkuwios3zlnm3u2zy2k55n7bvxvymy7iqg7leec5yw7uxocslq"),
+        String::from("bafyreic672jz6huur4c2yekd3uycswe2xfqhjlmtmm5dorb6yoytgflova"),
+        String::from("bafyreicxau4lie5a3dygqt4zyxogiy5v4vc7zyduvywbgezsc7wu6le47m"),
+    ];*/
+    let cids = vec![
+        String::from("bafyreicxau4lie5a3dygqt4zyxogiy5v4vc7zyduvywbgezsc7wu6le47m"),
+    ];
+    let pinned_files = explore_all(ipfs_rpc, cids).await;
+    for metadata in pinned_files.values() {
+        println!("{} {}", metadata.paths.first().unwrap().join("/"), metadata.is_file);
+    }
+    println!("{} new items", pinned_files.len());
+    println!("{} new files", pinned_files.iter().filter(|(_,m)| m.is_file).count());
 }
 
 pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
-    let mut links = links.into_iter().collect::<Vec<_>>();
+    let mut links = links.into_iter().filter(|(_,m)| m.is_file).collect::<Vec<_>>();
     links.sort_by_key(|(_,metadata)| !metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)));
 
     let mut documents = Vec::new();
