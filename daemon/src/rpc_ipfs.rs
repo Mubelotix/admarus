@@ -149,29 +149,6 @@ pub async fn ls(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Res
     Ok(rep)
 }
 
-#[tokio::test]
-async fn test_ls() {
-    let ipfs_rpc = "http://127.0.0.1:5001";
-    /*let cids = vec![
-        String::from("QmUNLLsPACCz1vLxQVkXqqLX5R1X345qqfHbsf67hvA3Nn"),
-        String::from("QmUjs9ADLHsQkqRbRjDcC9XMqva7vfgFumDdzGxNjgW2Hr"),
-        String::from("QmXKd3xTtfu7bcZ5V7yVWojZK59bSVg8FQVe4BuyAFzMaR"),
-        String::from("QmaQEoprbFrakfT9rT3uZEuZxQo5fRZWxbp1SjFwr1zYLL"),
-        String::from("bafkreidhgkuwios3zlnm3u2zy2k55n7bvxvymy7iqg7leec5yw7uxocslq"),
-        String::from("bafyreic672jz6huur4c2yekd3uycswe2xfqhjlmtmm5dorb6yoytgflova"),
-        String::from("bafyreicxau4lie5a3dygqt4zyxogiy5v4vc7zyduvywbgezsc7wu6le47m"),
-    ];*/
-    let cids = vec![
-        String::from("bafyreicxau4lie5a3dygqt4zyxogiy5v4vc7zyduvywbgezsc7wu6le47m"),
-    ];
-    let pinned_files = explore_all(ipfs_rpc, cids).await;
-    for metadata in pinned_files.values() {
-        println!("{} {}", metadata.paths.first().unwrap().join("/"), metadata.is_file);
-    }
-    println!("{} new items", pinned_files.len());
-    println!("{} new files", pinned_files.iter().filter(|(_,m)| m.is_file).count());
-}
-
 pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
     let mut links = links.into_iter().filter(|(_,m)| m.is_file).collect::<Vec<_>>();
     links.sort_by_key(|(_,metadata)| !metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)));
