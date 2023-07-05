@@ -117,16 +117,16 @@ impl DocumentResult {
         }
     }
 
-    pub fn view_desc(&self, query: &[String]) -> VList {
+    pub fn view_desc(&self, query: &Query) -> VList {
         // TODO: this is a copy of daemon code
-        fn extract_score(extract: &str, query: &[String]) -> usize {
+        fn extract_score(extract: &str, query: &[&String]) -> usize {
             let mut score = 0;
             let mut extract_words = extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase()).collect::<Vec<_>>();
             if extract_words.is_empty() {
                 return 0;
             }
             let first_word = extract_words.remove(0);
-            if query.contains(&first_word) {
+            if query.contains(&&first_word) {
                 score += 4;
             }
             for word in query {
@@ -137,9 +137,10 @@ impl DocumentResult {
             score
         }
 
+        let query_terms = query.positive_terms();
         let desc = match (&self.description, &self.extract) {
             (Some(desc), Some(extract)) => {
-                if extract_score(desc, query) >= extract_score(extract, query) {
+                if extract_score(desc, query_terms.as_slice()) >= extract_score(extract, query_terms.as_slice()) {
                     desc
                 } else {
                     extract
@@ -155,7 +156,7 @@ impl DocumentResult {
         for part in desc.split_inclusive(|c: char| !c.is_ascii_alphanumeric()) {
             let part_len = part.len();
             let word = part.trim_end_matches(|c: char| !c.is_ascii_alphanumeric());
-            if word.len() >= 3 && query.contains(&word.to_lowercase()) {
+            if word.len() >= 3 && query_terms.contains(&&word.to_lowercase()) {
                 if i - added > 0 {
                     let unbolded_text = desc[added..i].to_string();
                     vlist.add_child(VText::new(unbolded_text).into());
@@ -179,7 +180,8 @@ impl DocumentResult {
 
 // Score computations
 impl DocumentResult {
-    fn tf(&self, query: &[String]) -> f64 {
+    fn tf(&self, query: &Query) -> f64 {
+        let query_terms = query.positive_terms();
         let word_count_sum = self.word_count.weighted_sum();
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
         
@@ -194,7 +196,7 @@ impl DocumentResult {
             .collect::<Vec<_>>())
             .unwrap_or_default();
         let title_word_count = title_words.len();
-        let title_term_count = title_words.iter().filter(|w| query.contains(w)).count();
+        let title_term_count = title_words.iter().filter(|w| query_terms.contains(w)).count();
         let title_term_sum = title_term_count as f64 * 12.0;
         let title_word_sum = title_word_count as f64 * 12.0;
 
@@ -265,7 +267,7 @@ impl RankedResults {
         }
     }
 
-    pub fn insert(&mut self, mut res: DocumentResult, provider: String, query: &[String]) {
+    pub fn insert(&mut self, mut res: DocumentResult, provider: String, query: &Query) {
         res.rank_paths();
         self.providers.entry(res.cid.clone()).or_default().push(provider);
 

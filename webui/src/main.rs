@@ -2,6 +2,7 @@ mod app;
 mod prelude;
 mod util;
 mod result;
+mod api_bodies;
 mod api;
 mod score;
 mod lucky;

@@ -15,8 +15,7 @@ impl PartialEq for ResultsPageProps {
 }
 
 pub struct ResultsPage {
-    query: Vec<String>,
-    search_id: Option<u64>,
+    search_data: Option<(u64, Query)>,
     search_error: Option<ApiError>,
     update_counter: u32,
     results: RankedResults,
@@ -24,7 +23,7 @@ pub struct ResultsPage {
 }
 
 pub enum ResultsMessage {
-    SearchSuccess(u64),
+    SearchSuccess(ApiSearchResponse),
     SearchFailure(ApiError),
     FetchResultsSuccess(Vec<(DocumentResult, String)>),
     FetchResultsFailure(ApiError),
@@ -45,8 +44,7 @@ impl Component for ResultsPage {
         });
 
         Self {
-            query: ctx.props().query.split_whitespace().map(|s| s.to_string()).collect(),
-            search_id: None,
+            search_data: None,
             search_error: None,
             update_counter: 0,
             results: RankedResults::new(),
@@ -56,12 +54,12 @@ impl Component for ResultsPage {
     
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
-            ResultsMessage::SearchSuccess(search_id) => {
+            ResultsMessage::SearchSuccess(resp) => {
                 let link = ctx.link().clone();
-                self.search_id = Some(search_id);
+                self.search_data = Some((resp.id, resp.query));
                 spawn_local(async move {
                     sleep(Duration::from_millis(100)).await;
-                    match fetch_results(search_id).await {
+                    match fetch_results(resp.id).await {
                         Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
                         Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
                     }
@@ -69,26 +67,29 @@ impl Component for ResultsPage {
                 false
             }
             ResultsMessage::FetchResultsSuccess(results) => {
+                let Some((search_id, query)) = &self.search_data else { return false };
+                let search_id = *search_id;
+
                 self.update_counter += 1;
                 for (result, provider) in results {
-                    self.results.insert(result, provider.clone(), &self.query);
+                    self.results.insert(result, provider.clone(), query);
                     self.providers.insert(provider);
                 }
-                if let Some(search_id) = self.search_id {
-                    let link = ctx.link().clone();
-                    let update_counter = self.update_counter;
-                    spawn_local(async move {
-                        match update_counter {
-                            0..=10 => sleep(Duration::from_millis(100)).await,
-                            11..=20 => sleep(Duration::from_millis(300)).await,
-                            _ => sleep(Duration::from_secs(1)).await,
-                        }
-                        match fetch_results(search_id).await {
-                            Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
-                            Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
-                        }
-                    });
-                }
+
+                let link = ctx.link().clone();
+                let update_counter = self.update_counter;
+                spawn_local(async move {
+                    match update_counter {
+                        0..=10 => sleep(Duration::from_millis(100)).await,
+                        11..=20 => sleep(Duration::from_millis(300)).await,
+                        _ => sleep(Duration::from_secs(1)).await,
+                    }
+                    match fetch_results(search_id).await {
+                        Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
+                        Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
+                    }
+                });
+
                 true
             }
             ResultsMessage::SearchFailure(e) | ResultsMessage::FetchResultsFailure(e) => {
@@ -105,10 +106,11 @@ impl Component for ResultsPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         let results = self.results.iter_with_scores().collect::<Vec<_>>();
-        let search_id = self.search_id;
+        let search_id = self.search_data.as_ref().map(|d| d.0);
+        let query = self.search_data.as_ref().map(|d| &d.1);
 
         // General
-        let query = ctx.props().query.to_string();
+        let query_string = ctx.props().query.to_string();
         let onsearch = ctx.props().app_link.callback(move |query| AppMsg::ChangePage(Page::Results(Rc::new(query))));
         let onclick_home = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home));
         let onclick_settings = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings));
@@ -140,7 +142,7 @@ impl Component for ResultsPage {
         // Results
         let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();
         let title_iter = results.iter().map(|(result,_)| result.format_result_title());
-        let description_iter = results.iter().map(|(result,_)| result.view_desc(&self.query));
+        let description_iter = results.iter().map(|(result,_)| result.view_desc(query.unwrap()));
 
         // Scores
         let display_scores = true;
