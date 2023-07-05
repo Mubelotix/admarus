@@ -4,7 +4,6 @@ mod util;
 mod result;
 mod api_bodies;
 mod api;
-mod score;
 mod lucky;
 mod lang;
 
