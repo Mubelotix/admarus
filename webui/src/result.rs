@@ -230,10 +230,10 @@ impl DocumentResult {
                     words.extend(extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
                 }
 
-                let word_count = words.len();
+                let words_bytes = words.iter().map(|w| w.len()).sum::<usize>();
                 let lang_words = requested_lang.common_words();
-                let in_lang_count = words.iter().filter(|w| lang_words.sorted_contains(w)).count();
-                in_lang_count as f64 / word_count as f64
+                let common_words_bytes = words.iter().filter(|w| lang_words.sorted_contains(w)).map(|w| w.len()).sum::<usize>();
+                common_words_bytes as f64 / words_bytes as f64
             },
         };
 
