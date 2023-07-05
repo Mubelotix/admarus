@@ -78,6 +78,9 @@ pub struct DocumentResult {
     pub term_counts: Vec<WordCount>,
     /// The number of words in the document.
     pub word_count: WordCount,
+
+    /// If the lang filter is set to a value that the daemon supports, it will return the proportion of words in the document that are common in that language.
+    pub common_words: Option<f64>,
 }
 
 impl DocumentResult {
@@ -214,22 +217,27 @@ impl DocumentResult {
     }
 
     fn lang_score(&self, requested_lang: Lang) -> Score {
-        let mut words = Vec::new();
-        let description_lowercase = self.description.as_ref().map(|d| d.to_lowercase());
-        let extract_lowercase = self.extract.as_ref().map(|e| e.to_lowercase());
-        if let Some(description) = &description_lowercase {
-            words.extend(description.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
-        }
-        if let Some(extract) = &extract_lowercase {
-            words.extend(extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
-        }
+        let common_words = match self.common_words {
+            Some(common_words) => common_words,
+            None => {
+                let mut words = Vec::new();
+                let description_lowercase = self.description.as_ref().map(|d| d.to_lowercase());
+                let extract_lowercase = self.extract.as_ref().map(|e| e.to_lowercase());
+                if let Some(description) = &description_lowercase {
+                    words.extend(description.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
+                }
+                if let Some(extract) = &extract_lowercase {
+                    words.extend(extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
+                }
 
-        let word_count = words.len();
-        let lang_words = requested_lang.common_words();
-        let in_lang_count = words.iter().filter(|w| lang_words.sorted_contains(w)).count();
-        let ratio = in_lang_count as f64 / word_count as f64;
+                let word_count = words.len();
+                let lang_words = requested_lang.common_words();
+                let in_lang_count = words.iter().filter(|w| lang_words.sorted_contains(w)).count();
+                in_lang_count as f64 / word_count as f64
+            },
+        };
 
-        let mut score = ratio * 2.5;
+        let mut score = common_words * 2.5;
         if score > 1.0 {
             score = 1.0;
         }
