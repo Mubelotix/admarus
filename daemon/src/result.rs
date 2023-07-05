@@ -84,7 +84,9 @@ pub struct DocumentResult {
     /// The number of words in the document.
     pub word_count: WordCount,
 
-    /// If the lang filter is set to a value that the daemon supports, it will return the proportion of words in the document that are common in that language.
+    /// Present if daemon supports the language of the document.
+    /// Is intended to represent the share of words in the document that are common in that language.
+    /// Words are counted in bytes so that this metric is relevant with unsupported languages whose words are not properly isolated by the daemon.
     pub common_words: Option<f64>,
 }
 
