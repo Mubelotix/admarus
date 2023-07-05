@@ -55,11 +55,13 @@ impl Scores {
     /// This computes the final score for a document.
     pub fn general_score(&self) -> Score {
         Score::from(
-            self.ipns_score.val * 0.05 +
-            self.length_score.val * 0.15 +
-            self.lang_score.val * 0.15 +
-            self.tf_score.val * 0.25 +
-            self.popularity_score.val * 0.40
+            (self.ipns_score.val * 0.15
+            + self.tf_score.val * 0.35
+            + self.popularity_score.val * 0.5)
+            
+            // Scores that multiply are those we want to always be 1.0
+            * self.lang_score.val
+            * self.length_score.val
         )
     }
 }

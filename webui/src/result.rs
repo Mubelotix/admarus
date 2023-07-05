@@ -229,7 +229,7 @@ impl DocumentResult {
         let in_lang_count = words.iter().filter(|w| lang_words.sorted_contains(w)).count();
         let ratio = in_lang_count as f64 / word_count as f64;
 
-        let mut score = ratio * 3.0;
+        let mut score = ratio * 2.5;
         if score > 1.0 {
             score = 1.0;
         }
