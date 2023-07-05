@@ -34,7 +34,7 @@ pub(super) async fn search((query, search_park, kamilata): (ApiSearchQuery, Arc<
         .header("Content-Type", "application/json")
         .header("Access-Control-Allow-Origin", "*")
         .body(serde_json::to_string(&ApiSearchResponse {
-            id,
+            id: id as u64,
             query,
         }).unwrap())
         .unwrap();
@@ -42,7 +42,7 @@ pub(super) async fn search((query, search_park, kamilata): (ApiSearchQuery, Arc<
 }
 
 pub(super) async fn fetch_results((query, search_park): (ApiResultsQuery, Arc<SearchPark>)) -> Result<impl warp::Reply, Infallible> {
-    let id = query.id;
+    let id = query.id as usize;
     let search_results: Vec<_> = search_park.get_results(id).await.into_iter().map(|(d, p)| (d, p.to_string())).collect();
     Ok(Response::builder().header("Content-Type", "application/json").header("Access-Control-Allow-Origin", "*").body(serde_json::to_string(&search_results).unwrap()).unwrap())
 }

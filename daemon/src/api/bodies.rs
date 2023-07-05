@@ -9,7 +9,7 @@ pub(super) struct ApiSearchQuery {
 #[derive(Deserialize, Serialize)]
 pub(super) struct ApiSearchResponse {
     /// Unique search identifier to use in [ApiResultsQuery::id]
-    pub id: usize,
+    pub id: u64,
     /// The query parsed from [ApiSearchQuery::q]
     pub query: Query,
 }
@@ -17,5 +17,5 @@ pub(super) struct ApiSearchResponse {
 #[derive(Deserialize, Serialize)]
 pub(super) struct ApiResultsQuery {
     /// Unique search identifier from [ApiSearchResponse::id]
-    pub id: usize,
+    pub id: u64,
 }
