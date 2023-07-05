@@ -1,4 +1,4 @@
-use crate::prelude::*;
+use super::*;
 
 #[derive(Deserialize, Serialize)]
 pub(super) struct SearchUrlQuery {
