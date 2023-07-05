@@ -1,10 +1,61 @@
 use crate::prelude::*;
 
+impl Query {
+    fn map_count(&self, counts: &HashMap<&String, f64>) -> f64 {
+        self.root.clone_only_words().map(|r| r.map_counts(counts)).unwrap_or(1.0)
+    }
+}
+
+impl QueryComp {
+    fn clone_only_words(&self) -> Option<QueryComp> {
+        match self {
+            QueryComp::Word(word) => Some(QueryComp::Word(word.clone())),
+            QueryComp::Filter { .. } => None,
+            QueryComp::Not(comp) => {
+                let comp = comp.clone_only_words()?;
+                Some(QueryComp::Not(Box::new(comp)))
+            },
+            QueryComp::NAmong { n, among } => {
+                let mut n = *n;
+                let mut new_among = Vec::new();
+                for comp in among {
+                    match comp.clone_only_words() {
+                        Some(comp) => new_among.push(comp),
+                        None => n = n.saturating_sub(1),
+                    }
+                }
+                match n == 0 {
+                    true => None,
+                    false => Some(QueryComp::NAmong { n, among: new_among }),
+                }
+            },
+        }
+    }
+
+    #[track_caller]
+    fn map_counts(&self, counts: &HashMap<&String, f64>) -> f64 {
+        match self {
+            QueryComp::Word(w) => counts.get(w).copied().unwrap_or(0.0),
+            QueryComp::Filter { .. } => panic!("tf() called on filter"),
+            QueryComp::Not(_) => panic!("tf() called on not"),
+            QueryComp::NAmong { n, among } => {
+                let mut mapped_counts = among.iter().map(|c| c.map_counts(counts)).collect::<Vec<_>>();
+                mapped_counts.sort_by(|a, b| b.partial_cmp(a).unwrap_or(Ordering::Equal));
+                mapped_counts.into_iter().take(*n).sum::<f64>() / *n as f64
+            }
+        }
+    }
+}
+
 impl DocumentResult {
     pub fn tf(&self, query: &Query) -> f64 {
         let query_terms = query.positive_terms();
-        let word_count_sum = self.word_count.weighted_sum();
-        let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
+        let word_count = self.word_count.weighted_sum();
+        let mut counts = HashMap::new();
+        for (term_count, term) in self.term_counts.iter().zip(&query_terms) {
+            counts.insert(*term, term_count.weighted_sum());
+        }
+        let term_count = query.map_count(&counts);
         
         // Title is counted separately as it is not part of the document body
         let title_words  = self.title
@@ -17,11 +68,14 @@ impl DocumentResult {
             .collect::<Vec<_>>())
             .unwrap_or_default();
         let title_word_count = title_words.len();
-        let title_term_count = title_words.iter().filter(|w| query_terms.contains(w)).count();
-        let title_term_sum = title_term_count as f64 * 12.0;
-        let title_word_sum = title_word_count as f64 * 12.0;
+        let title_word_count = title_word_count as f64 * 12.0;
+        let mut counts = HashMap::new();
+        for word in &title_words {
+            counts.insert(word, 12.0);
+        }
+        let title_term_count = query.map_count(&counts);
 
-        (term_sum + title_term_sum) / (word_count_sum + title_word_sum)
+        (term_count + title_term_count) / (word_count + title_word_count)
     }
 
     pub fn length_score(&self) -> Score {
