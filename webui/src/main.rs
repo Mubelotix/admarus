@@ -16,6 +16,8 @@ mod results;
 #[path = "components/search_bar/search_bar.rs"]
 mod search_bar;
 
+mod query;
+
 use crate::prelude::*;
 
 #[macro_export]
