@@ -44,7 +44,6 @@ impl<COMP: Component> HackTraitAnimation<COMP> for Scope<COMP> {
         };
         let callback = Closure::wrap(Box::new(move |_: JsValue| {
             self.send_message(msg.clone());
-            log!("it works!");
         }) as Box<dyn FnMut(_)>);
         let args = Array::new_with_length(1);
         args.set(0, callback.as_ref().clone());
