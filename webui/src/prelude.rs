@@ -10,5 +10,6 @@ pub use yew::{html::Scope, prelude::*};
 pub use yew_template::template_html;
 pub use web_sys::{window as old_window, *};
 pub use serde::{Serialize, Deserialize, de::DeserializeOwned};
+pub use word_lists::HackTraitSortedContains;
 
 pub type AppLink = Scope<App>;

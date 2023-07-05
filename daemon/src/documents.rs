@@ -175,7 +175,7 @@ impl HtmlDocument {
                             .map(|w| w.to_string());
                         for word in words {
                             if let Some(common_words) = common_words {
-                                if common_words.contains(&word.as_str()) { // TODO: sorted contains
+                                if common_words.sorted_contains(&word.as_str()) {
                                     *common_words_bytes += word.len();
                                 } else {
                                     *uncommon_words_bytes += word.len();

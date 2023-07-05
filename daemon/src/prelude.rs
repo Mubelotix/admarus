@@ -38,6 +38,7 @@ pub use futures::{
 pub use reqwest::Client;
 pub use sha2_derive::Hashable;
 pub use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
+pub use word_lists::HackTraitSortedContains;
 
 pub type SearchController = OngoingSearchController<125000, DocumentIndex<125000>>;
 
