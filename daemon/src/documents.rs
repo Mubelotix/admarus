@@ -62,6 +62,15 @@ impl HtmlDocument {
     pub fn into_result(self, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
         let document = &self.parsed;
 
+        // Get lang
+        let html_selector = Selector::parse("html").unwrap();
+        let html_el = document.select(&html_selector).next();
+        let lang = html_el
+            .and_then(|el| el.value().attr("lang").map(|lang| lang.trim()))
+            .and_then(|l| l.split('-').next())
+            .map(|l| l.to_string())
+            .unwrap_or(String::from("unknown"));
+
         // Retrieve title
         let title_selector = Selector::parse("title").unwrap();
         let title_el = document.select(&title_selector).next();
@@ -183,11 +192,10 @@ impl HtmlDocument {
                 }
             }
         }
-        let lang = query.lang();
-        let common_words = lang.and_then(|l| match l.as_str() {
+        let common_words = match lang.as_str() {
             "en" => Some(word_lists::WORDS_EN),
             _ => None,
-        });
+        };
         let (mut common_words_bytes, mut uncommon_words_bytes) = (0, 0);
         let mut term_counts = query_positive_terms.iter().map(|_| WordCount::default()).collect::<Vec<_>>();
         let mut word_count = WordCount::default();
