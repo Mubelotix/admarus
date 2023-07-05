@@ -1,4 +1,5 @@
 #![allow(implied_bounds_entailment)]
+#![allow(clippy::module_inception)]
 
 mod result;
 mod index;
