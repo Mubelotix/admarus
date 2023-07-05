@@ -242,6 +242,7 @@ pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
     tf_ranking: Vec<(String, Score)>,
     length_scores: HashMap<String, Score>,
+    lang_scores: HashMap<String, Score>,
     providers: HashMap<String, Vec<String>>,
 }
 
@@ -251,6 +252,7 @@ impl RankedResults {
             results: HashMap::new(),
             tf_ranking: Vec::new(),
             length_scores: HashMap::new(),
+            lang_scores: HashMap::new(),
             providers: HashMap::new(),
         }
     }
@@ -268,6 +270,8 @@ impl RankedResults {
         self.tf_ranking.insert(tf_rank, (res.cid.clone(), tf_score));
 
         self.length_scores.insert(res.cid.clone(), res.length_score());
+
+        self.lang_scores.insert(res.cid.clone(), res.lang_score(Lang::English));
 
         self.results.insert(res.cid.clone(), res);
     }
@@ -287,11 +291,13 @@ impl RankedResults {
         for (cid, _) in self.results.iter() {
             let tf_score = tf_scores.get(cid).unwrap();
             let length_score = length_scores.get(cid).unwrap();
+            let lang_score = self.lang_scores.get(cid).unwrap();
             let popularity_score = Score::from(self.providers.get(cid).unwrap().len() as f64 / max_provider_count);
             let ipns_score = Score::from(self.results.get(cid).unwrap().has_ipns() as usize as f64);
             let scores = Scores {
                 tf_score: Score::from(*tf_score),
                 length_score: *length_score,
+                lang_score: *lang_score,
                 popularity_score,
                 ipns_score,
             };

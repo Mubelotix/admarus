@@ -46,6 +46,7 @@ impl std::fmt::Debug for Score {
 pub struct Scores {
     pub tf_score: Score,
     pub length_score: Score,
+    pub lang_score: Score,
     pub popularity_score: Score,
     pub ipns_score: Score,
 }
@@ -53,7 +54,13 @@ pub struct Scores {
 impl Scores {
     /// This computes the final score for a document.
     pub fn general_score(&self) -> Score {
-        Score::from(self.tf_score.val * 0.25 + self.length_score.val * 0.2 + self.ipns_score.val * 0.1 + self.popularity_score.val * 0.45)
+        Score::from(
+            self.ipns_score.val * 0.05 +
+            self.length_score.val * 0.15 +
+            self.lang_score.val * 0.15 +
+            self.tf_score.val * 0.25 +
+            self.popularity_score.val * 0.40
+        )
     }
 }
 
