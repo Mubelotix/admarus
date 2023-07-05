@@ -198,7 +198,10 @@ impl DocumentResult {
     fn length_score(&self) -> Score {
         let preferred_lenght = 500.0;
         let length = self.word_count.sum() as f64;
-        let length_score = 1.0 / (1.0 + (-0.017 * (length - (preferred_lenght / 2.0))).exp());
+        let mut length_score = 1.0 / (1.0 + (-0.017 * (length - (preferred_lenght / 2.0))).exp());
+        if length_score >= 0.995 {
+            length_score = 1.0;
+        }
 
         Score::from(length_score)
     }
