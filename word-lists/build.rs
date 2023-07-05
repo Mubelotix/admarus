@@ -1,4 +1,6 @@
 fn main() {
+    println!("cargo:rerun-if-changed=build.rs");
+    
     // Download words
     let url = "https://norvig.com/ngrams/count_1w.txt";
     let rep = reqwest::blocking::get(url).unwrap();
@@ -25,5 +27,5 @@ fn main() {
     code.push_str("];");
 
     // Write code to file
-    std::fs::write("word_lists.rs", code).unwrap();
+    std::fs::write("src/word_lists.rs", code).unwrap();
 }
