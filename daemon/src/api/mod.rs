@@ -3,10 +3,8 @@ use libp2p::PeerId;
 use warp::{Filter, http::Response};
 use std::{convert::Infallible, net::SocketAddr};
 
-#[derive(Deserialize, Serialize)]
-struct SearchUrlQuery {
-    q: String,
-}
+mod queries;
+use queries::*;
 
 async fn local_search<const N: usize>((query, index): (SearchUrlQuery, DocumentIndex<N>)) -> Result<impl warp::Reply, Infallible> {
     let query = match Query::parse(&query.q) {
@@ -68,11 +66,6 @@ async fn search((query, search_park, kamilata): (SearchUrlQuery, Arc<SearchPark>
     let id = search_park.insert(search_controler).await;
 
     Ok(Response::builder().header("Content-Type", "application/json").header("Access-Control-Allow-Origin", "*").body("{\"id\": ".to_string() + &id.to_string() + "}").unwrap())
-}
-
-#[derive(Deserialize, Serialize)]
-struct FetchResultsQuery {
-    id: usize,
 }
 
 async fn fetch_results((query, search_park): (FetchResultsQuery, Arc<SearchPark>)) -> Result<impl warp::Reply, Infallible> {
