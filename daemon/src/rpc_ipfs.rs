@@ -150,9 +150,13 @@ pub async fn ls(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Res
     Ok(rep)
 }
 
-pub async fn collect_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
-    let mut links = links.into_iter().filter(|(_,m)| m.is_file).collect::<Vec<_>>();
-    links.sort_by_key(|(_,metadata)| !metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)));
+pub async fn fetch_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
+    let links = links.into_iter()
+        .filter(|(_,m)| m.is_file)
+        .filter(|(_,metadata)| metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)))
+        .collect::<Vec<_>>();
+    // FIXME: some html files are missed
+    debug!("Fetching {} documents", links.len());
 
     let mut documents = Vec::new();
     for (cid, metadata) in links {

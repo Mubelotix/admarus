@@ -166,9 +166,9 @@ impl <const N: usize> DocumentIndex<N> {
             let start = Instant::now();
             
             let pinned_files = explore_all(&self.config.ipfs_rpc, pinned).await;
-            debug!("{} new files", pinned_files.iter().filter(|(_,m)| m.is_file).count());
+            debug!("{} new items ({} files)", pinned_files.len(), pinned_files.iter().filter(|(_,m)| m.is_file).count());
 
-            let documents = collect_documents(&self.config.ipfs_rpc, pinned_files).await;
+            let documents = fetch_documents(&self.config.ipfs_rpc, pinned_files).await;
             debug!("{} new documents ({:02}s)", documents.len(), start.elapsed().as_secs_f32());
 
             self.add_documents(documents).await;
