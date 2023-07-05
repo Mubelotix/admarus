@@ -16,7 +16,7 @@ fn main() {
 
     // Create rfust code
     let mut code = String::new();
-    code.push_str("const WORDS_EN: &[&str] = &[");
+    code.push_str("pub const WORDS_EN: &[&str] = &[");
     for word in words.iter() {
         code.push('"');
         code.push_str(word);
