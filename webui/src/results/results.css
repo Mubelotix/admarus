@@ -125,7 +125,7 @@
 /* Search error messsages */
 
 .search-error {
-    margin-top: 3rem;
+    margin: 3rem 0;
 }
 
 .search-error>h3 {
