@@ -19,6 +19,20 @@ impl Query {
     pub fn positive_filters(&self) -> Vec<(&String, &String)> {
         self.root.positive_filters()
     }
+
+    // Return the value of the lang filter if it is present and consistent, otherwise None
+    pub fn lang(&self) -> Option<&String> {
+        let mut lang = None;
+        for (name, value) in self.positive_filters() {
+            if name == "lang" {
+                if lang.is_some() && lang != Some(value) {
+                    return None;
+                }
+                lang = Some(value);
+            }
+        }
+        lang
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -135,7 +135,7 @@ impl HtmlDocument {
         // Count words
         #[allow(clippy::too_many_arguments)]
         fn count_words(
-            el: ElementRef, query_positive_terms: &[&String], term_counts: &mut Vec<WordCount>, word_count: &mut WordCount, 
+            el: ElementRef, query_positive_terms: &[&String], term_counts: &mut Vec<WordCount>, word_count: &mut WordCount, common_words: Option<&[&str]>, common_words_counter: &mut usize,
             mut h1: bool, mut h2: bool, mut h3: bool, mut h4: bool, mut h5: bool, mut h6: bool, mut strong: bool, mut em: bool, mut small: bool, mut s: bool
         ) {
             match el.value().name() {
@@ -155,7 +155,7 @@ impl HtmlDocument {
                 match child.value() {
                     scraper::node::Node::Element(_) => {
                         let child_ref = ElementRef::wrap(child).unwrap();
-                        count_words(child_ref, query_positive_terms, term_counts, word_count, h1, h2, h3, h4, h5, h6, strong, em, small, s)
+                        count_words(child_ref, query_positive_terms, term_counts, word_count, common_words, common_words_counter, h1, h2, h3, h4, h5, h6, strong, em, small, s)
                     },
                     scraper::node::Node::Text(text) => {
                         let text = text.to_lowercase();
@@ -164,6 +164,11 @@ impl HtmlDocument {
                             .filter(|w| w.len() >= 3)
                             .map(|w| w.to_string());
                         for word in words {
+                            if let Some(common_words) = common_words {
+                                if common_words.contains(&word.as_str()) { // TODO: sorted contains
+                                    *common_words_counter += 1;
+                                }
+                            }
                             if let Some(i) = query_positive_terms.iter().position(|q| *q == &word) {
                                 let term_count = term_counts.get_mut(i).unwrap();
                                 term_count.add(h1, h2, h3, h4, h5, h6, strong, em, small, s)
@@ -175,9 +180,19 @@ impl HtmlDocument {
                 }
             }
         }
+        let lang = query.lang();
+        let mut common_words_counter = 0;
+        let common_words = lang.and_then(|l| match l.as_str() {
+            "en" => Some(word_lists::WORDS_EN),
+            _ => None,
+        });
         let mut term_counts = query_positive_terms.iter().map(|_| WordCount::default()).collect::<Vec<_>>();
         let mut word_count = WordCount::default();
-        count_words(body, &query_positive_terms, &mut term_counts, &mut word_count, false, false, false, false, false, false, false, false, false, false);
+        count_words(
+            body, &query_positive_terms, &mut term_counts, &mut word_count, common_words, &mut common_words_counter,
+            false, false, false, false, false, false, false, false, false, false
+        );
+        let common_words = common_words.map(|_| common_words_counter as f64 / word_count.sum() as f64);
 
         Some(DocumentResult {
             cid: self.cid,
@@ -191,6 +206,7 @@ impl HtmlDocument {
 
             term_counts,
             word_count,
+            common_words,
         })
     }
 }

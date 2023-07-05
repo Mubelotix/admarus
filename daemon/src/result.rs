@@ -54,6 +54,10 @@ impl WordCount {
         if s { self.s += 1; return }
         self.regular += 1;
     }
+
+    pub fn sum(&self) -> usize {
+        self.h1 + self.h2 + self.h3 + self.h4 + self.h5 + self.h6 + self.strong + self.em + self.regular + self.small + self.s
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -79,6 +83,9 @@ pub struct DocumentResult {
     pub term_counts: Vec<WordCount>,
     /// The number of words in the document.
     pub word_count: WordCount,
+
+    /// If the lang filter is set to a value that the daemon supports, it will return the proportion of words in the document that are common in that language.
+    pub common_words: Option<f64>,
 }
 
 impl SearchResult for DocumentResult {
