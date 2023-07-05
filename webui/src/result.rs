@@ -237,7 +237,7 @@ impl DocumentResult {
             },
         };
 
-        let mut score = common_words * 2.5;
+        let mut score = common_words * 2.0;
         if score > 1.0 {
             score = 1.0;
         }
