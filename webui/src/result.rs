@@ -172,7 +172,10 @@ impl DocumentResult {
 
         vlist
     }
+}
 
+// Score computations
+impl DocumentResult {
     fn tf(&self, query: &[String]) -> f64 {
         let word_count_sum = self.word_count.weighted_sum();
         let term_sum = self.term_counts.iter().map(|wc| wc.weighted_sum()).sum::<f64>();
