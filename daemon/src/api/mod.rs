@@ -3,8 +3,8 @@ use libp2p::PeerId;
 use warp::{Filter, http::Response};
 use std::{convert::Infallible, net::SocketAddr};
 
-mod queries;
-use queries::*;
+mod bodies;
+use bodies::*;
 
 mod endpoints;
 use endpoints::*;
