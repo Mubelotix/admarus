@@ -13,6 +13,10 @@ impl Query {
         self.root.positive_terms()
     }
 
+    pub fn weighted_terms(&self) -> Vec<(String, f64)> {
+        self.root.weighted_terms(1.0)
+    }
+
     pub fn positive_filters(&self) -> Vec<(&String, &String)> {
         self.root.positive_filters()
     }
@@ -43,6 +47,15 @@ impl QueryComp {
             QueryComp::Filter { .. } => Vec::new(),
             QueryComp::Not(_) => Vec::new(),
             QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.positive_terms()).collect::<Vec<_>>(),
+        }
+    }
+
+    pub fn weighted_terms(&self, weight: f64) -> Vec<(String, f64)> {
+        match self {
+            QueryComp::Word(word) => vec![(word.to_string(), weight)],
+            QueryComp::Filter { .. } => Vec::new(),
+            QueryComp::Not(_) => Vec::new(),
+            QueryComp::NAmong { n, among } => among.iter().flat_map(|c| c.weighted_terms(weight/(*n as f64))).collect::<Vec<_>>(), // FIXME: handle 0
         }
     }
 
