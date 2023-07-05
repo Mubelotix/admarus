@@ -2,5 +2,6 @@
 members = [
     "census",
     "daemon",
+    "utility",
     "webui"
 ]
