@@ -196,7 +196,7 @@ impl HtmlDocument {
             &mut common_words_bytes, &mut uncommon_words_bytes,
             false, false, false, false, false, false, false, false, false, false
         );
-        let common_words = common_words.map(|_| (common_words_bytes+uncommon_words_bytes) as f64 / word_count.sum() as f64);
+        let common_words = common_words.map(|_| common_words_bytes as f64 / (common_words_bytes + uncommon_words_bytes) as f64);
 
         Some(DocumentResult {
             cid: self.cid,
