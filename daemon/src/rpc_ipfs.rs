@@ -70,9 +70,10 @@ pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<Strin
         match ls(ipfs_rpc, cid, metadata).await {
             Ok(new_links) => {
                 for (cid, metadata) in new_links {
-                    if !metadata.is_file {
+                    if !metadata.is_file && !metadatas.contains_key(&cid) {
                         cids.push(cid.clone());
                     }
+                    // FIXME: when already scanned, we miss paths for children because we don't rescan
                     metadatas.entry(cid).or_default().merge(metadata);
                 }
             }
