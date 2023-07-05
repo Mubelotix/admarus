@@ -5,7 +5,7 @@ pub enum Lang {
 }
 
 impl Lang {
-    fn word_list(&self) -> &[&str] {
+    pub fn common_words(&self) -> &[&str] {
         match self {
             Lang::English => WORDS_EN,
         }

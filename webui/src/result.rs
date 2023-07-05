@@ -212,6 +212,30 @@ impl DocumentResult {
     fn has_ipns(&self) -> bool {
         self.paths.iter().any(|p| p.first().map(|f| f.contains('.')).unwrap_or(false))
     }
+
+    fn lang_score(&self, requested_lang: Lang) -> Score {
+        let mut words = Vec::new();
+        let description_lowercase = self.description.as_ref().map(|d| d.to_lowercase());
+        let extract_lowercase = self.extract.as_ref().map(|e| e.to_lowercase());
+        if let Some(description) = &description_lowercase {
+            words.extend(description.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
+        }
+        if let Some(extract) = &extract_lowercase {
+            words.extend(extract.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3));
+        }
+
+        let word_count = words.len();
+        let lang_words = requested_lang.common_words();
+        let in_lang_count = words.iter().filter(|w| lang_words.sorted_contains(w)).count();
+        let ratio = in_lang_count as f64 / word_count as f64;
+
+        let mut score = ratio * 3.0;
+        if score > 1.0 {
+            score = 1.0;
+        }
+
+        Score::from(score)
+    }
 }
 
 pub struct RankedResults {
