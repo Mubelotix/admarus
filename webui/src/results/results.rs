@@ -146,6 +146,7 @@ impl Component for ResultsPage {
         let display_scores = true;
         let term_frequency_score_iter = results.iter().map(|(_, scores)| scores.tf_score);
         let length_score_iter = results.iter().map(|(_, scores)| scores.length_score);
+        let lang_score_iter = results.iter().map(|(_, scores)| scores.lang_score);
         let popularity_score_iter = results.iter().map(|(_, scores)| scores.popularity_score);
 
         template_html!(
