@@ -42,21 +42,21 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
 
     let local_search = warp::get()
         .and(warp::path("local-search"))
-        .and(warp::query::<SearchUrlQuery>())
-        .map(move |q: SearchUrlQuery| (q, index.clone()))
+        .and(warp::query::<ApiSearchQuery>())
+        .map(move |q: ApiSearchQuery| (q, index.clone()))
         .and_then(local_search);
     
     let search_park2 = Arc::clone(&search_park);
     let search = warp::get()
         .and(warp::path("search"))
-        .and(warp::query::<SearchUrlQuery>())
-        .map(move |q: SearchUrlQuery| (q, Arc::clone(&search_park2), kamilata.clone()))
+        .and(warp::query::<ApiSearchQuery>())
+        .map(move |q: ApiSearchQuery| (q, Arc::clone(&search_park2), kamilata.clone()))
         .and_then(search);
 
     let fetch_result = warp::get()
         .and(warp::path("fetch-results"))
-        .and(warp::query::<FetchResultsQuery>())
-        .map(move |id: FetchResultsQuery| (id, Arc::clone(&search_park)))
+        .and(warp::query::<ApiResultsQuery>())
+        .map(move |id: ApiResultsQuery| (id, Arc::clone(&search_park)))
         .and_then(fetch_results);
 
     let routes = warp::get().and(
