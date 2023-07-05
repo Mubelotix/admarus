@@ -171,7 +171,7 @@ pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Docum
     let rep: Vec<u8> = rep.bytes().await?.to_vec();
 
     if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
-        return Ok(Some(Document::Html(HtmlDocument::init(String::from_utf8_lossy(&rep).to_string()))));
+        return Ok(Some(Document::Html(HtmlDocument::init(cid.to_owned(), String::from_utf8_lossy(&rep).to_string()))));
     }
 
     Ok(None)

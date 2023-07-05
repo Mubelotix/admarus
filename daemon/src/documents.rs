@@ -12,22 +12,24 @@ impl Document {
         }
     }
 
-    pub fn into_result(self, cid: String, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
+    pub fn into_result(self, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
         match self {
-            Document::Html(html) => html.into_result(cid, metadata, query),
+            Document::Html(html) => html.into_result(metadata, query),
         }
     }
 }
 
 pub struct HtmlDocument {
+    cid: String,
     raw: String,
     parsed: scraper::Html,
 }
 
 impl HtmlDocument {
-    pub fn init(raw: String) -> HtmlDocument {
+    pub fn init(cid: String, raw: String) -> HtmlDocument {
         let parsed = Html::parse_document(&raw);
         HtmlDocument {
+            cid,
             raw,
             parsed,
         }
@@ -57,7 +59,7 @@ impl HtmlDocument {
     }
 
     #[allow(clippy::question_mark)]
-    pub fn into_result(self, cid: String, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
+    pub fn into_result(self, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
         let document = &self.parsed;
 
         // Retrieve title
@@ -178,7 +180,7 @@ impl HtmlDocument {
         count_words(body, &query_positive_terms, &mut term_counts, &mut word_count, false, false, false, false, false, false, false, false, false, false);
 
         Some(DocumentResult {
-            cid,
+            cid: self.cid,
             paths: metadata.paths,
             icon_cid: None,
             domain: None,

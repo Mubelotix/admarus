@@ -110,7 +110,7 @@ impl<const N: usize> DocumentIndexInner<N> {
 
         async fn cid_to_result(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
             let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
-            let Some(result) = document.into_result(cid, metadata.to_owned(), &query) else {return None};
+            let Some(result) = document.into_result(metadata.to_owned(), &query) else {return None};
             Some(result)
         }
 
