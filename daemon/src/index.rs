@@ -183,7 +183,26 @@ impl <const N: usize> DocumentIndex<N> {
                 // FIXME: top level files are ignored later
 
                 match ls(ipfs_rpc, cid, metadata).await {
-                    Ok(new_links) => {
+                    Ok(mut new_links) => {
+                        // Detect DNS-pins
+                        if metadata.is_none() && new_links.iter().all(|(_,m)| m.paths.iter().any(|p| p.len() == 2 && p[1].starts_with("dns-pin-"))) {
+                            // FIXME: handle malicious folders
+                            for (_, metadata) in &mut new_links {
+                                let Some(name_pos) = metadata.paths.iter().position(|p| p.len() == 2 && p[1].starts_with("dns-pin-")) else {
+                                    warn!("Invalid DNS pin: {metadata:?}");
+                                    continue;
+                                };
+                                let name = metadata.paths.remove(name_pos)[1][8..].to_owned();
+                                let Some(i) = name.bytes().rposition(|b| b==b'-') else {
+                                    warn!("Invalid DNS pin name: {name}");
+                                    continue;
+                                };
+                                let (domain, _number) = name.split_at(i);
+                                metadata.paths.push(vec![domain.to_owned()]);
+                                trace!("Found DNS pin for {domain}");
+                            }
+                        }
+
                         for (cid, metadata) in new_links {
                             if !metadata.is_file && !metadatas.contains_key(&cid) {
                                 pinned.push(cid.clone());
