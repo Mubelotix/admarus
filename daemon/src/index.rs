@@ -141,6 +141,9 @@ impl<const N: usize> DocumentIndexInner<N> {
         while let Some(current_path) = current_paths.pop() {
             if let Some(ancestors) = self.ancestors.get(&current_path.0) {
                 for (ancestor, name) in ancestors {
+                    if name.is_empty() {
+                        continue;
+                    }
                     let mut new_path = current_path.clone();
                     new_path.0 = ancestor.to_owned();
                     new_path.1.insert(0, name.to_owned());
