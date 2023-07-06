@@ -12,9 +12,9 @@ impl Document {
         }
     }
 
-    pub fn into_result(self, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
+    pub fn into_result(self, paths: Vec<Vec<String>>, query: &Query) -> Option<DocumentResult> {
         match self {
-            Document::Html(html) => html.into_result(metadata, query),
+            Document::Html(html) => html.into_result(paths, query),
         }
     }
 }
@@ -59,7 +59,7 @@ impl HtmlDocument {
     }
 
     #[allow(clippy::question_mark)]
-    pub fn into_result(self, metadata: Metadata, query: &Query) -> Option<DocumentResult> {
+    pub fn into_result(self, paths: Vec<Vec<String>>, query: &Query) -> Option<DocumentResult> {
         let document = &self.parsed;
 
         // Get lang
@@ -208,7 +208,7 @@ impl HtmlDocument {
 
         Some(DocumentResult {
             cid: self.cid,
-            paths: metadata.paths,
+            paths,
             icon_cid: None,
             domain: None,
             title,

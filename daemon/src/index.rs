@@ -1,22 +1,39 @@
+use bimap::BiHashMap;
+use std::hash::{Hash, Hasher};
 use crate::prelude::*;
 
 const REFRESH_PINNED_INTERVAL: u64 = 120;
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct LocalCid(u32);
+impl Hash for LocalCid {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(&self.0, state)
+    }
+}
+
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub struct LocalDid(u32);
+impl Hash for LocalDid {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Hash::hash(&self.0, state)
+    }
+}
 
 struct DocumentIndexInner<const N: usize> {
     config: Arc<Args>,
     filter: Filter<N>,
     filter_needs_update: bool,
 
-    /// This reduces RAM usage as we can now store u32 instead of Strings in the index.
-    /// Saves 2.5kB per document in average.
-    ids: HashMap<u32, String>,
-    id_counter: u32,
+    did_counter: u32,
+    directories: BiHashMap<LocalDid, Vec<String>>, // TODO: allow making this an hashmap
 
-    metadata: HashMap<String, Metadata>,
+    cid_counter: u32,
+    cids: BiHashMap<LocalCid, String>,
+    filenames: HashMap<LocalCid, Vec<(LocalDid, String)>>,
 
-    /// word -> [cid -> frequency]
-    index: HashMap<String, HashMap<u32, f64>>,
-    filters: HashMap<(String, String), Vec<u32>>,
+    index: HashMap<String, HashMap<LocalCid, f64>>,
+    filters: HashMap<(String, String), Vec<LocalCid>>,
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
@@ -25,24 +42,25 @@ impl<const N: usize> DocumentIndexInner<N> {
             config,
             filter: Filter::new(),
             filter_needs_update: false,
-            ids: HashMap::new(),
-            id_counter: 0,
-            metadata: HashMap::new(),
+
+            directories: BiHashMap::new(),
+            did_counter: 0,
+            filenames: HashMap::new(),
+
+            cids: BiHashMap::new(),
+            cid_counter: 0,
+
             index: HashMap::new(),
             filters: HashMap::new(),
         }
     }
 
     pub fn documents(&self) -> HashSet<String> {
-        self.metadata.keys().cloned().collect()
+        self.cids.right_values().cloned().collect()
     }
 
     pub fn document_count(&self) -> usize {
-        self.metadata.len()
-    }
-
-    pub fn metadata(&self) -> HashMap<String, Metadata> {
-        self.metadata.clone()
+        self.cids.len()
     }
 
     pub fn update_filter(&mut self) {
@@ -56,77 +74,72 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.filter_needs_update = false;
     }
 
-    pub fn remove_document(&mut self, cid: &str) {
-        let id = self.ids.iter().find(|(_, c)| *c == cid).map(|(id, _)| *id).unwrap();
-        self.ids.remove(&id);
-        self.metadata.remove(cid);
-
-        // Remove from index
-        for frequencies in self.index.values_mut() {
-            frequencies.remove(&id);
-        }
-        let prev_index_len = self.index.len();
-        self.index.retain(|_, frequencies| !frequencies.is_empty());
-
-        // Remove from filters
-        for ids in self.filters.values_mut() {
-            ids.retain(|i| *i != id);
-        }
-        let prev_filters_len = self.filters.len();
-        self.filters.retain(|_, ids| !ids.is_empty());
-
-        // Update filter if necessary
-        if prev_index_len != self.index.len() || prev_filters_len != self.filters.len() {
-            self.filter_needs_update = true;
-        }
-    }
-
-    pub fn add_document(&mut self, cid: String, document: Document, metadata: Metadata) {
-        if self.metadata.contains_key(&cid) {
+    pub fn add_document(&mut self, cid: String, document: Document, paths: Vec<Vec<String>>) {
+        if self.cids.contains_right(&cid) {
+            warn!("Tried to add already indexed document: {cid}");
             return;
         }
-        self.metadata.insert(cid.clone(), metadata);
 
+        // Store paths
+        for mut path in paths.into_iter().filter(|p| !p.is_empty()) {
+            let filename = path.remove(path.len()-1);
+            let ldid = match self.directories.get_by_right(&path) {
+                Some(dir_id) => *dir_id,
+                None => {
+                    let ldid = LocalDid(self.did_counter);
+                    self.did_counter += 1;
+                    self.directories.insert(ldid, path);
+                    ldid
+                },
+            };
+            self.filenames.entry(LocalCid(self.cid_counter)).or_default().push((ldid, filename));
+        }
+
+        // Store Cid
+        let lcid = LocalCid(self.cid_counter);
+        self.cid_counter += 1;
+        self.cids.insert(lcid, cid);
+
+        // Index by words
         let (words, filters) = document.into_parts();
         let word_count = words.len() as f64;
-
-        let id = self.id_counter;
-        self.id_counter += 1;
-        self.ids.insert(id, cid);
-
         for word in words {
             let frequencies = self.index.entry(word.clone()).or_default();
-            *frequencies.entry(id).or_insert(0.) += 1. / word_count;
+            *frequencies.entry(lcid).or_insert(0.) += 1. / word_count;
             self.filter.add_word::<DocumentIndex<N>>(&word);
         }
         
+        // Index by filters
         for (key, value) in filters {
-            self.filters.entry((key.to_string(), value.clone())).or_default().push(id);
+            self.filters.entry((key.to_string(), value.clone())).or_default().push(lcid);
             self.filter.add_word::<DocumentIndex<N>>(&format!("{key}={value}"));
-        }
-    }
-
-    pub fn add_documents(&mut self, documents: Vec<(String, Document, Metadata)>) {
-        for (cid, document, link) in documents {
-            self.add_document(cid, document, link);
         }
     }
 
     // TODO: switching self to static may improve performance by a lot
     pub async fn search(&self, query: Arc<Query>) -> ResultStream<DocumentResult> {
         let matching_docs = match query.match_score(&self.filter) > 0 {
-            true => query.matching_docs(&self.index, &self.filters).into_iter().map(|id| self.ids.get(&id).unwrap().to_owned()).collect::<Vec<_>>(),
+            true => query.matching_docs(&self.index, &self.filters),
             false => Vec::new(),
         };
 
         let futures = matching_docs
             .into_iter()
-            .filter_map(|cid|
-                self.metadata.get(&cid).map(|metadata|
-                    (cid, metadata.to_owned())
-                )
+            .filter_map(|lcid|
+                self.cids.get_by_left(&lcid).map(|cid| (lcid, cid.to_owned()))
             )
-            .map(|(cid, metadata)| cid_to_result_wrapper(Arc::clone(&query), cid, metadata, Arc::clone(&self.config)))
+            .filter_map(|(lcid, cid)|
+                self.filenames.get(&lcid).map(|path|
+                    path.iter().filter_map(|(ldid, filename)| {
+                        self.directories.get_by_left(ldid).map(|path| {
+                            let mut path = path.clone();
+                            path.push(filename.clone());
+                            path
+                        })
+                    }).collect::<Vec<Vec<String>>>()
+                ).map(|paths| (cid, paths))
+            )
+            .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid, paths, Arc::clone(&self.config)))
             .collect();
 
         Box::pin(DocumentResultStream { futures })
@@ -175,53 +188,58 @@ impl <const N: usize> DocumentIndex<N> {
             let start = Instant::now();
 
             // Explore directories and fetch prioritized documents
-            let mut metadatas: HashMap<String, Metadata> = self.metadata().await;
+            let mut paths: HashMap<String, Vec<Vec<String>>> = HashMap::new();
             let mut fetched_documents: HashSet<String> = self.documents().await;
             let mut prev_document_count = fetched_documents.len();
             while let Some(cid) = pinned.pop() {
-                let metadata = metadatas.get(&cid);
+                let parent_paths = paths.get(&cid).map(|p| p.to_owned()).unwrap_or_default();
                 // FIXME: top level files are ignored later
 
-                match ls(ipfs_rpc, cid, metadata).await {
+                match ls(ipfs_rpc, cid, parent_paths).await {
                     Ok(mut new_links) => {
                         // Detect DNS-pins
-                        if metadata.is_none() && new_links.iter().all(|(_,m)| m.paths.iter().any(|p| p.len() == 2 && p[1].starts_with("dns-pin-"))) {
+                        if new_links.iter().all(|(_,p,_)| p.iter().any(|p| p.len() == 2 && p[1].starts_with("dns-pin-"))) {
                             // FIXME: handle malicious folders
-                            for (_, metadata) in &mut new_links {
-                                let Some(name_pos) = metadata.paths.iter().position(|p| p.len() == 2 && p[1].starts_with("dns-pin-")) else {
-                                    warn!("Invalid DNS pin: {metadata:?}");
+                            for (_, new_paths, _) in &mut new_links {
+                                let Some(name_pos) = new_paths.iter().position(|p| p.len() == 2 && p[1].starts_with("dns-pin-")) else {
+                                    warn!("Invalid DNS pin: {paths:?}");
                                     continue;
                                 };
-                                let name = metadata.paths.remove(name_pos)[1][8..].to_owned();
+                                let name = new_paths.remove(name_pos)[1][8..].to_owned();
                                 let Some(i) = name.bytes().rposition(|b| b==b'-') else {
                                     warn!("Invalid DNS pin name: {name}");
                                     continue;
                                 };
                                 let (domain, _number) = name.split_at(i);
-                                metadata.paths.push(vec![domain.to_owned()]);
+                                new_paths.push(vec![domain.to_owned()]);
                                 trace!("Found DNS pin for {domain}");
                             }
                         }
 
-                        for (cid, metadata) in new_links {
-                            if !metadata.is_file && !metadatas.contains_key(&cid) {
-                                pinned.push(cid.clone());
+                        for (child_cid, child_paths, child_is_file) in new_links {
+                            if !child_is_file && !paths.contains_key(&child_cid) {
+                                pinned.push(child_cid.clone());
                             }
-                            if metadata.is_file && !fetched_documents.contains(&cid) && metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)) {
-                                let document = match fetch_document(ipfs_rpc, &cid).await {
+                            if child_is_file && !fetched_documents.contains(&child_cid) && child_paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)) {
+                                let document = match fetch_document(ipfs_rpc, &child_cid).await {
                                     Ok(document) => document,
                                     Err(e) => {
                                         warn!("Error while fetching document: {e:?}");
                                         None
                                     },
                                 };
-                                fetched_documents.insert(cid.clone());
+                                fetched_documents.insert(child_cid.clone());
                                 if let Some(document) = document {
-                                    self.add_document(cid.clone(), document, metadata.clone()).await;
+                                    self.add_document(child_cid.clone(), document, child_paths.clone()).await;
                                 }
                             }
                             // FIXME: when already scanned, we miss paths for children because we don't rescan
-                            metadatas.entry(cid).or_default().merge(metadata);
+                            let old_child_paths = paths.entry(child_cid).or_default();
+                            for path in child_paths {
+                                if !old_child_paths.contains(&path) {
+                                    old_child_paths.push(path);
+                                }
+                            }
                         }
                     }
                     Err(e) => warn!("Error listing potential directory: {e:?}"),
@@ -234,7 +252,7 @@ impl <const N: usize> DocumentIndex<N> {
             }
 
             // Fetch remaining documents (low priority)
-            for (cid, metadata) in metadatas {
+            for (cid, paths) in paths {
                 if !fetched_documents.contains(&cid) {
                     let document = match fetch_document(ipfs_rpc, &cid).await {
                         Ok(Some(document)) => document,
@@ -244,7 +262,7 @@ impl <const N: usize> DocumentIndex<N> {
                             continue;
                         },
                     };
-                    self.add_document(cid.clone(), document, metadata).await;
+                    self.add_document(cid.clone(), document, paths).await;
                 }
             }
             document_count = self.document_count().await;
@@ -267,20 +285,8 @@ impl <const N: usize> DocumentIndex<N> {
         self.inner.read().await.document_count()
     }
 
-    pub async fn metadata(&self) -> HashMap<String, Metadata> {
-        self.inner.read().await.metadata()
-    }
-
-    pub async fn add_document(&self, cid: String, document: Document, link: Metadata) {
-        self.inner.write().await.add_document(cid, document, link);
-    }
-
-    pub async fn add_documents(&self, documents: Vec<(String, Document, Metadata)>) {
-        self.inner.write().await.add_documents(documents);
-    }
-
-    pub async fn remove_document(&self, cid: &str) {
-        self.inner.write().await.remove_document(cid);
+    pub async fn add_document(&self, cid: String, document: Document, paths: Vec<Vec<String>>) {
+        self.inner.write().await.add_document(cid, document, paths);
     }
 
     pub async fn update_filter(&self) {
@@ -318,14 +324,14 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
     }
 }
 
-async fn cid_to_result(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
+async fn cid_to_result(query: Arc<Query>, cid: String, paths: Vec<Vec<String>>, config: Arc<Args>) -> Option<DocumentResult> {
     let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
-    let Some(result) = document.into_result(metadata.to_owned(), &query) else {return None};
+    let Some(result) = document.into_result(paths, &query) else {return None};
     Some(result)
 }
 
-fn cid_to_result_wrapper(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Pin<Box<dyn Future<Output = Option<DocumentResult>> + Send>> {
-    Box::pin(cid_to_result(query, cid, metadata, config))
+fn cid_to_result_wrapper(query: Arc<Query>, cid: String, paths: Vec<Vec<String>>, config: Arc<Args>) -> Pin<Box<dyn Future<Output = Option<DocumentResult>> + Send>> {
+    Box::pin(cid_to_result(query, cid, paths, config))
 }
 
 struct DocumentResultStream {

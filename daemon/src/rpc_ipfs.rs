@@ -45,22 +45,6 @@ pub async fn list_pinned(ipfs_rpc: &str) -> Result<Vec<String>, IpfsRpcError> {
     Ok(keys.into_iter().map(|(k,_)| k).cloned().collect())
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct Metadata {
-    pub paths: Vec<Vec<String>>,
-    pub size: Option<u64>,
-    /// True if we know it's a file. False might be either a directory or a file.
-    pub is_file: bool,
-}
-
-impl Metadata {
-    pub fn merge(&mut self, other: Metadata) {
-        self.paths.extend(other.paths);
-        self.size = self.size.or(other.size);
-        self.is_file = self.is_file || other.is_file;
-    }
-}
-
 pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, IpfsRpcError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/get?arg={cid}")).send().await?;
@@ -69,11 +53,11 @@ pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, Ipf
     Ok(rep)
 }
 
-pub async fn ls(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Result<Vec<(String, Metadata)>, IpfsRpcError> {
+pub async fn ls(ipfs_rpc: &str, parent_cid: String, parent_paths: Vec<Vec<String>>) -> Result<Vec<(String, Vec<Vec<String>>, bool)>, IpfsRpcError> {
     // TODO: streaming
 
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/ls?arg={cid}")).send().await?;
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/ls?arg={parent_cid}")).send().await?;
     let rep = rep.text().await?;
     let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
 
@@ -96,31 +80,21 @@ pub async fn ls(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Res
             let name = link
                 .get("Name").ok_or(InvalidResponse("Name expected on link"))?
                 .as_str().ok_or(InvalidResponse("Name expected to be a string"))?;
-            let mut size = link
-                .get("Size").and_then(|l| l.as_u64());
             let ty = link
                 .get("Type").ok_or(InvalidResponse("Type expected on link"))?
                 .as_u64().ok_or(InvalidResponse("Type expected to be a number"))?;
 
-            if ty == 1 {
-                size = None;
-            }
-
             let paths = match name.is_empty() {
                 true => Vec::new(),
                 false => {
-                    let mut paths = metadata.map(|m| m.paths.clone()).unwrap_or_default();
-                    paths.push(vec![cid.to_owned()]);
+                    let mut paths = parent_paths.clone();
+                    paths.push(vec![parent_cid.to_owned()]);
                     paths.iter_mut().for_each(|p| p.push(name.to_owned()));
                     paths
                 }
             };
 
-            rep.push((child_cid.to_owned(), Metadata {
-                paths,
-                size,
-                is_file: ty == 2,
-            }));
+            rep.push((child_cid.to_owned(), paths, ty == 2));
         }
     }
 
