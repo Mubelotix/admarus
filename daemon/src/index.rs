@@ -34,6 +34,18 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
     }
 
+    pub fn documents(&self) -> HashSet<String> {
+        self.metadata.keys().cloned().collect()
+    }
+
+    pub fn document_count(&self) -> usize {
+        self.metadata.len()
+    }
+
+    pub fn metadata(&self) -> HashMap<String, Metadata> {
+        self.metadata.clone()
+    }
+
     pub fn update_filter(&mut self) {
         if !self.filter_needs_update {
             return;
@@ -143,7 +155,9 @@ impl <const N: usize> DocumentIndex<N> {
     pub async fn run(&self) {
         let mut already_explored = HashSet::new();
         let mut last_printed_error = None;
+        let ipfs_rpc = &self.config.ipfs_rpc;
         loop {
+            // List pinned elements
             let mut pinned = match list_pinned(&self.config.ipfs_rpc).await {
                 Ok(pinned) => pinned,
                 Err(e) => {
@@ -164,19 +178,83 @@ impl <const N: usize> DocumentIndex<N> {
             }
             debug!("{} new pinned elements", pinned.len());
             let start = Instant::now();
+
+            // Explore directories and fetch prioritized documents
+            let mut metadatas: HashMap<String, Metadata> = self.metadata().await;
+            let mut fetched_documents: HashSet<String> = self.documents().await;
+            let mut prev_document_count = fetched_documents.len();
+            while let Some(cid) = pinned.pop() {
+                let metadata = metadatas.get(&cid);
+                // FIXME: top level files are ignored later
+
+                match ls(ipfs_rpc, cid, metadata).await {
+                    Ok(new_links) => {
+                        for (cid, metadata) in new_links {
+                            if !metadata.is_file && !metadatas.contains_key(&cid) {
+                                pinned.push(cid.clone());
+                            }
+                            if metadata.is_file && !fetched_documents.contains(&cid) && metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)) {
+                                let document = match fetch_document(ipfs_rpc, &cid).await {
+                                    Ok(document) => document,
+                                    Err(e) => {
+                                        warn!("Error while fetching document: {e:?}");
+                                        None
+                                    },
+                                };
+                                fetched_documents.insert(cid.clone());
+                                if let Some(document) = document {
+                                    self.add_document(cid.clone(), document, metadata.clone()).await;
+                                }
+                            }
+                            // FIXME: when already scanned, we miss paths for children because we don't rescan
+                            metadatas.entry(cid).or_default().merge(metadata);
+                        }
+                    }
+                    Err(e) => warn!("Error listing potential directory: {e:?}"),
+                }
+            }
+            let mut document_count = self.document_count().await;
+            if prev_document_count != document_count {
+                debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
+                prev_document_count = document_count;
+            }
+
+            // Fetch remaining documents (low priority)
+            for (cid, metadata) in metadatas {
+                if !fetched_documents.contains(&cid) {
+                    let document = match fetch_document(ipfs_rpc, &cid).await {
+                        Ok(Some(document)) => document,
+                        Ok(None) => continue,
+                        Err(e) => {
+                            warn!("Error while fetching document: {e:?}");
+                            continue;
+                        },
+                    };
+                    self.add_document(cid.clone(), document, metadata).await;
+                }
+            }
+            document_count = self.document_count().await;
+            if prev_document_count != document_count {
+                debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
+            }
             
-            let pinned_files = explore_all(&self.config.ipfs_rpc, pinned).await;
-            debug!("{} new items ({} files) ({:02}s)", pinned_files.len(), pinned_files.iter().filter(|(_,m)| m.is_file).count(), start.elapsed().as_secs_f32());
-
-            let documents = fetch_documents(&self.config.ipfs_rpc, pinned_files).await;
-            debug!("{} new documents ({:02}s)", documents.len(), start.elapsed().as_secs_f32());
-
-            self.add_documents(documents).await;
             self.update_filter().await;
             debug!("Filter filled at {:.04}% ({:02}s)", self.get_filter().await.load()*100.0, start.elapsed().as_secs_f32());
 
             sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
         }
+    }
+
+    pub async fn documents(&self) -> HashSet<String> {
+        self.inner.read().await.documents()
+    }
+
+    pub async fn document_count(&self) -> usize {
+        self.inner.read().await.document_count()
+    }
+
+    pub async fn metadata(&self) -> HashMap<String, Metadata> {
+        self.inner.read().await.metadata()
     }
 
     pub async fn add_document(&self, cid: String, document: Document, link: Metadata) {

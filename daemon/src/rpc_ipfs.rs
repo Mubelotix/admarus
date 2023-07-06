@@ -54,34 +54,11 @@ pub struct Metadata {
 }
 
 impl Metadata {
-    fn merge(&mut self, other: Metadata) {
+    pub fn merge(&mut self, other: Metadata) {
         self.paths.extend(other.paths);
         self.size = self.size.or(other.size);
         self.is_file = self.is_file || other.is_file;
     }
-}
-
-pub async fn explore_all(ipfs_rpc: &str, mut cids: Vec<String>) -> HashMap<String, Metadata> {
-    let mut metadatas: HashMap<String, Metadata> = HashMap::new();
-    while let Some(cid) = cids.pop() {
-        let metadata = metadatas.get(&cid);
-        // FIXME: top level files are ignored later
-
-        match ls(ipfs_rpc, cid, metadata).await {
-            Ok(new_links) => {
-                for (cid, metadata) in new_links {
-                    if !metadata.is_file && !metadatas.contains_key(&cid) {
-                        cids.push(cid.clone());
-                    }
-                    // FIXME: when already scanned, we miss paths for children because we don't rescan
-                    metadatas.entry(cid).or_default().merge(metadata);
-                }
-            }
-            Err(e) => warn!("Error listing potential directory: {e:?}"),
-        }
-    }
-
-    metadatas
 }
 
 pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, IpfsRpcError> {
@@ -148,26 +125,6 @@ pub async fn ls(ipfs_rpc: &str, cid: String, metadata: Option<&Metadata>) -> Res
     }
 
     Ok(rep)
-}
-
-pub async fn fetch_documents(ipfs_rpc: &str, links: HashMap<String, Metadata>) -> Vec<(String, Document, Metadata)> {
-    let links = links.into_iter()
-        .filter(|(_,m)| m.is_file)
-        .filter(|(_,metadata)| metadata.paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)))
-        .collect::<Vec<_>>();
-    // FIXME: some html files are missed
-    debug!("Fetching {} documents", links.len());
-
-    let mut documents = Vec::new();
-    for (cid, metadata) in links {
-        match fetch_document(ipfs_rpc, &cid).await {
-            Ok(Some(document)) => documents.push((cid, document, metadata)),
-            Ok(None) => (),
-            Err(e) => warn!("Error while fetching document: {e:?}"),
-        }
-    }
-
-    documents
 }
 
 pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Document>, IpfsRpcError> {
