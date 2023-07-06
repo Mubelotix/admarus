@@ -156,6 +156,17 @@ impl<const N: usize> DocumentIndexInner<N> {
         // Resolve the root cid to build final paths
         let mut final_paths = Vec::new();
         for (root, mut path) in paths {
+            if let Some(first) = path.first_mut() {
+                if first.starts_with("dns-pin-") {
+                    let domain_number = first.split_at(8).1;
+                    if let Some(i) = domain_number.bytes().rposition(|c| c == b'-') {
+                        let domain = domain_number.split_at(i).0;
+                        *first = domain.to_owned();
+                        final_paths.push(path);
+                        continue;
+                    }
+                }
+            }
             let root_cid = match self.cids.get_by_left(&root) {
                 Some(root_cid) => root_cid.to_owned(),
                 None => match self.cids.get_by_left(&root) {
@@ -242,27 +253,13 @@ impl <const N: usize> DocumentIndex<N> {
                 }
                 
                 // Get content
-                let mut new_links = match ls(ipfs_rpc, parent_cid.clone()).await {
+                let new_links = match ls(ipfs_rpc, parent_cid.clone()).await {
                     Ok(new_links) => new_links,
                     Err(e) => {
                         warn!("Error listing potential directory: {e:?}");
                         continue;
                     },
                 };
-
-                // Detect DNS-pins
-                if new_links.iter().all(|(_,n,_)| n.starts_with("dns-pin-")) {
-                    // FIXME: handle malicious folders
-                    for (_, name, _) in &mut new_links {
-                        let name = name[8..].to_owned();
-                        let Some(i) = name.bytes().rposition(|b| b==b'-') else {
-                            warn!("Invalid DNS pin name: {name}");
-                            continue;
-                        };
-                        let (domain, _number) = name.split_at(i);
-                        trace!("Found DNS pin for {domain}");
-                    }
-                }
 
                 // Handle content
                 for (child_cid, child_name, child_is_file) in new_links {
