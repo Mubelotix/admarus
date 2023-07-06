@@ -176,7 +176,7 @@ pub async fn get_ipfs_peers(ipfs_rpc: &str) -> Result<Vec<(PeerId, Multiaddr)>, 
 
 pub async fn put_dag(ipfs_rpc: &str, dag_json: String, pin: bool) -> Result<String, IpfsRpcError> {
     let client = Client::new();
-    let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/put?pin={pin}"))
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/put?pin={pin}&store-codec=dag-pb"))
         .multipart(reqwest::multipart::Form::new().text("object data", dag_json))
         .send().await?;
     let rep = rep.text().await?;

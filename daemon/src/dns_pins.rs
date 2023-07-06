@@ -37,7 +37,11 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
                 continue;
             }
         };
-        if let Some(serde_json::Value::Bool(true)) = dag.get("DNS-Pins") {
+        let Some(serde_json::Value::Array(links)) = dag.get("Links") else {continue};
+
+        if !links.is_empty() && links.iter().all(|link| {
+            link.get("Name").and_then(|name| name.as_str()).map(|name| name.starts_with("dns-pin-")).unwrap_or(false)
+        }) {
             previous_dns_pins.push(cid);
         }
     }
@@ -46,6 +50,7 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         let start = Instant::now();
 
         // Init DNS client
+        trace!("Initializing DNS client ({})", dns_provider);
         let (stream, sender) = TcpClientStream::<AsyncIoTokioAsStd<TokioTcpStream>>::new(dns_provider);
         let client = AsyncClient::new(stream, sender, None);
         let Ok((mut client, bg)) = client.await else {
@@ -56,6 +61,7 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         tokio::spawn(bg);
 
         // Launch queries
+        trace!("Sending {} DNS queries", config.dns_pins.len());
         let mut queries = Vec::new();
         for dns_pin in &config.dns_pins {
             let dnslink_domain = format!("_dnslink.{dns_pin}");
@@ -70,9 +76,10 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
            );
             queries.push(query);
         }
+        let results = join_all(queries).await;
 
         // Read answers
-        let results = join_all(queries).await;
+        trace!("Reading DNS answers");
         let mut values = HashMap::new();
         for (domain, result) in zip(config.dns_pins.iter(), results.into_iter()) {
             let response = match result {
@@ -99,16 +106,18 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         for values in values.values_mut() {
             values.sort();
         }
+        if values.is_empty() {
+            warn!("No DNS pins found");
+            sleep(Duration::from_secs(dns_pins_interval)).await;
+            continue;
+        }
 
         // Add dag to IPFS
-        let mut dag_json = String::from(r#"{"DNS-Pins":true,"Data":{"/":{"bytes":"CAE"}},"Links":["#);
+        trace!("Adding DAG with {} pins to IPFS", values.len());
+        let mut dag_json = String::from(r#"{"Data":{"/":{"bytes":"CAE"}},"Links":["#);
         for (domain, cids) in values {
             for (i, cid) in cids.iter().enumerate() {
-                let name = match i {
-                    0 => domain.to_owned(),
-                    _ => format!("{domain} {i}"),
-                };
-                dag_json.push_str(&format!(r#"{{"Hash":{{"/":"{cid}"}},"Name":"{name}"}}"#)); // TODO size
+                dag_json.push_str(&format!(r#"{{"Hash":{{"/":"{cid}"}},"Name":"dns-pin-{domain}-{i}"}}"#));
             }
         }
         dag_json.push_str("]}");
@@ -120,22 +129,31 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
                 continue;
             },
         };
+        trace!("Added DNS-pins' DAG: ipfs://{cid}");
 
         // Replace old dag with new one
         if !(previous_dns_pins.len() == 1 && previous_dns_pins[0] == cid) {
+            trace!("Pinning the new DAG");
             if let Err(e) = add_pin(&config.ipfs_rpc, &cid).await {
                 error!("Failed to pin new DNS pins: {e}");
                 sleep(Duration::from_secs(dns_pins_interval)).await;
                 continue;
             }
-            for old_pin in previous_dns_pins {
-                if let Err(e) = remove_pin(&config.ipfs_rpc, &old_pin).await {
-                    error!("Failed to remove old DNS pin {old_pin}: {e}");
-                }
-            }
-            previous_dns_pins = vec![cid];
         }
 
+        // Remove old pins
+        trace!("Removing old DNS pins"); 
+        for old_pin in previous_dns_pins.into_iter().filter(|c| c!=&cid) {
+            if old_pin == cid {
+                continue
+            }
+            if let Err(e) = remove_pin(&config.ipfs_rpc, &old_pin).await {
+                error!("Failed to remove old DNS pin {old_pin}: {e}");
+            }
+        }
+        previous_dns_pins = vec![cid];
+
+        trace!("Waiting for next DNS pins interval");
         sleep(Duration::from_secs(dns_pins_interval).saturating_sub(start.elapsed())).await;
     }
 }
