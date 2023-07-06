@@ -239,45 +239,50 @@ impl <const N: usize> DocumentIndex<N> {
                     continue;
                 }
                 
-                match ls(ipfs_rpc, parent_cid.clone()).await {
-                    Ok(mut new_links) => {
-                        // Detect DNS-pins
-                        if new_links.iter().all(|(_,n,_)| n.starts_with("dns-pin-")) {
-                            // FIXME: handle malicious folders
-                            for (_, name, _) in &mut new_links {
-                                let name = name[8..].to_owned();
-                                let Some(i) = name.bytes().rposition(|b| b==b'-') else {
-                                    warn!("Invalid DNS pin name: {name}");
-                                    continue;
-                                };
-                                let (domain, _number) = name.split_at(i);
-                                trace!("Found DNS pin for {domain}");
-                            }
-                        }
+                // Get content
+                let mut new_links = match ls(ipfs_rpc, parent_cid.clone()).await {
+                    Ok(new_links) => new_links,
+                    Err(e) => {
+                        warn!("Error listing potential directory: {e:?}");
+                        continue;
+                    },
+                };
 
-                        for (child_cid, child_name, child_is_file) in new_links {
-                            if !child_is_file && !listed_folders.contains(&child_cid) {
-                                pinned.push(child_cid.clone());
-                            }
-                            if child_is_file && !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
-                                let document = match fetch_document(ipfs_rpc, &child_cid).await {
-                                    Ok(document) => document,
-                                    Err(e) => {
-                                        warn!("Error while fetching document: {e:?}");
-                                        None
-                                    },
-                                };
-                                fetched_documents.insert(child_cid.clone());
-                                if let Some(document) = document {
-                                    self.add_document(child_cid.clone(), document).await;
-                                }
-                            } else {
-                                unprioritized_documents.insert(child_cid.clone());
-                            }
-                            self.add_ancestor(&child_cid, child_name, &parent_cid).await;
-                        }
+                // Detect DNS-pins
+                if new_links.iter().all(|(_,n,_)| n.starts_with("dns-pin-")) {
+                    // FIXME: handle malicious folders
+                    for (_, name, _) in &mut new_links {
+                        let name = name[8..].to_owned();
+                        let Some(i) = name.bytes().rposition(|b| b==b'-') else {
+                            warn!("Invalid DNS pin name: {name}");
+                            continue;
+                        };
+                        let (domain, _number) = name.split_at(i);
+                        trace!("Found DNS pin for {domain}");
                     }
-                    Err(e) => warn!("Error listing potential directory: {e:?}"),
+                }
+
+                // Handle content
+                for (child_cid, child_name, child_is_file) in new_links {
+                    if !child_is_file && !listed_folders.contains(&child_cid) {
+                        pinned.push(child_cid.clone());
+                    }
+                    if child_is_file && !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
+                        let document = match fetch_document(ipfs_rpc, &child_cid).await {
+                            Ok(document) => document,
+                            Err(e) => {
+                                warn!("Error while fetching document: {e:?}");
+                                None
+                            },
+                        };
+                        fetched_documents.insert(child_cid.clone());
+                        if let Some(document) = document {
+                            self.add_document(child_cid.clone(), document).await;
+                        }
+                    } else {
+                        unprioritized_documents.insert(child_cid.clone());
+                    }
+                    self.add_ancestor(&child_cid, child_name, &parent_cid).await;
                 }
             }
             let mut document_count = self.document_count().await;
