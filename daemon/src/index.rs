@@ -1,4 +1,3 @@
-use std::{sync::Arc, collections::HashSet};
 use crate::prelude::*;
 
 const REFRESH_PINNED_INTERVAL: u64 = 120;
@@ -120,21 +119,17 @@ impl<const N: usize> DocumentIndexInner<N> {
             false => Vec::new(),
         };
 
-        async fn cid_to_result(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
-            let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
-            let Some(result) = document.into_result(metadata.to_owned(), &query) else {return None};
-            Some(result)
-        }
-
-        let stream: FuturesUnordered<_> = matching_docs
+        let futures = matching_docs
             .into_iter()
             .filter_map(|cid|
                 self.metadata.get(&cid).map(|metadata|
-                    cid_to_result(Arc::clone(&query), cid, metadata.to_owned(), Arc::clone(&self.config))
+                    (cid, metadata.to_owned())
                 )
-            ).collect();
-        
-        Box::pin(stream.filter_map(|r| async move {r}))
+            )
+            .map(|(cid, metadata)| cid_to_result_wrapper(Arc::clone(&query), cid, metadata, Arc::clone(&self.config)))
+            .collect();
+
+        Box::pin(DocumentResultStream { futures })
     }
 }
 
@@ -301,5 +296,42 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
         Box::pin(async move {
             inner2.read().await.search(query).await
         })
+    }
+}
+
+async fn cid_to_result(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Option<DocumentResult> {
+    let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
+    let Some(result) = document.into_result(metadata.to_owned(), &query) else {return None};
+    Some(result)
+}
+
+fn cid_to_result_wrapper(query: Arc<Query>, cid: String, metadata: Metadata, config: Arc<Args>) -> Pin<Box<dyn Future<Output = Option<DocumentResult>> + Send>> {
+    Box::pin(cid_to_result(query, cid, metadata, config))
+}
+
+struct DocumentResultStream {
+    futures: Vec<Pin<Box<dyn Future<Output = Option<DocumentResult>> + Send>>>,
+}
+
+impl Stream for DocumentResultStream {
+    type Item = DocumentResult;
+
+    fn poll_next(mut self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Option<Self::Item>> {
+        match self.futures.last_mut() {
+            Some(fut) => {
+                match fut.as_mut().poll(cx) {
+                    std::task::Poll::Ready(Some(r)) => {
+                        self.futures.pop();
+                        std::task::Poll::Ready(Some(r))
+                    },
+                    std::task::Poll::Ready(None) => {
+                        self.futures.pop();
+                        self.poll_next(cx)
+                    },
+                    std::task::Poll::Pending => std::task::Poll::Pending,
+                }
+            },
+            None => std::task::Poll::Ready(None),
+        }
     }
 }
