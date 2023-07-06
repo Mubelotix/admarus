@@ -4,7 +4,7 @@ const REFRESH_PINNED_INTERVAL: u64 = 120;
 
 struct DocumentIndexInner<const N: usize> {
     config: Arc<Args>,
-    pub filter: Filter<N>,
+    filter: Filter<N>,
     filter_needs_update: bool,
 
     /// This reduces RAM usage as we can now store u32 instead of Strings in the index.
@@ -15,7 +15,7 @@ struct DocumentIndexInner<const N: usize> {
     metadata: HashMap<String, Metadata>,
 
     /// word -> [cid -> frequency]
-    pub index: HashMap<String, HashMap<u32, f64>>, // FIXME: no field should be public
+    index: HashMap<String, HashMap<u32, f64>>,
     filters: HashMap<(String, String), Vec<u32>>,
 }
 
