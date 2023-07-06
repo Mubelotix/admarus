@@ -53,7 +53,7 @@ pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, Ipf
     Ok(rep)
 }
 
-pub async fn ls(ipfs_rpc: &str, parent_cid: String, parent_paths: Vec<Vec<String>>) -> Result<Vec<(String, Vec<Vec<String>>, bool)>, IpfsRpcError> {
+pub async fn ls(ipfs_rpc: &str, parent_cid: String) -> Result<Vec<(String, String, bool)>, IpfsRpcError> {
     // TODO: streaming
 
     let client = Client::new();
@@ -84,17 +84,7 @@ pub async fn ls(ipfs_rpc: &str, parent_cid: String, parent_paths: Vec<Vec<String
                 .get("Type").ok_or(InvalidResponse("Type expected on link"))?
                 .as_u64().ok_or(InvalidResponse("Type expected to be a number"))?;
 
-            let paths = match name.is_empty() {
-                true => Vec::new(),
-                false => {
-                    let mut paths = parent_paths.clone();
-                    paths.push(vec![parent_cid.to_owned()]);
-                    paths.iter_mut().for_each(|p| p.push(name.to_owned()));
-                    paths
-                }
-            };
-
-            rep.push((child_cid.to_owned(), paths, ty == 2));
+            rep.push((child_cid.to_owned(), name.to_string(), ty == 2));
         }
     }
 

@@ -25,12 +25,11 @@ struct DocumentIndexInner<const N: usize> {
     filter: Filter<N>,
     filter_needs_update: bool,
 
-    did_counter: u32,
-    directories: BiHashMap<LocalDid, Vec<String>>, // TODO: allow making this an hashmap
+    ancestors: HashMap<LocalCid, HashMap<LocalCid, String>>,
 
     cid_counter: u32,
     cids: BiHashMap<LocalCid, String>,
-    filenames: HashMap<LocalCid, Vec<(LocalDid, String)>>,
+    folder_cids: HashMap<LocalCid, String>,
 
     index: HashMap<String, HashMap<LocalCid, f64>>,
     filters: HashMap<(String, String), Vec<LocalCid>>,
@@ -43,11 +42,10 @@ impl<const N: usize> DocumentIndexInner<N> {
             filter: Filter::new(),
             filter_needs_update: false,
 
-            directories: BiHashMap::new(),
-            did_counter: 0,
-            filenames: HashMap::new(),
+            ancestors: HashMap::new(),
 
             cids: BiHashMap::new(),
+            folder_cids: HashMap::new(),
             cid_counter: 0,
 
             index: HashMap::new(),
@@ -74,7 +72,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.filter_needs_update = false;
     }
 
-    pub fn add_document(&mut self, cid: String, document: Document, paths: Vec<Vec<String>>) {
+    pub fn add_document(&mut self, cid: String, document: Document) {
         if self.cids.contains_right(&cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
@@ -83,10 +81,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         // Store cid
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
-        self.cids.insert(lcid, cid.clone());
-
-        // Store paths
-        self.add_paths(&cid, paths);
+        self.cids.insert(lcid, cid);
 
         // Index by words
         let (words, filters) = document.into_parts();
@@ -104,28 +99,69 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
     }
 
-    pub fn add_paths(&mut self, cid: &String, paths: Vec<Vec<String>>) {
+    pub fn add_ancestor(&mut self, cid: &String, name: String, folder_cid: &String) {
         let lcid = match self.cids.get_by_right(cid) {
-            Some(lcid) => *lcid,
+            Some(lcid) => lcid.to_owned(),
             None => {
-                warn!("Tried to add paths for unknown document: {cid}");
-                return;
-            },
+                let lcid = LocalCid(self.cid_counter);
+                self.cid_counter += 1;
+                self.cids.insert(lcid, cid.clone());
+                lcid
+            }
         };
 
-        for mut path in paths.into_iter().filter(|p| !p.is_empty()) {
-            let filename = path.remove(path.len()-1);
-            let ldid = match self.directories.get_by_right(&path) {
-                Some(dir_id) => *dir_id,
-                None => {
-                    let ldid = LocalDid(self.did_counter);
-                    self.did_counter += 1;
-                    self.directories.insert(ldid, path);
-                    ldid
+        let lfcid = match self.cids.get_by_right(folder_cid) {
+            Some(lfcid) => lfcid.to_owned(),
+            None => {
+                let lfcid = LocalCid(self.cid_counter);
+                self.cid_counter += 1;
+                self.cids.insert(lfcid, cid.clone());
+                lfcid
+            }
+        };
+
+        self.ancestors.entry(lcid).or_default().insert(lfcid, name);
+    }
+
+    pub fn build_path(&self, cid: &String) -> Option<Vec<Vec<String>>> {
+        let lcid = match self.cids.get_by_right(cid) {
+            Some(lcid) => lcid.to_owned(),
+            None => return None,
+        };
+
+        // List initial paths that will be explored
+        let mut current_paths: Vec<(LocalCid, Vec<String>)> = Vec::new();
+        for (ancestor, name) in self.ancestors.get(&lcid)? {
+            current_paths.push((ancestor.to_owned(), vec![name.to_owned()]));
+        }
+
+        // Expand known paths and keep track of them all
+        let mut paths: Vec<(LocalCid, Vec<String>)> = Vec::new();
+        while let Some(current_path) = current_paths.pop() {
+            for (ancestor, name) in self.ancestors.get(&current_path.0)? {
+                let mut new_path = current_path.clone();
+                new_path.0 = ancestor.to_owned();
+                new_path.1.insert(0, name.to_owned());
+                current_paths.push(new_path);
+            }
+            paths.push(current_path);
+        }
+
+        // Resolve the root cid to build final paths
+        let mut final_paths = Vec::new();
+        for (root, mut path) in paths {
+            let root_cid = match self.folder_cids.get(&root) {
+                Some(root_cid) => root_cid.to_owned(),
+                None => match self.cids.get_by_left(&root) {
+                    Some(root_cid) => root_cid.to_owned(),
+                    None => continue,
                 },
             };
-            self.filenames.entry(lcid).or_default().push((ldid, filename));
+            path.insert(0, root_cid);
+            final_paths.push(path);
         }
+
+        Some(final_paths)
     }
 
     // TODO: switching self to static may improve performance by a lot
@@ -138,20 +174,12 @@ impl<const N: usize> DocumentIndexInner<N> {
         let futures = matching_docs
             .into_iter()
             .filter_map(|lcid|
-                self.cids.get_by_left(&lcid).map(|cid| (lcid, cid.to_owned()))
+                self.cids.get_by_left(&lcid)
             )
-            .filter_map(|(lcid, cid)|
-                self.filenames.get(&lcid).map(|path|
-                    path.iter().filter_map(|(ldid, filename)| {
-                        self.directories.get_by_left(ldid).map(|path| {
-                            let mut path = path.clone();
-                            path.push(filename.clone());
-                            path
-                        })
-                    }).collect::<Vec<Vec<String>>>()
-                ).map(|paths| (cid, paths))
+            .filter_map(|cid|
+                self.build_path(cid).map(|paths| (cid, paths))
             )
-            .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid, paths, Arc::clone(&self.config)))
+            .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid.to_owned(), paths, Arc::clone(&self.config)))
             .collect();
 
         Box::pin(DocumentResultStream { futures })
@@ -164,6 +192,7 @@ pub struct DocumentIndex<const N: usize> {
     inner: Arc<RwLock<DocumentIndexInner<N>>>,
 }
 
+#[allow(dead_code)]
 impl <const N: usize> DocumentIndex<N> {
     pub fn new(config: Arc<Args>) -> DocumentIndex<N> {
         DocumentIndex {
@@ -200,39 +229,37 @@ impl <const N: usize> DocumentIndex<N> {
             let start = Instant::now();
 
             // Explore directories and fetch prioritized documents
-            let mut paths: HashMap<String, Vec<Vec<String>>> = HashMap::new();
-            let mut fetched_documents: HashSet<String> = self.documents().await;
+            let mut listed_folders: HashSet<String> = self.documents().await;
+            let mut fetched_documents: HashSet<String> = listed_folders.clone();
+            let mut unprioritized_documents: HashSet<String> = HashSet::new();
             let mut prev_document_count = fetched_documents.len();
-            while let Some(cid) = pinned.pop() {
-                let parent_paths = paths.get(&cid).map(|p| p.to_owned()).unwrap_or_default();
+            while let Some(parent_cid) = pinned.pop() {
                 // FIXME: top level files are ignored later
-
-                match ls(ipfs_rpc, cid, parent_paths).await {
+                if !listed_folders.insert(parent_cid.clone()) {
+                    continue;
+                }
+                
+                match ls(ipfs_rpc, parent_cid.clone()).await {
                     Ok(mut new_links) => {
                         // Detect DNS-pins
-                        if new_links.iter().all(|(_,p,_)| p.iter().any(|p| p.len() == 2 && p[1].starts_with("dns-pin-"))) {
+                        if new_links.iter().all(|(_,n,_)| n.starts_with("dns-pin-")) {
                             // FIXME: handle malicious folders
-                            for (_, new_paths, _) in &mut new_links {
-                                let Some(name_pos) = new_paths.iter().position(|p| p.len() == 2 && p[1].starts_with("dns-pin-")) else {
-                                    warn!("Invalid DNS pin: {paths:?}");
-                                    continue;
-                                };
-                                let name = new_paths.remove(name_pos)[1][8..].to_owned();
+                            for (_, name, _) in &mut new_links {
+                                let name = name[8..].to_owned();
                                 let Some(i) = name.bytes().rposition(|b| b==b'-') else {
                                     warn!("Invalid DNS pin name: {name}");
                                     continue;
                                 };
                                 let (domain, _number) = name.split_at(i);
-                                new_paths.push(vec![domain.to_owned()]);
                                 trace!("Found DNS pin for {domain}");
                             }
                         }
 
-                        for (child_cid, child_paths, child_is_file) in new_links {
-                            if !child_is_file && !paths.contains_key(&child_cid) {
+                        for (child_cid, child_name, child_is_file) in new_links {
+                            if !child_is_file && !listed_folders.contains(&child_cid) {
                                 pinned.push(child_cid.clone());
                             }
-                            if child_is_file && !fetched_documents.contains(&child_cid) && child_paths.iter().any(|p| p.last().map(|p| p.ends_with(".html")).unwrap_or(false)) {
+                            if child_is_file && !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
                                 let document = match fetch_document(ipfs_rpc, &child_cid).await {
                                     Ok(document) => document,
                                     Err(e) => {
@@ -242,16 +269,12 @@ impl <const N: usize> DocumentIndex<N> {
                                 };
                                 fetched_documents.insert(child_cid.clone());
                                 if let Some(document) = document {
-                                    self.add_document(child_cid.clone(), document, child_paths.clone()).await;
+                                    self.add_document(child_cid.clone(), document).await;
                                 }
+                            } else {
+                                unprioritized_documents.insert(child_cid.clone());
                             }
-                            
-                            let old_child_paths = paths.entry(child_cid).or_default();
-                            for path in child_paths {
-                                if !old_child_paths.contains(&path) {
-                                    old_child_paths.push(path);
-                                }
-                            }
+                            self.add_ancestor(&child_cid, child_name, &parent_cid).await;
                         }
                     }
                     Err(e) => warn!("Error listing potential directory: {e:?}"),
@@ -264,20 +287,17 @@ impl <const N: usize> DocumentIndex<N> {
             }
 
             // Fetch remaining documents (low priority)
-            for (cid, paths) in paths {
-                if !fetched_documents.contains(&cid) {
-                    let document = match fetch_document(ipfs_rpc, &cid).await {
-                        Ok(Some(document)) => document,
-                        Ok(None) => continue,
-                        Err(e) => {
-                            warn!("Error while fetching document: {e:?}");
-                            continue;
-                        },
-                    };
-                    self.add_document(cid.clone(), document, paths).await;
-                } else {
-                    self.add_paths(&cid, paths).await;
-                }
+            trace!("Fetching {} unprioritized documents", unprioritized_documents.len());
+            for cid in unprioritized_documents {
+                let document = match fetch_document(ipfs_rpc, &cid).await {
+                    Ok(Some(document)) => document,
+                    Ok(None) => continue,
+                    Err(e) => {
+                        warn!("Error while fetching document: {e:?}");
+                        continue;
+                    },
+                };
+                self.add_document(cid.clone(), document).await;
             }
             document_count = self.document_count().await;
             if prev_document_count != document_count {
@@ -299,12 +319,23 @@ impl <const N: usize> DocumentIndex<N> {
         self.inner.read().await.document_count()
     }
 
-    pub async fn add_document(&self, cid: String, document: Document, paths: Vec<Vec<String>>) {
-        self.inner.write().await.add_document(cid, document, paths);
+    pub async fn add_document(&self, cid: String, document: Document) {
+        self.inner.write().await.add_document(cid, document);
     }
 
-    pub async fn add_paths(&self, cid: &String, paths: Vec<Vec<String>>) {
-        self.inner.write().await.add_paths(cid, paths);
+    pub async fn add_ancestor(&self, cid: &String, name: String, folder_cid: &String) {
+        self.inner.write().await.add_ancestor(cid, name, folder_cid);
+    }
+
+    pub async fn add_ancestors(&self, ancestors: Vec<(&String, String, &String)>) {
+        let mut inner = self.inner.write().await;
+        for (cid, name, folder_cid) in ancestors {
+            inner.add_ancestor(cid, name, folder_cid);
+        }
+    }
+
+    pub async fn build_path(&self, cid: &String) -> Option<Vec<Vec<String>>> {
+        self.inner.read().await.build_path(cid)
     }
 
     pub async fn update_filter(&self) {
