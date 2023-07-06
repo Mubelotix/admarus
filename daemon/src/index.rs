@@ -29,7 +29,6 @@ struct DocumentIndexInner<const N: usize> {
 
     cid_counter: u32,
     cids: BiHashMap<LocalCid, String>,
-    folder_cids: HashMap<LocalCid, String>,
 
     index: HashMap<String, HashMap<LocalCid, f64>>,
     filters: HashMap<(String, String), Vec<LocalCid>>,
@@ -45,7 +44,6 @@ impl<const N: usize> DocumentIndexInner<N> {
             ancestors: HashMap::new(),
 
             cids: BiHashMap::new(),
-            folder_cids: HashMap::new(),
             cid_counter: 0,
 
             index: HashMap::new(),
@@ -115,7 +113,7 @@ impl<const N: usize> DocumentIndexInner<N> {
             None => {
                 let lfcid = LocalCid(self.cid_counter);
                 self.cid_counter += 1;
-                self.cids.insert(lfcid, cid.clone());
+                self.cids.insert(lfcid, folder_cid.clone());
                 lfcid
             }
         };
@@ -126,7 +124,10 @@ impl<const N: usize> DocumentIndexInner<N> {
     pub fn build_path(&self, cid: &String) -> Option<Vec<Vec<String>>> {
         let lcid = match self.cids.get_by_right(cid) {
             Some(lcid) => lcid.to_owned(),
-            None => return None,
+            None => {
+                warn!("Tried to build path for unknown cid: {cid}");
+                return None;
+            },
         };
 
         // List initial paths that will be explored
@@ -138,11 +139,13 @@ impl<const N: usize> DocumentIndexInner<N> {
         // Expand known paths and keep track of them all
         let mut paths: Vec<(LocalCid, Vec<String>)> = Vec::new();
         while let Some(current_path) = current_paths.pop() {
-            for (ancestor, name) in self.ancestors.get(&current_path.0)? {
-                let mut new_path = current_path.clone();
-                new_path.0 = ancestor.to_owned();
-                new_path.1.insert(0, name.to_owned());
-                current_paths.push(new_path);
+            if let Some(ancestors) = self.ancestors.get(&current_path.0) {
+                for (ancestor, name) in ancestors {
+                    let mut new_path = current_path.clone();
+                    new_path.0 = ancestor.to_owned();
+                    new_path.1.insert(0, name.to_owned());
+                    current_paths.push(new_path);
+                }
             }
             paths.push(current_path);
         }
@@ -150,7 +153,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         // Resolve the root cid to build final paths
         let mut final_paths = Vec::new();
         for (root, mut path) in paths {
-            let root_cid = match self.folder_cids.get(&root) {
+            let root_cid = match self.cids.get_by_left(&root) {
                 Some(root_cid) => root_cid.to_owned(),
                 None => match self.cids.get_by_left(&root) {
                     Some(root_cid) => root_cid.to_owned(),
@@ -173,12 +176,8 @@ impl<const N: usize> DocumentIndexInner<N> {
 
         let futures = matching_docs
             .into_iter()
-            .filter_map(|lcid|
-                self.cids.get_by_left(&lcid)
-            )
-            .filter_map(|cid|
-                self.build_path(cid).map(|paths| (cid, paths))
-            )
+            .filter_map(|lcid| self.cids.get_by_left(&lcid))
+            .map(|cid| (cid, self.build_path(cid).unwrap_or_default()))
             .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid.to_owned(), paths, Arc::clone(&self.config)))
             .collect();
 
