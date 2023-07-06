@@ -80,25 +80,13 @@ impl<const N: usize> DocumentIndexInner<N> {
             return;
         }
 
-        // Store paths
-        for mut path in paths.into_iter().filter(|p| !p.is_empty()) {
-            let filename = path.remove(path.len()-1);
-            let ldid = match self.directories.get_by_right(&path) {
-                Some(dir_id) => *dir_id,
-                None => {
-                    let ldid = LocalDid(self.did_counter);
-                    self.did_counter += 1;
-                    self.directories.insert(ldid, path);
-                    ldid
-                },
-            };
-            self.filenames.entry(LocalCid(self.cid_counter)).or_default().push((ldid, filename));
-        }
-
-        // Store Cid
+        // Store cid
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
-        self.cids.insert(lcid, cid);
+        self.cids.insert(lcid, cid.clone());
+
+        // Store paths
+        self.add_paths(&cid, paths);
 
         // Index by words
         let (words, filters) = document.into_parts();
@@ -113,6 +101,30 @@ impl<const N: usize> DocumentIndexInner<N> {
         for (key, value) in filters {
             self.filters.entry((key.to_string(), value.clone())).or_default().push(lcid);
             self.filter.add_word::<DocumentIndex<N>>(&format!("{key}={value}"));
+        }
+    }
+
+    pub fn add_paths(&mut self, cid: &String, paths: Vec<Vec<String>>) {
+        let lcid = match self.cids.get_by_right(cid) {
+            Some(lcid) => *lcid,
+            None => {
+                warn!("Tried to add paths for unknown document: {cid}");
+                return;
+            },
+        };
+
+        for mut path in paths.into_iter().filter(|p| !p.is_empty()) {
+            let filename = path.remove(path.len()-1);
+            let ldid = match self.directories.get_by_right(&path) {
+                Some(dir_id) => *dir_id,
+                None => {
+                    let ldid = LocalDid(self.did_counter);
+                    self.did_counter += 1;
+                    self.directories.insert(ldid, path);
+                    ldid
+                },
+            };
+            self.filenames.entry(lcid).or_default().push((ldid, filename));
         }
     }
 
@@ -233,7 +245,7 @@ impl <const N: usize> DocumentIndex<N> {
                                     self.add_document(child_cid.clone(), document, child_paths.clone()).await;
                                 }
                             }
-                            // FIXME: when already scanned, we miss paths for children because we don't rescan
+                            
                             let old_child_paths = paths.entry(child_cid).or_default();
                             for path in child_paths {
                                 if !old_child_paths.contains(&path) {
@@ -263,6 +275,8 @@ impl <const N: usize> DocumentIndex<N> {
                         },
                     };
                     self.add_document(cid.clone(), document, paths).await;
+                } else {
+                    self.add_paths(&cid, paths).await;
                 }
             }
             document_count = self.document_count().await;
@@ -287,6 +301,10 @@ impl <const N: usize> DocumentIndex<N> {
 
     pub async fn add_document(&self, cid: String, document: Document, paths: Vec<Vec<String>>) {
         self.inner.write().await.add_document(cid, document, paths);
+    }
+
+    pub async fn add_paths(&self, cid: &String, paths: Vec<Vec<String>>) {
+        self.inner.write().await.add_paths(cid, paths);
     }
 
     pub async fn update_filter(&self) {
