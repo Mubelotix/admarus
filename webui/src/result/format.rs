@@ -3,7 +3,8 @@ use yew::virtual_dom::{VList, VText, VTag};
 
 impl DocumentResult {
     pub fn rank_paths(&mut self) {
-        self.paths.sort_by(|a, b| b.first().map(|f| f.contains('.')).cmp(&a.first().map(|f| f.contains('.'))).then_with(|| a.len().cmp(&b.len())));
+        // TODO: sort using more advanced algorithm
+        self.paths.sort_by(|a, b| b.first().map(|f| f.contains('.')).cmp(&a.first().map(|f| f.contains('.'))).then_with(|| b.len().cmp(&a.len())));
     }
     
     pub fn format_result_title(&self) -> String {
