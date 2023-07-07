@@ -9,7 +9,7 @@ struct ApiRecord {
 
 #[post("/api/v0/submit")]
 async fn submit_record(record: web::Json<ApiRecord>, req: HttpRequest) -> impl Responder {
-    let ApiRecord { record, public_key, signature } = record.into_inner();
+    let ApiRecord { mut record, public_key, signature } = record.into_inner();
 
     #[cfg(feature = "debug_logs")]
     println!("Received record: {record:?}");
@@ -35,6 +35,18 @@ async fn submit_record(record: web::Json<ApiRecord>, req: HttpRequest) -> impl R
     if record.addrs.len() > 30 {
         return HttpResponse::BadRequest().body("Too many addresses provided (max 30)");
     }
+    if record.addrs.iter().any(|addr| addr.len() >= 200) {
+        return HttpResponse::BadRequest().body("Addr too long");
+    }
+    if record.folders.len() > 500 {
+        return HttpResponse::BadRequest().body("Too many folders provided (max 500)");
+    }
+    let valid_folders = record.folders.into_iter()
+        .filter_map(|(cid,c)| libipld::cid::Cid::try_from(cid.as_str()).ok().map(|cid| (cid,c)))
+        .filter_map(|(cid,c)| cid.into_v1().ok().map(|cid| (cid,c)))
+        .map(|(cid, c)| (cid.to_string(), c.clamp(0, 10_000_000)))
+        .collect::<Vec<_>>();
+    record.folders = valid_folders;
 
     let ip = req.peer_addr().map(|addr| addr.ip().to_string()).unwrap_or(String::from("Unknown"));
     DB.insert_record(record, ip).await;
