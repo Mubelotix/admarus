@@ -41,11 +41,13 @@ async fn submit_record(record: web::Json<ApiRecord>, req: HttpRequest) -> impl R
     if record.folders.len() > 500 {
         return HttpResponse::BadRequest().body("Too many folders provided (max 500)");
     }
-    let valid_folders = record.folders.into_iter()
+    let mut valid_folders = record.folders.into_iter()
         .filter_map(|(cid,c)| libipld::cid::Cid::try_from(cid.as_str()).ok().map(|cid| (cid,c)))
         .filter_map(|(cid,c)| cid.into_v1().ok().map(|cid| (cid,c)))
         .map(|(cid, c)| (cid.to_string(), c.clamp(0, 10_000_000)))
         .collect::<Vec<_>>();
+    valid_folders.sort_by_cached_key(|(cid,_)| cid.clone());
+    valid_folders.dedup_by_key(|(cid,_)| cid.clone());
     record.folders = valid_folders;
 
     let ip = req.peer_addr().map(|addr| addr.ip().to_string()).unwrap_or(String::from("Unknown"));
@@ -71,20 +73,20 @@ async fn get_peers(query: web::Query<GetPeersQuery>) -> impl Responder {
 
 #[derive(Clone, Default, Serialize)]
 pub  struct NetworkStats {
-    peers: usize,
-    documents: usize,
-    different_documents: usize,
-    median_documents_per_peer: usize,
-    // TODO: different_queries: usize,
+    pub peers: u64,
+    pub documents: u64,
+    pub different_documents: u64,
+    pub median_documents_per_peer: u64,
+    // TODO: different_queries: u64,
     // TODO: health: f64,
 }
 
 #[derive(Clone, Default, Serialize)]
 pub struct GetStatsResp {
-    stats_1h: NetworkStats,
-    prev_stats_1h: NetworkStats,
-    stats_24h: NetworkStats,
-    prev_stats_24h: NetworkStats,
+    pub stats_1h: NetworkStats,
+    pub prev_stats_1h: NetworkStats,
+    pub stats_24h: NetworkStats,
+    pub prev_stats_24h: NetworkStats,
 }
 
 #[get("/api/v0/stats")]
