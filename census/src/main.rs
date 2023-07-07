@@ -2,6 +2,7 @@ mod db;
 mod record;
 mod endpoints;
 mod prelude;
+mod stats;
 
 pub use prelude::*;
 

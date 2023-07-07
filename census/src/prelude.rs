@@ -1,6 +1,6 @@
 pub(crate) use tokio::{sync::RwLock, time::sleep};
-pub(crate) use std::{time::{Duration, SystemTime, UNIX_EPOCH}, collections::HashSet, pin::Pin, future::Future};
-pub use crate::{db::*, record::*, endpoints::*};
+pub(crate) use std::{time::{Duration, SystemTime, UNIX_EPOCH}, collections::{HashSet, HashMap}, pin::Pin, future::Future};
+pub use crate::{db::*, record::*, endpoints::*, stats::*};
 pub(crate) use serde::{Serialize, Deserialize};
 pub(crate) use actix_web::{get, post, web, App, HttpResponse, HttpServer, Responder, HttpRequest};
 pub(crate) use rand::seq::IteratorRandom;

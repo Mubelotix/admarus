@@ -71,24 +71,6 @@ async fn get_peers(query: web::Query<GetPeersQuery>) -> impl Responder {
     HttpResponse::Ok().json(peers)
 }
 
-#[derive(Clone, Default, Serialize)]
-pub  struct NetworkStats {
-    pub peers: u64,
-    pub documents: u64,
-    pub different_documents: u64,
-    pub median_documents_per_peer: u64,
-    // TODO: different_queries: u64,
-    // TODO: health: f64,
-}
-
-#[derive(Clone, Default, Serialize)]
-pub struct GetStatsResp {
-    pub stats_1h: NetworkStats,
-    pub prev_stats_1h: NetworkStats,
-    pub stats_24h: NetworkStats,
-    pub prev_stats_24h: NetworkStats,
-}
-
 #[get("/api/v0/stats")]
 async fn get_stats() -> impl Responder {
     let stats = DB.get_stats().await;
