@@ -11,8 +11,8 @@ lazy_static::lazy_static! {
 
 pub struct Db {
     ips: RwLock<HashSet<String>>,
-    records: RwLock<Vec<Record>>,
-    drain_history: RwLock<Vec<Instant>>,
+    records: RwLock<Vec<DbRecord>>,
+    drain_history: RwLock<Vec<u64>>,
     stats: RwLock<GetStatsResp>,
 }
 
@@ -24,7 +24,7 @@ impl Db {
 
         let mut records = self.records.write().await;
         let previous_len = records.len();
-        records.retain(|r| r.peer_id != record.peer_id);
+        records.retain(|r| r.r.peer_id != record.peer_id);
         let is_new = previous_len == records.len();
 
         #[cfg(feature = "ip_filter")]
@@ -38,16 +38,19 @@ impl Db {
             return;
         }
         
-        records.push(record);
+        records.push(DbRecord {
+            r: record,
+            ts: now_ts(),
+        });
     }
 
     pub async fn draw_peers(&self, count: usize, exclude: &[String]) -> Vec<(String, Vec<String>)> {
         self.records.read().await
             .iter()
-            .filter(|r| !exclude.contains(&r.peer_id))
+            .filter(|r| !exclude.contains(&r.r.peer_id))
             .choose_multiple(&mut rand::thread_rng(), count)
             .into_iter()
-            .map(|r| (r.peer_id.clone(), r.addrs.clone()))
+            .map(|r| (r.r.peer_id.clone(), r.r.addrs.clone()))
             .collect::<Vec<_>>()
     }
 
@@ -76,7 +79,7 @@ impl Db {
 
         let mut drain_history = self.drain_history.write().await;
         let drain_index = drain_history.len();
-        drain_history.push(Instant::now());
+        drain_history.push(now_ts());
         drop(drain_history);
         
         let drained_json = match serde_json::to_string(&drained) {
@@ -91,6 +94,11 @@ impl Db {
         if let Err(e) = r {
             eprintln!("Failed to write records to {filename}: {e}");
         }
+    }
+
+    pub async fn compute_stats(&self) {
+        let now = now_ts();
+
     }
 
     pub async fn run(&self) {
