@@ -99,7 +99,7 @@ impl Db {
             i += 1;
             sleep(Duration::from_secs(60)).await;
             
-            if i % 30 == 0 {
+            if i % 20 == 0 {
                 self.ips.write().await.clear()
             }
 
