@@ -56,3 +56,27 @@ async fn get_peers(query: web::Query<GetPeersQuery>) -> impl Responder {
     let peers = DB.draw_peers(count, &exclude).await;
     HttpResponse::Ok().json(peers)
 }
+
+#[derive(Serialize)]
+pub  struct NetworkStats {
+    peers: usize,
+    documents: usize,
+    different_documents: usize,
+    median_documents_per_peer: usize,
+    // TODO: different_queries: usize,
+    // TODO: health: f64,
+}
+
+#[derive(Serialize)]
+pub struct GetStatsResp {
+    stats_1h: NetworkStats,
+    prev_stats_1h: NetworkStats,
+    stats_24h: NetworkStats,
+    prev_stats_24h: NetworkStats,
+}
+
+#[get("/api/v0/stats")]
+async fn get_stats() -> impl Responder {
+    let stats = DB.get_stats().await;
+    HttpResponse::Ok().json(stats)
+}

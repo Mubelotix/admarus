@@ -49,6 +49,10 @@ impl Db {
             .collect::<Vec<_>>()
     }
 
+    pub async fn get_stats(&self) -> GetStatsResp {
+        todo!()
+    }
+
     pub async fn shutdowner(&self) {
         match tokio::signal::ctrl_c().await {
             Ok(()) => {
