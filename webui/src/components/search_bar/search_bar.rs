@@ -39,7 +39,9 @@ impl Component for SearchBar {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             SearchBarMsg::Search => {
-                ctx.props().onsearch.emit(self.value.clone());
+                if !self.value.is_empty() {
+                    ctx.props().onsearch.emit(self.value.trim().to_owned());
+                }
                 false
             },
             SearchBarMsg::Input(e) => {
