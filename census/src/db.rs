@@ -5,6 +5,7 @@ lazy_static::lazy_static! {
         ips: RwLock::new(HashSet::new()),
         records: RwLock::new(Vec::new()),
         drain_history: RwLock::new(Vec::new()),
+        stats: RwLock::new(GetStatsResp::default()),
     };
 }
 
@@ -12,6 +13,7 @@ pub struct Db {
     ips: RwLock<HashSet<String>>,
     records: RwLock<Vec<Record>>,
     drain_history: RwLock<Vec<Instant>>,
+    stats: RwLock<GetStatsResp>,
 }
 
 impl Db {
@@ -50,7 +52,7 @@ impl Db {
     }
 
     pub async fn get_stats(&self) -> GetStatsResp {
-        todo!()
+        self.stats.read().await.clone()
     }
 
     pub async fn shutdowner(&self) {

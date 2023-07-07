@@ -57,7 +57,7 @@ async fn get_peers(query: web::Query<GetPeersQuery>) -> impl Responder {
     HttpResponse::Ok().json(peers)
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub  struct NetworkStats {
     peers: usize,
     documents: usize,
@@ -67,7 +67,7 @@ pub  struct NetworkStats {
     // TODO: health: f64,
 }
 
-#[derive(Serialize)]
+#[derive(Clone, Default, Serialize)]
 pub struct GetStatsResp {
     stats_1h: NetworkStats,
     prev_stats_1h: NetworkStats,
