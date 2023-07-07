@@ -3,6 +3,7 @@ use crate::prelude::*;
 pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
     tf_ranking: Vec<(String, Score)>,
+    variety_scores: HashMap<String, Score>,
     length_scores: HashMap<String, Score>,
     lang_scores: HashMap<String, Score>,
     providers: HashMap<String, Vec<String>>,
@@ -13,6 +14,7 @@ impl RankedResults {
         Self {
             results: HashMap::new(),
             tf_ranking: Vec::new(),
+            variety_scores: HashMap::new(),
             length_scores: HashMap::new(),
             lang_scores: HashMap::new(),
             providers: HashMap::new(),
@@ -30,6 +32,8 @@ impl RankedResults {
         let tf_score = Score::from(res.tf(query));
         let tf_rank = self.tf_ranking.binary_search_by_key(&tf_score, |(_,s)| *s).unwrap_or_else(|i| i);
         self.tf_ranking.insert(tf_rank, (res.cid.clone(), tf_score));
+
+        self.variety_scores.insert(res.cid.clone(), res.variety_score(query));
 
         self.length_scores.insert(res.cid.clone(), res.length_score());
 
@@ -52,12 +56,14 @@ impl RankedResults {
         let mut all_scores = Vec::new();
         for (cid, _) in self.results.iter() {
             let tf_score = tf_scores.get(cid).unwrap();
+            let variety_score = self.variety_scores.get(cid).unwrap();
             let length_score = length_scores.get(cid).unwrap();
             let lang_score = self.lang_scores.get(cid).unwrap();
             let popularity_score = Score::from(self.providers.get(cid).unwrap().len() as f64 / max_provider_count);
             let ipns_score = Score::from(self.results.get(cid).unwrap().has_ipns() as usize as f64);
             let scores = Scores {
                 tf_score: Score::from(*tf_score),
+                variety_score: *variety_score,
                 length_score: *length_score,
                 lang_score: *lang_score,
                 popularity_score,

@@ -7,37 +7,12 @@ impl Query {
 }
 
 impl QueryComp {
-    fn clone_only_words(&self) -> Option<QueryComp> {
-        match self {
-            QueryComp::Word(word) => Some(QueryComp::Word(word.clone())),
-            QueryComp::Filter { .. } => None,
-            QueryComp::Not(comp) => {
-                let comp = comp.clone_only_words()?;
-                Some(QueryComp::Not(Box::new(comp)))
-            },
-            QueryComp::NAmong { n, among } => {
-                let mut n = *n;
-                let mut new_among = Vec::new();
-                for comp in among {
-                    match comp.clone_only_words() {
-                        Some(comp) => new_among.push(comp),
-                        None => n = n.saturating_sub(1),
-                    }
-                }
-                match n == 0 {
-                    true => None,
-                    false => Some(QueryComp::NAmong { n, among: new_among }),
-                }
-            },
-        }
-    }
-
     #[track_caller]
     fn map_counts(&self, counts: &HashMap<&String, f64>) -> f64 {
         match self {
             QueryComp::Word(w) => counts.get(w).copied().unwrap_or(0.0),
-            QueryComp::Filter { .. } => panic!("tf() called on filter"),
-            QueryComp::Not(_) => panic!("tf() called on not"),
+            QueryComp::Filter { .. } => panic!("QueryComp::map_counts() called on filter"),
+            QueryComp::Not(_) => panic!("QueryComp::map_counts() called on not"),
             QueryComp::NAmong { n, among } => {
                 let mut mapped_counts = among.iter().map(|c| c.map_counts(counts)).collect::<Vec<_>>();
                 mapped_counts.sort_by(|a, b| b.partial_cmp(a).unwrap_or(Ordering::Equal));
@@ -76,6 +51,39 @@ impl DocumentResult {
         let title_term_count = query.map_count(&counts);
 
         (term_count + title_term_count) / (word_count + title_word_count)
+    }
+
+    pub fn variety_score(&self, query: &Query) -> Score {
+        let mut title_words: Option<Vec<String>> = None;
+        
+        let mut score = 0.0;
+        for (i, (term, weight)) in query.weighted_terms().into_iter().enumerate() {
+            if self.term_counts[i].sum() > 0 {
+                score += weight;
+            } else {
+                let title_words_some = match title_words.take() {
+                    Some(title_words) => title_words,
+                    None => {
+                        let Some(title_words_some) = self.title
+                            .as_ref()
+                            .map(|t| t
+                                .to_lowercase()
+                                .split(|c: char| !c.is_ascii_alphanumeric())
+                                .filter(|w| w.len() >= 3)
+                                .map(|w| w.to_string())
+                            .collect::<Vec<_>>())
+                            else {continue};
+                        title_words_some
+                    }
+                };
+                if title_words_some.contains(&term) {
+                    score += weight;
+                }
+                title_words = Some(title_words_some);
+            }
+        }
+
+        Score::from(score)
     }
 
     pub fn length_score(&self) -> Score {
@@ -168,6 +176,7 @@ impl std::fmt::Debug for Score {
 
 pub struct Scores {
     pub tf_score: Score,
+    pub variety_score: Score,
     pub length_score: Score,
     pub lang_score: Score,
     pub popularity_score: Score,
@@ -178,8 +187,9 @@ impl Scores {
     /// This computes the final score for a document.
     pub fn general_score(&self) -> Score {
         Score::from(
-            (self.ipns_score.val * 0.15
-            + self.tf_score.val * 0.35
+            (self.ipns_score.val * 0.10
+            + self.tf_score.val * 0.25
+            + self.variety_score.val * 0.15
             + self.popularity_score.val * 0.5)
             
             // Scores that multiply are those we want to always be 1.0

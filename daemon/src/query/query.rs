@@ -14,7 +14,7 @@ impl Query {
     }
 
     pub fn weighted_terms(&self) -> Vec<(String, f64)> {
-        self.root.weighted_terms(1.0)
+        self.root.clone_only_words().map(|r| r.weighted_terms(1.0)).unwrap_or_default()
     }
 
     pub fn positive_filters(&self) -> Vec<(&String, &String)> {
@@ -41,6 +41,31 @@ pub enum QueryComp {
 }
 
 impl QueryComp {
+    pub fn clone_only_words(&self) -> Option<QueryComp> {
+        match self {
+            QueryComp::Word(word) => Some(QueryComp::Word(word.clone())),
+            QueryComp::Filter { .. } => None,
+            QueryComp::Not(comp) => {
+                let comp = comp.clone_only_words()?;
+                Some(QueryComp::Not(Box::new(comp)))
+            },
+            QueryComp::NAmong { n, among } => {
+                let mut n = *n;
+                let mut new_among = Vec::new();
+                for comp in among {
+                    match comp.clone_only_words() {
+                        Some(comp) => new_among.push(comp),
+                        None => n = n.saturating_sub(1),
+                    }
+                }
+                match n == 0 {
+                    true => None,
+                    false => Some(QueryComp::NAmong { n, among: new_among }),
+                }
+            },
+        }
+    }
+
     pub fn positive_terms(&self) -> Vec<&String> {
         match self {
             QueryComp::Word(word) => vec![word],
@@ -53,9 +78,9 @@ impl QueryComp {
     pub fn weighted_terms(&self, weight: f64) -> Vec<(String, f64)> {
         match self {
             QueryComp::Word(word) => vec![(word.to_string(), weight)],
-            QueryComp::Filter { .. } => Vec::new(),
-            QueryComp::Not(_) => Vec::new(),
-            QueryComp::NAmong { n, among } => among.iter().flat_map(|c| c.weighted_terms(weight/(*n as f64))).collect::<Vec<_>>(), // FIXME: handle 0
+            QueryComp::Filter { .. } => panic!("QueryComp::weighted_terms() called on filter"),
+            QueryComp::Not(_) => panic!("QueryComp::weighted_terms() called on not"),
+            QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.weighted_terms(weight/(among.len() as f64))).collect::<Vec<_>>(), // FIXME: handle 0
         }
     }
 
