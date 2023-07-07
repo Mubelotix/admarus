@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, Serialize)]
 pub  struct NetworkStats {
     pub peers: u64,
     pub documents: u64,
@@ -12,7 +12,7 @@ pub  struct NetworkStats {
     // TODO: health: f64,
 }
 
-#[derive(Clone, Default, Serialize)]
+#[derive(Clone, Default, PartialEq, Debug, Serialize)]
 pub struct GetStatsResp {
     pub stats_1h: NetworkStats,
     pub prev_stats_1h: NetworkStats,
@@ -134,5 +134,38 @@ impl Db {
 
         // Update the stats
         *self.stats.write().await = stats;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[tokio::test]
+    async fn test_stats() {
+        let db = Db::default();
+        for i in 0..100 {
+            let record = Record {
+                peer_id: format!("peer{i}"),
+                addrs: Vec::new(),
+                folders: vec![
+                    (format!("unique{i}"), 10),
+                    (format!("common{}", i%10), 1)
+                ]
+            };
+            db.insert_record(record, format!("ip{i}")).await;
+        }
+        db.compute_stats().await;
+        
+        let stats = db.get_stats().await;
+        assert_eq!(stats.stats_1h, stats.stats_24h);
+        assert_eq!(stats.prev_stats_1h, Default::default());
+        assert_eq!(stats.prev_stats_24h, Default::default());
+        assert_eq!(stats.stats_1h, NetworkStats {
+            peers: 100,
+            documents: 1100, // 10 + 1 for each 100 peers
+            different_documents: 1010, // 10 for each 100 unique folders + 1 for each 10 common folders
+            median_documents_per_peer: 11,
+        })
     }
 }

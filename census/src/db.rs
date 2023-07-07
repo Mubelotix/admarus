@@ -1,14 +1,10 @@
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
-    pub static ref DB: Db = Db {
-        ips: RwLock::new(HashSet::new()),
-        records: RwLock::new(Vec::new()),
-        drain_history: RwLock::new(Vec::new()),
-        stats: RwLock::new(GetStatsResp::default()),
-    };
+    pub static ref DB: Db = Db::default(); // TODO read from disk
 }
 
+#[derive(Default)]
 pub struct Db {
     ips: RwLock<HashSet<String>>,
     pub records: RwLock<Vec<DbRecord>>,
@@ -19,7 +15,7 @@ pub struct Db {
 impl Db {
     pub async fn insert_record(&self, record: Record, ip: String) {
         let mut ips = self.ips.write().await;
-        let ip_tainted = ips.insert(ip.clone());
+        let ip_tainted = !ips.insert(ip.clone());
         drop(ips);
 
         let mut records = self.records.write().await;
