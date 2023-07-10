@@ -35,10 +35,10 @@ async fn main() {
     let node = node.run();
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, node.clone());
-    let f2 = index.run();
+    let f2 = update_census_task(node.clone(), index.clone(), keypair.clone(), Arc::clone(&config));
     let f3 = maintain_swarm_task(node.clone(), Arc::clone(&config));
     let f4 = cleanup_db_task(node.clone());
-    let f5 = update_census_task(node.clone(), keypair.clone(), Arc::clone(&config));
-    let f6 = manage_dns_pins(Arc::clone(&config));
+    let f5 = manage_dns_pins(Arc::clone(&config));
+    let f6 = index.run();
     tokio::join!(f1, f2, f3, f4, f5, f6);
 }

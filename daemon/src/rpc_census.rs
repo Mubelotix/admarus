@@ -37,6 +37,7 @@ struct ApiRecord {
 pub struct Record {
     pub peer_id: String,
     pub addrs: Vec<String>,
+    pub folders: Vec<(String, u64)>,
 }
 
 pub async fn submit_census_record(census_rpc: &str, record: Record, keys: Keypair) -> Result<(), CensusRpcError> {

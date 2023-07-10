@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub async fn update_census_task(node: NodeController, keypair: Keypair, config: Arc<Args>) {
+pub async fn update_census_task<const N: usize>(node: NodeController, index: DocumentIndex<N>, keypair: Keypair, config: Arc<Args>) {
     if !config.census_enabled {
         return;
     }
@@ -30,6 +30,7 @@ pub async fn update_census_task(node: NodeController, keypair: Keypair, config: 
         let record = Record {
             peer_id: keypair.public().to_peer_id().to_string(),
             addrs: external_addrs.clone(),
+            folders: todo!(),
         };
 
         match submit_census_record(&config.census_rpc, record, keypair.clone()).await {
