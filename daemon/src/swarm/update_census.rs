@@ -30,7 +30,7 @@ pub async fn update_census_task<const N: usize>(node: NodeController, index: Doc
         let record = Record {
             peer_id: keypair.public().to_peer_id().to_string(),
             addrs: external_addrs.clone(),
-            folders: todo!(),
+            folders: index.folders().await.into_iter().map(|(cid, count)| (cid, count as u64)).collect(),
         };
 
         match submit_census_record(&config.census_rpc, record, keypair.clone()).await {
