@@ -128,3 +128,20 @@ h1~p {
 #search-page #stats>div {
     margin: 0 1rem;
 }
+
+/* Github link */
+
+#github-link {
+    display: flex;
+    align-items: center;
+    color: black;
+    text-decoration: none;
+    font-weight: bold;
+    margin-right: .8rem;
+}
+
+#github-link>img {
+    width: 1.5rem;
+    height: 1.5rem;
+    margin-right: .2rem;
+}
