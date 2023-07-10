@@ -53,6 +53,24 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
     }
 
+    pub fn folders(&self) -> HashMap<String, usize> {
+        let mut lfolders = HashMap::new();
+        for ancestors in self.ancestors.values() {
+            for ancestor in ancestors.keys() {
+                *lfolders.entry(ancestor.to_owned()).or_default() += 1;
+            }
+        }
+
+        let mut folders = HashMap::new();
+        for (lcid, count) in lfolders {
+            if let Some(cid) = self.cids.get_by_left(&lcid) {
+                folders.insert(cid.to_owned(), count);
+            }
+        }
+        
+        folders
+    }
+
     pub fn documents(&self) -> HashSet<String> {
         self.cids
             .iter()
@@ -320,6 +338,10 @@ impl <const N: usize> DocumentIndex<N> {
 
             sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
         }
+    }
+
+    pub async fn folders(&self) -> HashMap<String, usize> {
+        self.inner.read().await.folders()
     }
 
     pub async fn documents(&self) -> HashSet<String> {
