@@ -26,6 +26,7 @@ struct DocumentIndexInner<const N: usize> {
     filter_needs_update: bool,
 
     ancestors: HashMap<LocalCid, HashMap<LocalCid, String>>,
+    folders: HashSet<LocalCid>,
 
     cid_counter: u32,
     cids: BiHashMap<LocalCid, String>,
@@ -42,6 +43,7 @@ impl<const N: usize> DocumentIndexInner<N> {
             filter_needs_update: false,
 
             ancestors: HashMap::new(),
+            folders: HashSet::new(),
 
             cids: BiHashMap::new(),
             cid_counter: 0,
@@ -52,11 +54,15 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     pub fn documents(&self) -> HashSet<String> {
-        self.cids.right_values().cloned().collect()
+        self.cids
+            .iter()
+            .filter(|(lcid, _)| !self.folders.contains(lcid))
+            .map(|(_, cid)| cid.to_owned())
+            .collect()
     }
 
     pub fn document_count(&self) -> usize {
-        self.cids.len()
+        self.cids.len() - self.folders.len()
     }
 
     pub fn update_filter(&mut self) {
@@ -108,17 +114,18 @@ impl<const N: usize> DocumentIndexInner<N> {
             }
         };
 
-        let lfcid = match self.cids.get_by_right(folder_cid) {
-            Some(lfcid) => lfcid.to_owned(),
+        let ancestor_lcid = match self.cids.get_by_right(folder_cid) {
+            Some(lcid) => lcid.to_owned(),
             None => {
-                let lfcid = LocalCid(self.cid_counter);
+                let lcid = LocalCid(self.cid_counter);
                 self.cid_counter += 1;
-                self.cids.insert(lfcid, folder_cid.clone());
-                lfcid
+                self.cids.insert(lcid, folder_cid.clone());
+                self.folders.insert(lcid);
+                lcid
             }
         };
 
-        self.ancestors.entry(lcid).or_default().insert(lfcid, name);
+        self.ancestors.entry(lcid).or_default().insert(ancestor_lcid, name);
     }
 
     pub fn build_path(&self, cid: &String) -> Option<Vec<Vec<String>>> {
