@@ -21,7 +21,6 @@ impl Document {
 
 pub struct HtmlDocument {
     cid: String,
-    raw: String,
     parsed: scraper::Html,
 }
 
@@ -30,7 +29,6 @@ impl HtmlDocument {
         let parsed = Html::parse_document(&raw);
         HtmlDocument {
             cid,
-            raw,
             parsed,
         }
     }
