@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 lazy_static::lazy_static! {
-    pub static ref DB: Db = Db::default(); // TODO read from disk
+    pub static ref DB: Db = Db::open();
 }
 
 #[derive(Default)]
@@ -13,6 +13,20 @@ pub struct Db {
 }
 
 impl Db {
+    pub fn open() -> Db {
+        let drain_history_data = std::fs::read_to_string("drain_history.txt").unwrap_or_default();
+        let drain_history = drain_history_data
+            .split('\n')
+            .filter(|line| !line.is_empty())
+            .map(|line| line.parse::<u64>().expect("Invalid value in drain_history.txt"))
+            .collect::<Vec<_>>();
+
+        Db {
+            drain_history: RwLock::new(drain_history),
+            ..Default::default()
+        }
+    }
+
     pub async fn insert_record(&self, record: Record, ip: String) {
         let mut ips = self.ips.write().await;
         let ip_tainted = !ips.insert(ip.clone());
@@ -63,6 +77,16 @@ impl Db {
             Err(err) => eprintln!("Unable to listen for shutdown signal: {err}"),
         }
     }
+    
+    async fn save_drain_history(&self) {
+        let drain_history = self.drain_history.read().await;
+        let drain_history_data = drain_history.iter().map(|ts| ts.to_string()).collect::<Vec<_>>().join("\n");
+        drop(drain_history);
+        match tokio::fs::write("drain_history.txt", drain_history_data).await {
+            Ok(()) => (),
+            Err(e) => eprintln!("Failed to write drain history: {e}"),
+        }
+    }
 
     async fn drain(&self, to_drain: Option<usize>) {
         let mut records = self.records.write().await;
@@ -90,6 +114,7 @@ impl Db {
         if let Err(e) = r {
             eprintln!("Failed to write records to {filename}: {e}");
         }
+        self.save_drain_history().await;
     }
 
     pub async fn update_stats_task(&self) {
