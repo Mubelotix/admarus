@@ -12,7 +12,7 @@ use endpoints::*;
 struct OngoingSearch {
     query: Query,
     results: Vec<(DocumentResult, PeerId)>,
-    providers: HashMap<String, Vec<Multiaddr>>,
+    providers: HashMap<String, Vec<(PeerId, Vec<Multiaddr>)>>,
     last_fetch: Instant,
 }
 
@@ -43,7 +43,7 @@ impl SearchPark {
                 let addresses = self.node.addresses_of(peer_id).await;
                 let mut searches = self.searches.write().await;
                 let Some(search) = searches.get_mut(&id) else {break};
-                search.providers.entry(document.cid.clone()).or_insert_with(Vec::new).extend(addresses);
+                search.providers.entry(document.cid.clone()).or_insert_with(Vec::new).push((peer_id, addresses));
                 search.results.push((document, peer_id));
                 if search.last_fetch.elapsed() > Duration::from_secs(60) {
                     searches.remove(&id);
