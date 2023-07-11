@@ -9,31 +9,49 @@ use bodies::*;
 mod endpoints;
 use endpoints::*;
 
+struct OngoingSearch {
+    results: Vec<(DocumentResult, PeerId)>,
+    last_fetch: Instant,
+}
+
 pub struct SearchPark {
-    search_controllers: RwLock<HashMap<usize, Vec<(DocumentResult, PeerId)>>>,
+    searches: RwLock<HashMap<usize, OngoingSearch>>,
 }
 
 impl SearchPark {
     pub fn new() -> SearchPark {
         SearchPark {
-            search_controllers: RwLock::new(HashMap::new()),
+            searches: RwLock::new(HashMap::new()),
         }
     }
 
     pub async fn insert(self: Arc<Self>, controller: SearchController) -> usize {
         let id = rand::random();
-        self.search_controllers.write().await.insert(id, Vec::new());
+        self.searches.write().await.insert(id, OngoingSearch {
+            results: Vec::new(),
+            last_fetch: Instant::now()
+        });
         tokio::spawn(async move {
             let mut controller = controller;
             while let Some((document, peer_id)) = controller.recv().await {
-                self.search_controllers.write().await.entry(id).and_modify(|v| v.push((document, peer_id)));
+                let mut searches = self.searches.write().await;
+                let Some(search) = searches.get_mut(&id) else {break};
+                search.results.push((document, peer_id));
+                if search.last_fetch.elapsed() > Duration::from_secs(60) {
+                    searches.remove(&id);
+                    trace!("Search {id} expired");
+                    break;
+                }
             }
         });
         id
     }
 
-    pub async fn get_results(self: Arc<Self>, id: usize) -> Vec<(DocumentResult, PeerId)> {
-        std::mem::take(self.search_controllers.write().await.get_mut(&id).unwrap())
+    pub async fn fetch_results(self: Arc<Self>, id: usize) -> Option<Vec<(DocumentResult, PeerId)>> {
+        let mut searches = self.searches.write().await;
+        let OngoingSearch { results, last_fetch } =  searches.get_mut(&id)?;
+        *last_fetch = Instant::now();
+        Some(std::mem::take(results))
     }
 }
 
