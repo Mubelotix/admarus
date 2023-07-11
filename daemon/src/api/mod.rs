@@ -10,6 +10,7 @@ mod endpoints;
 use endpoints::*;
 
 struct OngoingSearch {
+    query: Query,
     results: Vec<(DocumentResult, PeerId)>,
     last_fetch: Instant,
 }
@@ -25,9 +26,10 @@ impl SearchPark {
         }
     }
 
-    pub async fn insert(self: Arc<Self>, controller: SearchController) -> usize {
+    pub async fn insert(self: Arc<Self>, query: Query, controller: SearchController) -> usize {
         let id = rand::random();
         self.searches.write().await.insert(id, OngoingSearch {
+            query,
             results: Vec::new(),
             last_fetch: Instant::now()
         });
@@ -49,7 +51,7 @@ impl SearchPark {
 
     pub async fn fetch_results(self: Arc<Self>, id: usize) -> Option<Vec<(DocumentResult, PeerId)>> {
         let mut searches = self.searches.write().await;
-        let OngoingSearch { results, last_fetch } =  searches.get_mut(&id)?;
+        let OngoingSearch { results, last_fetch, .. } =  searches.get_mut(&id)?;
         *last_fetch = Instant::now();
         Some(std::mem::take(results))
     }

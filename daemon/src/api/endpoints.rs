@@ -28,7 +28,7 @@ pub(super) async fn search((query, search_park, kamilata): (ApiSearchQuery, Arc<
     };
     info!("Searching for {:?}", query);
     let search_controler = kamilata.search(query.clone()).await;
-    let id = search_park.insert(search_controler).await;
+    let id = search_park.insert(query.clone(), search_controler).await;
 
     let resp = Response::builder()
         .header("Content-Type", "application/json")
