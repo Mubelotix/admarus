@@ -78,6 +78,11 @@ impl Behaviour {
         }).await;
     }
 
+    /// Returns information about a peer.
+    pub async fn get_info(&self, peer_id: PeerId) -> Option<Info> {
+        self.db.get_info(&peer_id).await
+    }
+
     /// Changes if one of our peers is advertised to other peers.
     pub async fn set_peer_visibilility(&mut self, peer_id: PeerId, visible: bool) {
         self.db.set_visibility(&peer_id, visible).await;

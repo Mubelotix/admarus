@@ -105,6 +105,10 @@ impl Node {
         &mut self.swarm.behaviour_mut().kamilata
     }
 
+    fn disc(&self) -> &DiscoveryBehavior {
+        &self.swarm.behaviour().discovery
+    }
+
     fn disc_mut(&mut self) -> &mut DiscoveryBehavior {
         &mut self.swarm.behaviour_mut().discovery
     }
@@ -130,6 +134,11 @@ impl Node {
                         ClientCommand::GetExternalAddrs { sender } => {
                             let addrs = self.swarm.external_addresses();
                             let _ = sender.send(addrs.cloned().collect());
+                        },
+                        ClientCommand::GetAddressesOf { peer_id, sender } => {
+                            let disc = self.disc();
+                            let addrs = disc.get_info(peer_id).await.map(|info| info.listen_addrs).unwrap_or_default();
+                            let _ = sender.send(addrs);
                         },
                         ClientCommand::QueryPeers { query: q, sender } => {
                             self.disc_mut().start_query(q, sender);
@@ -239,6 +248,10 @@ enum ClientCommand {
         peer_id: PeerId,
     },
     LeechFrom(PeerId),
+    GetAddressesOf {
+        peer_id: PeerId,
+        sender: OneshotSender<Vec<Multiaddr>>,
+    },
 }
 
 #[derive(Clone)]
@@ -266,6 +279,15 @@ impl NodeController {
     pub async fn external_addresses(&self) -> Vec<AddressRecord> {
         let (sender, receiver) = oneshot_channel();
         let _ = self.sender.send(ClientCommand::GetExternalAddrs {
+            sender,
+        }).await;
+        receiver.await.expect("Channel closed")
+    }
+
+    pub async fn addresses_of(&self, peer_id: PeerId) -> Vec<Multiaddr> {
+        let (sender, receiver) = oneshot_channel();
+        let _ = self.sender.send(ClientCommand::GetAddressesOf {
+            peer_id,
             sender,
         }).await;
         receiver.await.expect("Channel closed")

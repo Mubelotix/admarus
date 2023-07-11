@@ -59,6 +59,10 @@ impl Db {
         self.data.write().await.entry(*peer_id).or_insert((self.config.default_visibility, Info::default())).1 = info;
     }
 
+    pub async fn get_info(&self, peer_id: &PeerId) -> Option<Info> {
+        self.data.read().await.get(peer_id).map(|(_, info)| info.clone())
+    }
+
     pub async fn set_metadata(&self, peer_id: &PeerId, metadata: Vec<u8>) {
         self.data.write().await.entry(*peer_id).or_insert((self.config.default_visibility, Info::default())).1.metadata = metadata;
     }

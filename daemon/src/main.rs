@@ -28,11 +28,11 @@ async fn main() {
     env_logger::init();
 
     let index = DocumentIndex::<125000>::new(Arc::clone(&config));
-    
-    let search_park = Arc::new(SearchPark::new());
 
     let (node, keypair) = Node::init(Arc::clone(&config), index.clone()).await;
     let node = node.run();
+    
+    let search_park = Arc::new(SearchPark::new(node.clone()));
 
     let f1 = serve_api(&config.api_addr, index.clone(), search_park, node.clone());
     let f2 = update_census_task(node.clone(), index.clone(), keypair.clone(), Arc::clone(&config));

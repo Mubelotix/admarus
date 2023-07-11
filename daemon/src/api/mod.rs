@@ -12,17 +12,20 @@ use endpoints::*;
 struct OngoingSearch {
     query: Query,
     results: Vec<(DocumentResult, PeerId)>,
+    providers: HashMap<String, Vec<Multiaddr>>,
     last_fetch: Instant,
 }
 
 pub struct SearchPark {
     searches: RwLock<HashMap<usize, OngoingSearch>>,
+    node: NodeController,
 }
 
 impl SearchPark {
-    pub fn new() -> SearchPark {
+    pub fn new(node: NodeController) -> SearchPark {
         SearchPark {
             searches: RwLock::new(HashMap::new()),
+            node,
         }
     }
 
@@ -31,13 +34,16 @@ impl SearchPark {
         self.searches.write().await.insert(id, OngoingSearch {
             query,
             results: Vec::new(),
+            providers: HashMap::new(),
             last_fetch: Instant::now()
         });
         tokio::spawn(async move {
             let mut controller = controller;
             while let Some((document, peer_id)) = controller.recv().await {
+                let addresses = self.node.addresses_of(peer_id).await;
                 let mut searches = self.searches.write().await;
                 let Some(search) = searches.get_mut(&id) else {break};
+                search.providers.entry(document.cid.clone()).or_insert_with(Vec::new).extend(addresses);
                 search.results.push((document, peer_id));
                 if search.last_fetch.elapsed() > Duration::from_secs(60) {
                     searches.remove(&id);
