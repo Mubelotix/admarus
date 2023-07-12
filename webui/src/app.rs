@@ -12,10 +12,12 @@ pub enum Page {
 #[derive(Clone)]
 pub enum AppMsg {
     ChangePage(Page),
+    ConnectionStatusChanged(ConnectionStatus),
 }
 
 pub struct App {
     page: Page,
+    conn_status: Rc<ConnectionStatus>,
 }
 
 impl Component for App {
@@ -25,6 +27,7 @@ impl Component for App {
     fn create(_ctx: &Context<Self>) -> Self {
         Self {
             page: Page::Home,
+            conn_status: Rc::new(ConnectionStatus::default()),
         }
     }
 
@@ -34,12 +37,21 @@ impl Component for App {
                 self.page = page;
                 true
             }
+            AppMsg::ConnectionStatusChanged(conn_status) => {
+                self.conn_status = Rc::new(conn_status);
+                true
+            }
         }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         match self.page {
-            Page::Home => html!(<SearchPage app_link={ctx.link().clone()} />),
+            Page::Home => html!(
+                <SearchPage
+                    app_link={ctx.link().clone()}
+                    conn_status={Rc::clone(&self.conn_status)}
+                    onchange_conn_status={ctx.link().callback(|conn_status| AppMsg::ConnectionStatusChanged(conn_status))} />
+            ),
             Page::Settings => html!(<SettingsPage app_link={ctx.link().clone()} />),
             Page::Results(ref query) => html!(<ResultsPage app_link={ctx.link().clone()} query={Rc::clone(query)} />),
         }

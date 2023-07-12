@@ -1,6 +1,7 @@
+use std::ops::Deref;
 use crate::prelude::*;
 
-#[derive(Debug, PartialEq, Properties)]
+#[derive(Debug, PartialEq, Properties, Default, Clone)]
 pub struct ConnectionStatus {
     pub daemon: Option<Result<(), String>>,
     pub gateway: Option<Result<(), String>>,
@@ -8,11 +9,11 @@ pub struct ConnectionStatus {
 
 #[derive(Debug, PartialEq, Properties)]
 pub struct ConnectionStatusProps {
-    pub connection_status: ConnectionStatus,
+    pub conn_status: Rc<ConnectionStatus>,
     pub onchange: Callback<ConnectionStatus>,
 }
 
-struct ConnectionStatusComp {
+pub struct ConnectionStatusComp {
 
 }
 
@@ -21,7 +22,7 @@ impl Component for ConnectionStatusComp {
     type Properties = ConnectionStatusProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        match &ctx.props().connection_status {
+        match ctx.props().conn_status.deref() {
             ConnectionStatus { daemon: None, .. } => {
                 let onchange = ctx.props().onchange.clone();
                 spawn_local(async move {
@@ -80,7 +81,7 @@ impl Component for ConnectionStatusComp {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let (target, connected, connecting, error) = match ctx.props().connection_status {
+        let (target, connected, connecting, error) = match ctx.props().conn_status.deref() {
             ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Err(_)) } => ("gateway", false, false, true),
             ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Ok(_)) } => ("gateway", false, true, false),
             ConnectionStatus { daemon: Some(Err(_)), gateway: None } => ("gateway", true, false, false),
