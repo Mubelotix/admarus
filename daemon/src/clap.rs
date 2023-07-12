@@ -85,14 +85,14 @@ pub async fn resolve_external_addrs(addrs: &mut Vec<String>, dns_provider: Socke
         for answer in resp.answers() {
             match answer.data() {
                 Some(RData::A(ip)) => {
-                    let addr = format!("{ip}:4002");
+                    let addr = format!("/ip4/{ip}/tcp/4002");
                     if !addrs.contains(&addr) {
                         debug!("Resolved new external addr: {addr}");
                         addrs.push(addr);
                     }
                 }
                 Some(RData::AAAA(ip)) => {
-                    let addr = format!("[{ip}]:4002");
+                    let addr = format!("/ip6/{ip}/tcp/4002");
                     if !addrs.contains(&addr) {
                         debug!("Resolved new external addr: {addr}");
                         addrs.push(addr);
