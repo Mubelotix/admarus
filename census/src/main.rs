@@ -16,7 +16,7 @@ async fn main() {
             .service(submit_record)
             .service(get_peers)
         })
-        .bind(("0.0.0.0", 14364)).expect("Can not bind to address")
+        .bind(("127.0.0.1", 14364)).expect("Can not bind to address")
         .run();
 
     println!("Census running!");

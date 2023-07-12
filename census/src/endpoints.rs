@@ -50,7 +50,7 @@ async fn submit_record(record: web::Json<ApiRecord>, req: HttpRequest) -> impl R
     valid_folders.dedup_by_key(|(cid,_)| cid.clone());
     record.folders = valid_folders;
 
-    let ip = req.peer_addr().map(|addr| addr.ip().to_string()).unwrap_or(String::from("Unknown"));
+    let ip = req.headers().get("X-Real-IP").and_then(|ip| ip.to_str().ok()).unwrap_or("unknown").to_string();
     DB.insert_record(record, ip).await;
     HttpResponse::Ok().body("Success!")
 }
