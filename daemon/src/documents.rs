@@ -183,6 +183,7 @@ impl HtmlDocument {
                 "em" => em = true,
                 "small" => small = true,
                 "s" => s = true,
+                "script" | "style" => return,
                 _ => (),
             }
             for child in el.children() {
