@@ -138,3 +138,7 @@ pub async fn search(query: impl AsRef<str>) -> Result<ApiSearchResponse, ApiErro
 pub async fn fetch_results(id: u64) -> Result<Vec<(DocumentResult, String)>, ApiError> {
     get(format!("http://localhost:5002/fetch-results?id={id}")).await
 }
+
+pub async fn get_api_version() -> Result<u64, ApiError> {
+    get::<ApiVersionResponse>("http://localhost:5002/version").await.map(|r| r.version)
+}
