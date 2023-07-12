@@ -1,9 +1,3 @@
-use trust_dns_client::{
-    client::{AsyncClient, ClientHandle},
-    proto::iocompat::AsyncIoTokioAsStd,
-    rr::{DNSClass, Name, RData, RecordType},
-    tcp::TcpClientStream
-};
 use crate::prelude::*;
 
 pub async fn manage_dns_pins(config: Arc<Args>) {

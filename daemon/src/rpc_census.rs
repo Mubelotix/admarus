@@ -42,7 +42,7 @@ pub struct Record {
 
 pub async fn submit_census_record(census_rpc: &str, record: Record, keys: Keypair) -> Result<(), CensusRpcError> {
     let hash = record.hash();
-    let signature = keys.sign(&hash)?;
+    let signature = keys.sign(hash.as_slice())?;
     let api_record = ApiRecord {
         record,
         public_key: keys.public().encode_protobuf(),

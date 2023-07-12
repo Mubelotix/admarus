@@ -9,7 +9,8 @@ pub struct Args {
     #[arg(long, default_values_t = [String::from("/ip4/0.0.0.0/tcp/4002"), String::from("/ip6/::/tcp/4002")])]
     pub listen_addrs: Vec<String>,
 
-    /// External addrs to advertise
+    /// External addrs to advertise.
+    /// Domains will be resolved at startup (but specifying port is not supported yet).
     #[arg(long)]
     pub external_addrs: Option<Vec<String>>,
 
@@ -52,4 +53,53 @@ pub struct Args {
     /// Number of leechers to allow to connect
     #[arg(long, default_value = "50")]
     pub leechers: usize,
+}
+
+pub async fn resolve_external_addrs(addrs: &mut Vec<String>, dns_provider: SocketAddr) {
+    let (stream, sender) = TcpClientStream::<AsyncIoTokioAsStd<TokioTcpStream>>::new(dns_provider);
+    let client = AsyncClient::new(stream, sender, None);
+    let Ok((mut client, bg)) = client.await else {
+        error!("Failed to connect to DNS provider");
+        return;
+    };
+    tokio::spawn(bg);
+
+    let mut queries = Vec::new();
+    for i in (0..addrs.len()).rev() {
+        let addr = &addrs[i];
+        if addr.parse::<SocketAddr>().is_err() {
+            let Ok(name) = Name::from_str(addr) else {
+                error!("Invalid external addr (neither an IP address nor a valid DNS name): {addr}");
+                addrs.remove(i);
+                continue;
+            };
+            let a_query = client.query(name.clone(), DNSClass::IN, RecordType::A);
+            let aaaa_query = client.query(name, DNSClass::IN, RecordType::AAAA);
+            queries.push(a_query);
+            queries.push(aaaa_query);
+        }
+    }
+    let results = join_all(queries).await;
+
+    for resp in results.into_iter().filter_map(|res| res.ok()) {
+        for answer in resp.answers() {
+            match answer.data() {
+                Some(RData::A(ip)) => {
+                    let addr = format!("{ip}:4002");
+                    if !addrs.contains(&addr) {
+                        debug!("Resolved new external addr: {addr}");
+                        addrs.push(addr);
+                    }
+                }
+                Some(RData::AAAA(ip)) => {
+                    let addr = format!("[{ip}]:4002");
+                    if !addrs.contains(&addr) {
+                        debug!("Resolved new external addr: {addr}");
+                        addrs.push(addr);
+                    }
+                }
+                _ => {}
+            }
+        }
+    }
 }

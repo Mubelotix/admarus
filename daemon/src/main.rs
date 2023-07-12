@@ -20,12 +20,18 @@ use crate::prelude::*;
 
 #[tokio::main]
 async fn main() {
-    let config = Arc::new(Args::parse());
+    env_logger::init();
+    
+    let mut config = Args::parse();
+    if let Some(addrs) = &mut config.external_addrs {
+        let dns_provider: SocketAddr = config.dns_provider.parse().expect("Invalid DNS provider address");
+        resolve_external_addrs(addrs, dns_provider).await;
+    }
+
+    let config = Arc::new(config);
     if config.api_addr != "127.0.0.1:5002" {
         warn!("The webui doesn't currently support custom api addresses, so you probably don't want to change this.")
     }
-
-    env_logger::init();
 
     let index = DocumentIndex::<125000>::new(Arc::clone(&config));
 
