@@ -85,7 +85,10 @@ pub async fn get_census_peers(census_rpc: &str, exclude: Vec<PeerId>) -> Result<
     let value = serde_json::from_str::<Vec<(String, Vec<String>)>>(&body)?;
     let mut peers = Vec::new();
     for (peer_id, addrs) in value {
-        let Ok(peer_id) = peer_id.parse() else { continue };
+        let Ok(peer_id) = peer_id.parse() else {
+            warn!("Invalid peer ID in census response: {peer_id}");
+            continue
+        };
         let addrs = addrs.into_iter().filter_map(|addr| addr.parse().ok()).collect();
         peers.push((peer_id, addrs));
     }
