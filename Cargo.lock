@@ -2534,9 +2534,9 @@ dependencies = [
 
 [[package]]
 name = "kamilata"
-version = "0.1.1"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b2c31b913d21e9df7a25f94aabc1b84b380df04bb33476a404d9611642b2dbb0"
+checksum = "fd877a2c2cf7da463e733a44df64b5052badbd75f772ffea21ff7765007e8847"
 dependencies = [
  "async-trait",
  "asynchronous-codec",
