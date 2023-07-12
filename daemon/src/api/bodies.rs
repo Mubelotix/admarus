@@ -19,3 +19,9 @@ pub struct ApiResultsQuery {
     /// Unique search identifier from [ApiSearchResponse::id]
     pub id: u64,
 }
+
+#[derive(Deserialize, Serialize)]
+pub struct ApiVersionResponse {
+    /// Version of the protocol
+    pub version: u64,
+}

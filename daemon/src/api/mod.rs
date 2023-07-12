@@ -7,11 +7,13 @@ mod bodies;
 mod local_search;
 mod search;
 mod results;
+mod version;
 use {
     local_search::*,
     bodies::*,
     search::*,
     results::*,
+    version::*,
 };
 
 struct OngoingSearch {
@@ -90,6 +92,10 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
         .map(move |id: ApiResultsQuery| (id, Arc::clone(&search_park)))
         .and_then(fetch_results);
 
+    let version = warp::get()
+        .and(warp::path("version"))
+        .and_then(version);
+
     let cors = warp::cors()
         .allow_origin("https://admarus.net")
         .allow_origin("http://localhost:8083")
@@ -101,6 +107,7 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
             .or(local_search)
             .or(search)
             .or(fetch_result)
+            .or(version)
     ).with(cors);
 
     warp::serve(routes).run(api_addr.parse::<SocketAddr>().unwrap()).await;
