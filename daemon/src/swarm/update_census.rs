@@ -24,6 +24,7 @@ pub async fn update_census_task<const N: usize>(node: NodeController, index: Doc
         
         if external_addrs.is_empty() {
             sleep(Duration::from_secs(30*60)).await;
+            warn!("Failed to advertise ourselves to census due to lack of known external addresses");
             continue;
         }
 
