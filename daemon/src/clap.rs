@@ -30,7 +30,7 @@ pub struct Args {
     pub census_enabled: bool,
 
     /// Address on which the API will listen
-    #[arg(long, default_value_t = String::from("127.0.0.1:3030"))]
+    #[arg(long, default_value_t = String::from("127.0.0.1:5002"))]
     pub api_addr: String,
 
     /// Domain names to keep pinned

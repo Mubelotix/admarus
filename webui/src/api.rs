@@ -132,9 +132,9 @@ async fn api_custom_method<I: Serialize, O: DeserializeOwned>(endpoint: impl AsR
 }
 
 pub async fn search(query: impl AsRef<str>) -> Result<ApiSearchResponse, ApiError> {
-    get(format!("http://localhost:3030/search?q={}", url_encode(query.as_ref()))).await
+    get(format!("http://localhost:5002/search?q={}", url_encode(query.as_ref()))).await
 }
 
 pub async fn fetch_results(id: u64) -> Result<Vec<(DocumentResult, String)>, ApiError> {
-    get(format!("http://localhost:3030/fetch-results?id={id}")).await
+    get(format!("http://localhost:5002/fetch-results?id={id}")).await
 }
