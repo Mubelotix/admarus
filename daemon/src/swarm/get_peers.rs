@@ -29,7 +29,7 @@ async fn get_peers_from_census(node: NodeController, census_rpc: &str) {
     drop(known_peers);
 
     match new_len == previous_len {
-        true => warn!("Got no new peers from census"),
+        true => trace!("Got no new peers from census"),
         false => debug!("Got {} new peers from census", new_len - previous_len),
     }
 }
