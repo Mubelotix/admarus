@@ -23,7 +23,7 @@ pub(super) async fn search((query, search_park, kamilata): (ApiSearchQuery, Arc<
         Err(e) => {
             error!("Error parsing query:");
             e.print(&query.q);
-            return Ok(Response::builder().status(400).header("Access-Control-Allow-Origin", "*").body("Error parsing query".to_string()).unwrap());
+            return Ok(Response::builder().status(400).body("Error parsing query".to_string()).unwrap());
         },
     };
     info!("Searching for {:?}", query);
@@ -32,7 +32,6 @@ pub(super) async fn search((query, search_park, kamilata): (ApiSearchQuery, Arc<
 
     let resp = Response::builder()
         .header("Content-Type", "application/json")
-        .header("Access-Control-Allow-Origin", "*")
         .body(serde_json::to_string(&ApiSearchResponse {
             id: id as u64,
             query,
@@ -45,8 +44,8 @@ pub(super) async fn fetch_results((query, search_park): (ApiResultsQuery, Arc<Se
     let id = query.id as usize;
     let search_results = match search_park.fetch_results(id).await {
         Some(search_results) => search_results,
-        None => return Ok(Response::builder().status(400).header("Access-Control-Allow-Origin", "*").body("Search not found".to_string()).unwrap()),
+        None => return Ok(Response::builder().status(400).body("Search not found".to_string()).unwrap()),
     };
     let search_results = search_results.into_iter().map(|(d, p)| (d, p.to_string())).collect::<Vec<_>>();
-    Ok(Response::builder().header("Content-Type", "application/json").header("Access-Control-Allow-Origin", "*").body(serde_json::to_string(&search_results).unwrap()).unwrap())
+    Ok(Response::builder().header("Content-Type", "application/json").body(serde_json::to_string(&search_results).unwrap()).unwrap())
 }

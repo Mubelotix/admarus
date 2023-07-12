@@ -85,12 +85,18 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
         .map(move |id: ApiResultsQuery| (id, Arc::clone(&search_park)))
         .and_then(fetch_results);
 
-    let routes = warp::get().and(
+    let cors = warp::cors()
+        .allow_origin("https://admarus.net")
+        .allow_origin("http://localhost:8083")
+        .allow_headers(vec!["content-type"])
+        .allow_methods(vec!["GET", "POST", "DELETE"]);
+
+    let routes = warp::any().and(
         hello_world
             .or(local_search)
             .or(search)
             .or(fetch_result)
-    );
+    ).with(cors);
 
     warp::serve(routes).run(api_addr.parse::<SocketAddr>().unwrap()).await;
 }
