@@ -4,10 +4,15 @@ use warp::{Filter, http::Response};
 use std::{convert::Infallible, net::SocketAddr};
 
 mod bodies;
-use bodies::*;
-
-mod endpoints;
-use endpoints::*;
+mod local_search;
+mod search;
+mod results;
+use {
+    local_search::*,
+    bodies::*,
+    search::*,
+    results::*,
+};
 
 struct OngoingSearch {
     query: Query,
