@@ -1,4 +1,6 @@
 use std::ops::Deref;
+use yew::virtual_dom::{VComp, VNode};
+
 use crate::prelude::*;
 
 #[derive(Debug, PartialEq, Properties, Default, Clone)]
@@ -88,6 +90,23 @@ impl Component for ConnectionStatusComp {
             ConnectionStatus { daemon: Some(Ok(_)), .. } => ("daemon", true, false, false),
             ConnectionStatus { daemon: None, .. } => ("daemon", false, true, false),
         };
+
+        // Storing the SVG here is necessary to prevent yew from lowering the case of SVG attributes
+        let svg_success = VNode::from_html_unchecked(r#"
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52">
+                <circle class="checkmark__circle" cx="26" cy="26" r="25" fill="none"/>
+                <path class="checkmark__check" fill="none" d="M14.1 27.2l7.1 7.2 16.7-16.8"/>
+            </svg>"#
+            .into()
+        );
+        let svg_error = VNode::from_html_unchecked(r#"
+            <svg class="checkmark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                <circle class="checkmark__circle" cx="26" cy="26" r="25"/>
+                <line class="checkmark__check" x1="15" y1="15" x2="37" y2="37"/>
+                <line class="checkmark__check" x1="15" y1="37" x2="37" y2="15"/>
+            </svg>"#
+            .into()
+        );
 
         template_html!("components/connection_status/connection_status.html", ...)
     }
