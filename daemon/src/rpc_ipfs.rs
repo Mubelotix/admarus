@@ -65,8 +65,6 @@ pub async fn ls(ipfs_rpc: &str, parent_cid: String) -> Result<Vec<(String, Strin
         .get("Objects").ok_or(InvalidResponse("Objects expected on data"))?
         .as_array().ok_or(InvalidResponse("Objects expected to be an array"))?;
 
-    // TODO: dns pins
-
     let mut rep = Vec::new();
     for object in objects {
         let links = object
