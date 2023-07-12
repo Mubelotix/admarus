@@ -317,7 +317,7 @@ impl <const N: usize> DocumentIndex<N> {
 
             // Fetch remaining documents (low priority)
             trace!("Fetching {} unprioritized documents", unprioritized_documents.len());
-            for cid in unprioritized_documents {
+            /*for cid in unprioritized_documents {
                 let document = match fetch_document(ipfs_rpc, &cid).await {
                     Ok(Some(document)) => document,
                     Ok(None) => continue,
@@ -331,7 +331,7 @@ impl <const N: usize> DocumentIndex<N> {
             document_count = self.document_count().await;
             if prev_document_count != document_count {
                 debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
-            }
+            }*/
             
             self.update_filter().await;
             debug!("Filter filled at {:.04}% ({:02}s)", self.get_filter().await.load()*100.0, start.elapsed().as_secs_f32());
