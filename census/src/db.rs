@@ -69,13 +69,14 @@ impl Db {
     }
 
     pub async fn shutdowner(&self) {
-        match tokio::signal::ctrl_c().await {
-            Ok(()) => {
-                self.drain(None).await;
-                println!("Database ready to shut down");
-            },
-            Err(err) => eprintln!("Unable to listen for shutdown signal: {err}"),
-        }
+        use tokio::signal::{ctrl_c, unix::{SignalKind, signal}};
+        
+        let crtl_c_fut = ctrl_c();
+        let mut sig_term_receiver = signal(SignalKind::terminate()).expect("Failed to listen for SIGTERM");
+        let sig_term_fut = sig_term_receiver.recv();
+        select(Box::pin(crtl_c_fut), Box::pin(sig_term_fut)).await;
+        self.drain(None).await;
+        println!("Database ready to shut down");
     }
     
     async fn save_drain_history(&self) {
