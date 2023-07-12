@@ -18,11 +18,11 @@ pub struct Args {
     pub ipfs_rpc: String,
 
     /// Enables getting peers from IPFS
-    #[arg(long, default_value = "true", action = Set)]
+    #[arg(long, default_value = "false", action = Set)]
     pub ipfs_peers_enabled: bool,
 
     /// Census public RPC url
-    #[arg(long, default_value = "http://localhost:14364")]
+    #[arg(long, default_value = "https://census.admarus.net")]
     pub census_rpc: String,
 
     /// Enables census RPC server
