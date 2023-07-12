@@ -68,9 +68,9 @@ pub async fn resolve_external_addrs(addrs: &mut Vec<String>, dns_provider: Socke
     for i in (0..addrs.len()).rev() {
         let addr = &addrs[i];
         if addr.parse::<SocketAddr>().is_err() {
-            let Ok(name) = Name::from_str(addr) else {
+            let addr = addrs.remove(i);
+            let Ok(name) = Name::from_str(&addr) else {
                 error!("Invalid external addr (neither an IP address nor a valid DNS name): {addr}");
-                addrs.remove(i);
                 continue;
             };
             let a_query = client.query(name.clone(), DNSClass::IN, RecordType::A);
