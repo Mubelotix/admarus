@@ -40,8 +40,34 @@ impl HtmlDocument {
         let document = &self.parsed;
         let body_selector = Selector::parse("body").unwrap();
         let body_el = document.select(&body_selector).next();
-        let body = body_el.map(|el| el.text().collect::<Vec<_>>().join(" ")).unwrap_or_default();
-        let words = body.to_lowercase().split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_string()).collect();
+                
+        fn list_words(el: ElementRef, words: &mut Vec<String>) {
+            if ["script", "style"].contains(&el.value().name()) {
+                return;
+            }
+            for child in el.children() {
+                match child.value() {
+                    scraper::node::Node::Element(_) => {
+                        let child_ref = ElementRef::wrap(child).unwrap();
+                        list_words(child_ref, words)
+                    },
+                    scraper::node::Node::Text(text) => {
+                        let text = text.to_lowercase();
+                        words.extend(text
+                            .split(|c: char| !c.is_ascii_alphanumeric())
+                            .filter(|w| w.len() >= 3)
+                            .map(|w| w.to_string()))
+                    },
+                    _ => (),
+                }
+            }
+
+        }
+
+        let mut words = Vec::new();
+        if let Some(body_el) = body_el {
+            list_words(body_el, &mut words);
+        }
 
         // Get lang
         let html_selector = Selector::parse("html").unwrap();
