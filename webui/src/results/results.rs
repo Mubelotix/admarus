@@ -150,7 +150,7 @@ impl Component for ResultsPage {
         let description_iter = results.iter().map(|(result,_)| result.view_desc(query.unwrap()));
 
         // Scores
-        let display_scores = true;
+        let display_scores = cfg!(debug_assertions);
         let term_frequency_score_iter = results.iter().map(|(_, scores)| scores.tf_score);
         let variety_score_iter = results.iter().map(|(_, scores)| scores.variety_score);
         let length_score_iter = results.iter().map(|(_, scores)| scores.length_score);
