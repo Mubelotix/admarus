@@ -1,15 +1,18 @@
 #search-bar {
     width: 38rem;
     height: 3rem;
+    padding: 0 0 0 1rem;
+    box-sizing: border-box;
+    max-width: 95%;
     flex-shrink: 0;
-    background-color: #fefefe;
     border: 1px solid #ccc;
+
     border-radius: .3rem;
+    background-color: #fefefe;
     cursor: text;
     box-shadow: 0 .2rem .75rem rgba(0, 0, 0, .07);
     display: flex;
     align-items: center;
-    padding: 0 0 0 1rem;
 }
 
 #search-bar:hover, #search-bar:focus-within {
@@ -18,8 +21,8 @@
 
 #search-bar>input {
     all: unset;
-    flex-grow: 1;
     height: 100%;
+    width: 100%;
     font-size: 1.3rem;
 }
 
