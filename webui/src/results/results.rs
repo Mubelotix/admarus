@@ -7,6 +7,7 @@ pub struct ResultsPageProps {
     pub app_link: AppLink,
     pub query: Rc<String>,
     pub conn_status: Rc<ConnectionStatus>,
+    pub onchange_conn_status: Callback<ConnectionStatus>,
 }
 
 impl PartialEq for ResultsPageProps {
@@ -155,6 +156,10 @@ impl Component for ResultsPage {
         let length_score_iter = results.iter().map(|(_, scores)| scores.length_score);
         let lang_score_iter = results.iter().map(|(_, scores)| scores.lang_score);
         let popularity_score_iter = results.iter().map(|(_, scores)| scores.popularity_score);
+
+        // Connection status
+        let conn_status = Rc::clone(&ctx.props().conn_status);
+        let onchange_conn_status = ctx.props().onchange_conn_status.clone();
 
         template_html!(
             "results/results.html",
