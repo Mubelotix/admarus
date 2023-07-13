@@ -13,41 +13,78 @@
     <link rel="stylesheet" href="src/components/connection_status/connection_status.css" />
 </head>
 <body>
-    <main id="search-page">
-        <section>
-            <div id="above-bar">
-                <div id="header">
-                    <a id="github-link" href="https://github.com/Mubelotix/Admarus"><img src="assets/github.svg"/>Admarus</a>
-                    <div id="connection-status">
-                        <div>daemon</div>
-                        <div id="connection-status-indicator" class="spinner"></div>
-                    </div>
-                    <button id="settings-button"><img src="assets/settings.svg"/></button>
-                </div>
+    <main id="results-page">
+        <div id="results-header">
+            <div id="first-header-row">
+                <h1 onclick={{onclick_home}}>Admarus</h1>
+                <img src="assets/logo.png" onclick={{onclick_home}} />
+                <div id="search-bar">
+                    <input value={{value}} oninput={{oninput}} type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
+                    <button onclick={{onclick_search}}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
+                </div>                
                 <div class="grower-separator"></div>
-                <img id="logo" src="assets/logo.png"/>
-                <h1>Admarus</h1>
-                <p>The Peer-to-Peer Search Engine</p>
-            </div>
-            <div id="search-bar">
-                <input type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
-                <button>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                </button>
-            </div>            
-            <div id="below-bar">
-                <div id="buttons">
-                    <button>Join the network</button>
-                    <button>I'm feeling lucky</button>
+                <div id="connection-status">
+                    <div>{{target}}</div>
+                    <div present-if={{connecting}} id="connection-status-indicator" class="spinner"></div>
                 </div>
-                <div class="grower-separator"></div>
-                <div id="stats">
-                    <div>3475 documents</div>
-                    <div>27 nodes</div>
+                <button id="settings-button" onclick={{onclick_settings}}><svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
+            </div>
+            <div id="result-selectors">
+                <div class="selected">
+                    <img src="assets/globe.svg"/>
+                    <span>All</span>
+                </div>
+                <div>
+                    <img src="assets/document.svg"/>
+                    <span>Documents</span>
+                </div>
+                <div>
+                    <img src="assets/image.svg"/>
+                    <span>Images</span>
+                </div>
+                <div>
+                    <img src="assets/video.svg"/>
+                    <div>Videos</div>
                 </div>
             </div>
-        </section>
-    </main>
+        </div>
+        <div id="result-list">
+            <p id="result-counter" opt>{{opt_result_counter}}</p>
+            <div class="search-error" opt>
+                <h3>{{opt_error_title}}</h3>
+                Here is what you can do:
+                <ul>
+                    <li iter>{{error_recommandation_iter}}</li>
+                </ul>
+                <h4>Details :</h4>
+                <p>{{opt_error_details}}</p>
+            </div>
+            <div present-if={{no_results}} class="search-error">
+                <h3>This query yields no results.</h3>
+                Here is what you can do:
+                <ul>
+                    <li>Check that your daemon is connected to the network</li>
+                    <li present-if={{many_keywords}}>Remove keywords. The more keywords you enter, the fewer results you will get</li>
+                    <li>Try another query. Here is a random one we know will work:&nbsp;<a onclick={{onclick_lucky}}>{{lucky_query}}</a></li>
+                    <li>Contribute to the network by adding your own content!</li>
+                </ul>
+            </div>
+            <div class="result" iter>
+                <h3><a href="{{addr_iter}}">{{title_iter}}</a></h3>
+                <div class="result-path">{{addr2_iter}}</div>
+                <p>{{description_iter}}</p>
+                <div present-if={{display_scores}} class="result-scores">
+                    <span>Frequency: {{term_frequency_score_iter}}</span>
+                    <span>Variety: {{variety_score_iter}}</span>
+                    <span>Lenght: {{length_score_iter}}</span>
+                    <span>Lang: {{lang_score_iter}}</span>
+                    <span>Popularity: {{popularity_score_iter}}</span>
+                </div>
+            </div>
+        </div>
+    </main>    
     <script>
         // https://css-tricks.com/the-trick-to-viewport-units-on-mobile/
         let vh = window.innerHeight * 0.01;

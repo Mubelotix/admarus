@@ -145,7 +145,8 @@ impl Component for ResultsPage {
         let error_recommandation_iter = error_recommandations.into_iter();
 
         // Results
-        let addr_iter = results.iter().map(|(result,_)| result.format_best_addr()).collect::<Vec<_>>();
+        let addr_iter = results.iter().map(|(result,_)| result.format_best_addr());
+        let href_iter = results.iter().map(|(result,_)| result.format_best_href());
         let title_iter = results.iter().map(|(result,_)| result.format_result_title());
         let description_iter = results.iter().map(|(result,_)| result.view_desc(query.unwrap()));
 
@@ -164,8 +165,6 @@ impl Component for ResultsPage {
         template_html!(
             "results/results.html",
             onclick_home = { onclick_home.clone() },
-            addr_iter = { addr_iter.clone().into_iter() },
-            addr2_iter = { addr_iter.iter() },
             ...
         )
     }

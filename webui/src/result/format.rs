@@ -36,6 +36,27 @@ impl DocumentResult {
         }
     }
 
+    pub fn format_best_href(&self) -> String {
+        let mut best_addr = match self.paths.first() {
+            Some(f) => f.clone(),
+            None => return format!("https://{}.ipfs.dweb.link/", self.cid),
+        };
+
+        if best_addr.last().map(|l| l == "index.html").unwrap_or(false) {
+            best_addr.truncate(best_addr.len() - 1);
+        }
+
+        match best_addr.first().map(|f| f.contains('.')).unwrap_or(false) {
+            true => {
+                let mut domain = best_addr.remove(0);
+                domain = domain.replace('-', "--");
+                domain = domain.replace('.', "-");
+                format!("https://{domain}.ipns.dweb.link/{}", best_addr.join("/"))
+            },
+            false => format!("ipfs://{}", best_addr.join("/")),
+        }
+    }
+
     pub fn view_desc(&self, query: &Query) -> VList {
         // TODO: this is a copy of daemon code
         fn extract_score(extract: &str, query: &[&String]) -> usize {
