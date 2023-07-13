@@ -50,7 +50,7 @@ impl Component for App {
                 <SearchPage
                     app_link={ctx.link().clone()}
                     conn_status={Rc::clone(&self.conn_status)}
-                    onchange_conn_status={ctx.link().callback(|conn_status| AppMsg::ConnectionStatusChanged(conn_status))} />
+                    onchange_conn_status={ctx.link().callback(AppMsg::ConnectionStatusChanged)} />
             ),
             Page::Settings => html!(<SettingsPage app_link={ctx.link().clone()} />),
             Page::Results(ref query) => html!(<ResultsPage app_link={ctx.link().clone()} query={Rc::clone(query)} />),
