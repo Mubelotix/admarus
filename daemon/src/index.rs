@@ -138,10 +138,10 @@ impl<const N: usize> DocumentIndexInner<N> {
                 let lcid = LocalCid(self.cid_counter);
                 self.cid_counter += 1;
                 self.cids.insert(lcid, folder_cid.clone());
-                self.folders.insert(lcid);
                 lcid
             }
         };
+        self.folders.insert(ancestor_lcid);
 
         self.ancestors.entry(lcid).or_default().insert(ancestor_lcid, name);
     }
