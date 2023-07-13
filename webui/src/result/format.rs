@@ -53,7 +53,11 @@ impl DocumentResult {
                 domain = domain.replace('.', "-");
                 format!("https://{domain}.ipns.dweb.link/{}", best_addr.join("/"))
             },
-            false => format!("ipfs://{}", best_addr.join("/")),
+            false if !best_addr.is_empty() => {
+                let first = best_addr.remove(0);
+                format!("https://{first}.ipfs.dweb.link/{}", best_addr[1..].join("/"))
+            }
+            false => format!("https://{}.ipfs.dweb.link/", self.cid),
         }
     }
 
