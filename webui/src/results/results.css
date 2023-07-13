@@ -155,3 +155,44 @@
     font-size: .9rem;
     color: #666;
 }
+
+/* Mobile view */
+
+@media all and (max-width: 800px) {
+    #results-page #search-bar {
+        position: absolute;
+        top: 4rem;
+        left: 1rem;
+        width: calc(100% - 2rem);
+    }
+
+    #results-page #first-header-row {
+        padding: 0 1rem 4rem 1rem;
+    }
+
+    #results-page #first-header-row>h1 {
+        width: unset;
+    }
+
+    #results-page #connection-status {
+        order: 1;
+    }
+
+    #results-page #settings-button {
+        order: 2;
+    }
+
+    #result-selectors {
+        padding-left: 1rem;
+    }
+
+    #result-list {
+        margin-left: 1rem;
+        margin-right: 1rem;
+    }
+
+    .result {
+        width: 100%;
+        overflow: auto;
+    }
+}
