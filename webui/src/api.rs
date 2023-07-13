@@ -131,14 +131,14 @@ async fn api_custom_method<I: Serialize, O: DeserializeOwned>(endpoint: impl AsR
     }
 }
 
-pub async fn search(query: impl AsRef<str>) -> Result<ApiSearchResponse, ApiError> {
-    get(format!("http://localhost:5002/search?q={}", url_encode(query.as_ref()))).await
+pub async fn search(rpc_addr: &str, query: impl AsRef<str>) -> Result<ApiSearchResponse, ApiError> {
+    get(format!("{rpc_addr}/search?q={}", url_encode(query.as_ref()))).await
 }
 
-pub async fn fetch_results(id: u64) -> Result<Vec<(DocumentResult, String)>, ApiError> {
-    get(format!("http://localhost:5002/fetch-results?id={id}")).await
+pub async fn fetch_results(rpc_addr: &str, id: u64) -> Result<Vec<(DocumentResult, String)>, ApiError> {
+    get(format!("{rpc_addr}/fetch-results?id={id}")).await
 }
 
-pub async fn get_api_version() -> Result<u64, ApiError> {
-    get::<ApiVersionResponse>("http://localhost:5002/version").await.map(|r| r.version)
+pub async fn get_api_version(rpc_addr: &str) -> Result<u64, ApiError> {
+    get::<ApiVersionResponse>(format!("{rpc_addr}/version")).await.map(|r| r.version)
 }

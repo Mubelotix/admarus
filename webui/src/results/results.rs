@@ -6,11 +6,12 @@ use crate::prelude::*;
 pub struct ResultsPageProps {
     pub app_link: AppLink,
     pub query: Rc<String>,
+    pub conn_status: Rc<ConnectionStatus>,
 }
 
 impl PartialEq for ResultsPageProps {
     fn eq(&self, other: &Self) -> bool {
-        self.query == other.query
+        self.query == other.query && self.conn_status == other.conn_status
     }
 }
 
@@ -36,8 +37,9 @@ impl Component for ResultsPage {
     fn create(ctx: &Context<Self>) -> Self {
         let query = Rc::clone(&ctx.props().query);
         let link = ctx.link().clone();
+        let rpc_addr = ctx.props().conn_status.rpc_addr();
         spawn_local(async move {
-            match search(query.as_ref()).await {
+            match search(rpc_addr, query.as_ref()).await {
                 Ok(id) => link.send_message(ResultsMessage::SearchSuccess(id)),
                 Err(e) => link.send_message(ResultsMessage::SearchFailure(e)),
             }
@@ -57,9 +59,10 @@ impl Component for ResultsPage {
             ResultsMessage::SearchSuccess(resp) => {
                 let link = ctx.link().clone();
                 self.search_data = Some((resp.id, resp.query));
+                let rpc_addr = ctx.props().conn_status.rpc_addr();
                 spawn_local(async move {
                     sleep(Duration::from_millis(100)).await;
-                    match fetch_results(resp.id).await {
+                    match fetch_results(rpc_addr, resp.id).await {
                         Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
                         Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
                     }
@@ -78,13 +81,14 @@ impl Component for ResultsPage {
 
                 let link = ctx.link().clone();
                 let update_counter = self.update_counter;
+                let rpc_addr = ctx.props().conn_status.rpc_addr();
                 spawn_local(async move {
                     match update_counter {
                         0..=10 => sleep(Duration::from_millis(100)).await,
                         11..=20 => sleep(Duration::from_millis(300)).await,
                         _ => sleep(Duration::from_secs(1)).await,
                     }
-                    match fetch_results(search_id).await {
+                    match fetch_results(rpc_addr, search_id).await {
                         Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
                         Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
                     }

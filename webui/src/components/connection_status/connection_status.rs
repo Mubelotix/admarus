@@ -9,6 +9,16 @@ pub struct ConnectionStatus {
     pub gateway: Option<Result<(), String>>,
 }
 
+impl ConnectionStatus {
+    pub fn rpc_addr(&self) -> &'static str {
+        match self {
+            ConnectionStatus { daemon: Some(Ok(_)), .. } => "http://127.0.0.1:5002",
+            ConnectionStatus { gateway: Some(Ok(_)), .. } => "https://gateway.admarus.net",
+            _ => "http://127.0.0.1:5002",
+        }
+    }
+}
+
 #[derive(Debug, PartialEq, Properties)]
 pub struct ConnectionStatusProps {
     pub conn_status: Rc<ConnectionStatus>,
@@ -28,7 +38,7 @@ impl Component for ConnectionStatusComp {
             ConnectionStatus { daemon: None, .. } => {
                 let onchange = ctx.props().onchange.clone();
                 spawn_local(async move {
-                    match get_api_version().await {
+                    match get_api_version("http://127.0.0.1:5002").await {
                         Ok(0) => {
                             onchange.emit(ConnectionStatus {
                                 daemon: Some(Ok(())),
@@ -54,7 +64,7 @@ impl Component for ConnectionStatusComp {
                 let daemon = Some(Err(daemon_error.clone()));
                 let onchange = ctx.props().onchange.clone();
                 spawn_local(async move {
-                    match get_api_version().await {
+                    match get_api_version("https://gateway.admarus.net").await {
                         Ok(0) => {
                             onchange.emit(ConnectionStatus {
                                 daemon,
@@ -82,11 +92,16 @@ impl Component for ConnectionStatusComp {
         Self {}
     }
 
+    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
+        *self = Component::create(ctx);
+        true
+    }
+
     fn view(&self, ctx: &Context<Self>) -> Html {
         let (target, connected, connecting, error) = match ctx.props().conn_status.deref() {
-            ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Err(_)) } => ("gateway", false, false, true),
-            ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Ok(_)) } => ("gateway", false, true, false),
-            ConnectionStatus { daemon: Some(Err(_)), gateway: None } => ("gateway", true, false, false),
+            ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Err(_)) } => ("disconnected", false, false, true),
+            ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Ok(_)) } => ("gateway", true, false, false),
+            ConnectionStatus { daemon: Some(Err(_)), gateway: None } => ("gateway", false, true, false),
             ConnectionStatus { daemon: Some(Ok(_)), .. } => ("daemon", true, false, false),
             ConnectionStatus { daemon: None, .. } => ("daemon", false, true, false),
         };
