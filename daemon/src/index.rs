@@ -190,7 +190,9 @@ impl<const N: usize> DocumentIndexInner<N> {
                         let (domain, path_start) = (domain.to_owned(), path_start.to_owned());
                         path[0] = domain;
                         for path_part in path_start.split('/').rev() {
-                            path.insert(1, path_part.to_owned());
+                            if !path_part.is_empty() {
+                                path.insert(1, path_part.to_owned());
+                            }
                         }
                         final_paths.push(path);
                         continue;
