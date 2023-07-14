@@ -72,7 +72,7 @@ h1~p {
     flex-direction: row;
 }
 
-#buttons>button {
+#buttons>* {
     all: unset;
     background-color: #eaeaea;
     border-radius: .3rem;
@@ -82,7 +82,7 @@ h1~p {
     border: 2px solid #eaeaea;
 }
 
-#buttons>button:hover {
+#buttons>*:hover {
     transition: border-color .2s;
     border: 2px solid #ccc;
 }
