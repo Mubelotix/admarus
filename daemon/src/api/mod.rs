@@ -52,7 +52,7 @@ impl SearchPark {
                 let Some(search) = searches.get_mut(&id) else {break};
                 search.providers.entry(document.cid.clone()).or_insert_with(Vec::new).push((peer_id, addresses));
                 search.results.push((document, peer_id));
-                if search.last_fetch.elapsed() > Duration::from_secs(60) {
+                if search.last_fetch.elapsed() > Duration::from_secs(7) {
                     searches.remove(&id);
                     trace!("Search {id} expired");
                     break;
