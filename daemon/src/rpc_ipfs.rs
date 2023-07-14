@@ -94,7 +94,7 @@ pub async fn ls(ipfs_rpc: &str, parent_cid: String) -> Result<Vec<(String, Strin
                 .get("Type").ok_or(InvalidResponse("Type expected on link"))?
                 .as_u64().ok_or(InvalidResponse("Type expected to be a number"))?;
 
-            rep.push((child_cid.to_owned(), name.to_string(), ty == 2));
+            rep.push((child_cid.to_owned(), name.to_string(), ty == 1));
         }
     }
 

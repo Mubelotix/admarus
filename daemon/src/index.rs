@@ -104,6 +104,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
         self.cids.insert(lcid, cid);
+        self.folders.remove(&lcid);
 
         // Index by words
         let (words, filters) = document.into_parts();
@@ -128,6 +129,7 @@ impl<const N: usize> DocumentIndexInner<N> {
                 let lcid = LocalCid(self.cid_counter);
                 self.cid_counter += 1;
                 self.cids.insert(lcid, cid.clone());
+                self.folders.insert(lcid);
                 lcid
             }
         };
@@ -294,11 +296,11 @@ impl <const N: usize> DocumentIndex<N> {
                 };
 
                 // Handle content
-                for (child_cid, child_name, child_is_file) in new_links {
-                    if !child_is_file && !listed_folders.contains(&child_cid) {
+                for (child_cid, child_name, child_is_folder) in new_links {
+                    if child_is_folder && !listed_folders.contains(&child_cid) {
                         pinned.push(child_cid.clone());
                     }
-                    if child_is_file && !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
+                    if !child_is_folder && !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
                         let document = match fetch_document(ipfs_rpc, &child_cid).await {
                             Ok(document) => document,
                             Err(e) => {
