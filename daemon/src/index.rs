@@ -181,12 +181,17 @@ impl<const N: usize> DocumentIndexInner<N> {
         // Resolve the root cid to build final paths
         let mut final_paths = Vec::new();
         for (root, mut path) in paths {
-            if let Some(first) = path.first_mut() {
+            if let Some(first) = path.first() {
                 if first.starts_with("dns-pin-") {
-                    let domain_number = first.split_at(8).1;
-                    if let Some(i) = domain_number.bytes().rposition(|c| c == b'-') {
-                        let domain = domain_number.split_at(i).0;
-                        *first = domain.to_owned();
+                    let dns_pin_with_suffix = first.split_at(8).1;
+                    if let Some(i) = dns_pin_with_suffix.bytes().rposition(|c| c == b'-') {
+                        let dns_pin = dns_pin_with_suffix.split_at(i).0;
+                        let (domain, path_start) = dns_pin.split_once('/').unwrap_or((dns_pin, "/"));
+                        let (domain, path_start) = (domain.to_owned(), path_start.to_owned());
+                        path[0] = domain;
+                        for path_part in path_start.split('/').rev() {
+                            path.insert(1, path_part.to_owned());
+                        }
                         final_paths.push(path);
                         continue;
                     }

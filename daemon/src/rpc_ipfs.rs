@@ -53,6 +53,18 @@ pub async fn get_dag(ipfs_rpc: &str, cid: &str) -> Result<serde_json::Value, Ipf
     Ok(rep)
 }
 
+pub async fn resolve(ipfs_rpc: &str, path: &str) -> Result<String, IpfsRpcError> {
+    let client = Client::new();
+    let rep = client.post(format!("{ipfs_rpc}/api/v0/dag/resolve?arg={path}")).send().await?;
+    let rep = rep.text().await?;
+    let rep = serde_json::from_str::<serde_json::Value>(&rep)?;
+    let cid = rep
+        .get("Cid").ok_or(InvalidResponse("Cid expected on data"))?
+        .get("/").ok_or(InvalidResponse("/ expected on Cid"))?
+        .as_str().ok_or(InvalidResponse("Cid expected to be a string"))?;
+    Ok(cid.to_owned())
+}
+
 pub async fn ls(ipfs_rpc: &str, parent_cid: String) -> Result<Vec<(String, String, bool)>, IpfsRpcError> {
     // TODO: streaming
 

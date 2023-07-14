@@ -12,7 +12,6 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         warn!("Your dns_pins_interval is too low. Increasing to 3 minutes.");
         dns_pins_interval = 60*3;
     }
-    let dns_provider: SocketAddr = config.dns_provider.parse().expect("Invalid DNS provider address");
 
     // Find old pins and look for the previous DNS pins
     let old_pins = match list_pinned(&config.ipfs_rpc).await {
@@ -43,59 +42,19 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
     loop {
         let start = Instant::now();
 
-        // Init DNS client
-        trace!("Initializing DNS client ({})", dns_provider);
-        let (stream, sender) = TcpClientStream::<AsyncIoTokioAsStd<TokioTcpStream>>::new(dns_provider);
-        let client = AsyncClient::new(stream, sender, None);
-        let Ok((mut client, bg)) = client.await else {
-            error!("Failed to connect to DNS provider");
-            sleep(Duration::from_secs(dns_pins_interval)).await;
-            continue;
-        };
-        tokio::spawn(bg);
-
-        // Launch queries
-        trace!("Sending {} DNS queries", config.dns_pins.len());
-        let mut queries = Vec::new();
-        for dns_pin in &config.dns_pins {
-            let dnslink_domain = format!("_dnslink.{dns_pin}");
-            let Ok(name) = Name::from_str(&dnslink_domain) else {
-                warn!("Invalid DNS pin name: {dns_pin}");
-                continue;
-            };
-            let query = client.query(
-                name,
-                DNSClass::IN,
-                RecordType::TXT,
-           );
-            queries.push(query);
-        }
-        let results = join_all(queries).await;
-
-        // Read answers
-        trace!("Reading DNS answers");
+        // Resolve DNS pins
+        trace!("Resolving {} DNS pins", config.dns_pins.len());
         let mut values = HashMap::new();
-        for (domain, result) in zip(config.dns_pins.iter(), results.into_iter()) {
-            let response = match result {
-                Ok(response) => response,
+        for dns_pin in &config.dns_pins {
+            let path = format!("/ipns/{dns_pin}");
+            let cid = match resolve(&config.ipfs_rpc, &path).await {
+                Ok(cid) => cid,
                 Err(err) => {
-                    warn!("Failed to query DNS pin {domain}: {err}");
+                    error!("Failed to resolve DNS pin {dns_pin}: {err}");
                     continue;
                 }
             };
-            for answer in response.answers() {
-                if let Some(RData::TXT(txt_data)) = answer.data() {
-                    let mut value = String::new();
-                    for data in txt_data.txt_data() {
-                        value.push_str(&String::from_utf8_lossy(data));
-                    }
-                    if !value.starts_with("dnslink=/ipfs/") {
-                        continue;
-                    }
-                    value = value.trim_start_matches("dnslink=/ipfs/").to_string();
-                    values.entry(domain).or_insert_with(Vec::new).push(value);
-                }
-            }
+            values.entry(dns_pin).or_insert_with(Vec::new).push(cid);
         }
         for values in values.values_mut() {
             values.sort();
@@ -109,9 +68,9 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         // Add dag to IPFS
         trace!("Adding DAG with {} pins to IPFS", values.len());
         let mut dag_json = String::from(r#"{"Data":{"/":{"bytes":"CAE"}},"Links":["#);
-        for (domain, cids) in values {
+        for (dns_pin, cids) in values {
             for (i, cid) in cids.iter().enumerate() {
-                dag_json.push_str(&format!(r#"{{"Hash":{{"/":"{cid}"}},"Name":"dns-pin-{domain}-{i}"}}"#));
+                dag_json.push_str(&format!(r#"{{"Hash":{{"/":"{cid}"}},"Name":"dns-pin-{dns_pin}-{i}"}}"#));
             }
         }
         dag_json.push_str("]}");
