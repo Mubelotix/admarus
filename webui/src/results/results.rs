@@ -27,7 +27,7 @@ pub struct ResultsPage {
 pub enum ResultsMessage {
     SearchSuccess(ApiSearchResponse),
     SearchFailure(ApiError),
-    FetchResultsSuccess(Vec<(DocumentResult, String)>),
+    FetchResultsSuccess { search_id: u64, results: Vec<(DocumentResult, String)> },
     FetchResultsFailure(ApiError),
 }
 
@@ -64,15 +64,16 @@ impl Component for ResultsPage {
                 spawn_local(async move {
                     sleep(Duration::from_millis(100)).await;
                     match fetch_results(rpc_addr, resp.id).await {
-                        Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
+                        Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess { search_id: resp.id, results }),
                         Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
                     }
                 });
                 false
             }
-            ResultsMessage::FetchResultsSuccess(results) => {
+            ResultsMessage::FetchResultsSuccess { search_id: results_search_id, results } => {
                 let Some((search_id, query)) = &self.search_data else { return false };
                 let search_id = *search_id;
+                if results_search_id != search_id { return false };
 
                 self.update_counter += 1;
                 for (result, provider) in results {
@@ -90,7 +91,7 @@ impl Component for ResultsPage {
                         _ => sleep(Duration::from_secs(1)).await,
                     }
                     match fetch_results(rpc_addr, search_id).await {
-                        Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess(results)),
+                        Ok(results) => link.send_message(ResultsMessage::FetchResultsSuccess { search_id, results }),
                         Err(e) => link.send_message(ResultsMessage::FetchResultsFailure(e)),
                     }
                 });
