@@ -15,6 +15,7 @@ async fn main() {
         App::new()
             .service(submit_record)
             .service(get_peers)
+            .service(get_stats)
         })
         .bind(("127.0.0.1", 14364)).expect("Can not bind to address")
         .run();
