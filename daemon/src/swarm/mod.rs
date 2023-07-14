@@ -219,7 +219,7 @@ impl SwarmManager {
         let mut known_peers = self.known_peers.write().await;
         let dial_attempts = self.dial_attemps.read().await;
         let mut connected_peers = self.connected_peers.write().await;
-        connected_peers.insert(peer_id, ConnectedPeerInfo {
+        connected_peers.entry(peer_id).or_insert(ConnectedPeerInfo {
             selected: false,
             seeding: false,
             leeching: false,
