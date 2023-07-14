@@ -47,7 +47,9 @@ pub(super) fn build_comp(ident: IdentRef<Ident>) -> QueryComp {
             }
         },
         Rule::quick_or_comp => {
-            let words = ident.children().map(|c| c.children().map(|c| c.as_str()).collect::<Vec<_>>().join(""));
+            let words = ident.children().map(|c| 
+                c.children().map(|c| c.as_str()).collect::<Vec<_>>().join("").to_lowercase()
+            );
             QueryComp::NAmong {
                 n: 1,
                 among: words.map(QueryComp::Word).collect::<Vec<_>>(),
