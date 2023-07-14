@@ -31,7 +31,7 @@ struct DocumentIndexInner<const N: usize> {
     cid_counter: u32,
     cids: BiHashMap<LocalCid, String>,
 
-    index: HashMap<String, HashMap<LocalCid, f64>>,
+    index: HashMap<String, HashMap<LocalCid, f32>>,
     filters: HashMap<(String, String), Vec<LocalCid>>,
 }
 
@@ -111,7 +111,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         let word_count = words.len() as f64;
         for word in words {
             let frequencies = self.index.entry(word.clone()).or_default();
-            *frequencies.entry(lcid).or_insert(0.) += 1. / word_count;
+            *frequencies.entry(lcid).or_insert(0.) += 1. / word_count as f32;
             self.filter.add_word::<DocumentIndex<N>>(&word);
         }
         
