@@ -310,7 +310,7 @@ impl <const N: usize> DocumentIndex<N> {
                         };
                         fetched_documents.insert(child_cid.clone());
                         if fetched_documents.len() % 500 == 0 {
-                            debug!("{} documents yet ({:02}s)", self.document_count().await, start.elapsed().as_secs_f32());
+                            debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
                         }
                         if let Some(document) = document {
                             self.add_document(child_cid.clone(), document).await;
