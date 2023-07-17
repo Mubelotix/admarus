@@ -241,6 +241,7 @@ dependencies = [
  "faster-pest",
  "futures",
  "kamilata",
+ "libipld",
  "libp2p",
  "libp2p-identify",
  "log",

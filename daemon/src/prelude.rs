@@ -37,6 +37,7 @@ pub use libp2p::{
     core::{identity::Keypair, upgrade},
     PeerId, Multiaddr, multiaddr::Protocol, tcp, Transport, mplex::MplexConfig, noise
 };
+pub use libipld::cid::Cid;
 pub use futures::{
     future::{BoxFuture, join_all, Either},
     stream::{FuturesUnordered, StreamExt, Stream},

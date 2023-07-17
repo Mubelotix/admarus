@@ -94,7 +94,8 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.filter_needs_update = false;
     }
 
-    pub fn add_document(&mut self, cid: String, document: Document) {
+    pub fn add_document(&mut self, cid: Cid, document: Document) {
+        let cid = cid.to_string();
         if self.cids.contains_right(&cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
@@ -313,7 +314,9 @@ impl <const N: usize> DocumentIndex<N> {
                             debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
                         }
                         if let Some(document) = document {
-                            self.add_document(child_cid.clone(), document).await;
+                            let Ok(child_cid) = Cid::try_from(child_cid.as_str()) else {continue};
+                            let Ok(child_cid_v1) = child_cid.into_v1() else {continue};
+                            self.add_document(child_cid_v1, document).await;
                         }
                     } else {
                         unprioritized_documents.insert(child_cid.clone());
@@ -364,7 +367,7 @@ impl <const N: usize> DocumentIndex<N> {
         self.inner.read().await.document_count()
     }
 
-    pub async fn add_document(&self, cid: String, document: Document) {
+    pub async fn add_document(&self, cid: Cid, document: Document) {
         self.inner.write().await.add_document(cid, document);
     }
 
