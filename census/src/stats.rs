@@ -90,7 +90,7 @@ impl Db {
 
         // Start by using the data that's in Db before it expires
         let now = now_ts();
-        let first_drain_24h = self.drain_history.read().await.iter().position(|ts| *ts > now - 86400);
+        let first_drain_24h = self.drain_history.read().await.iter().position(|ts| *ts > now - 2*86400);
         let first_drain = first_drain_24h.map(|i| i - 1);
         let drain_len = self.drain_history.read().await.len();
         let current_records = self.records.read().await.clone();
