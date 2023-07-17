@@ -94,9 +94,8 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.filter_needs_update = false;
     }
 
-    pub fn add_document(&mut self, cid: Cid, document: Document) {
-        let cid = cid.to_string();
-        if self.cids.contains_right(&cid) {
+    pub fn add_document(&mut self, cid: &String, document: Document) {
+        if self.cids.contains_right(cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
         }
@@ -104,7 +103,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         // Store cid
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
-        self.cids.insert(lcid, cid);
+        self.cids.insert(lcid, cid.to_owned());
         self.folders.remove(&lcid);
 
         // Index by words
@@ -298,10 +297,16 @@ impl <const N: usize> DocumentIndex<N> {
 
                 // Handle content
                 for (child_cid, child_name, child_is_folder) in new_links {
-                    if child_is_folder && !listed_folders.contains(&child_cid) {
-                        pinned.push(child_cid.clone());
-                    }
-                    if !child_is_folder && !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
+                    let Ok(child_cid) = Cid::try_from(child_cid.as_str()) else {continue};
+                    let Ok(child_cid) = child_cid.into_v1() else {continue};
+                    let child_cid = child_cid.to_string();
+
+                    if child_is_folder {
+                        if !listed_folders.contains(&child_cid) {
+                            pinned.push(child_cid.clone());
+                        }
+                        self.add_ancestor(&child_cid, child_name, &parent_cid).await;
+                    } else if !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
                         let document = match fetch_document(ipfs_rpc, &child_cid).await {
                             Ok(document) => document,
                             Err(e) => {
@@ -314,14 +319,12 @@ impl <const N: usize> DocumentIndex<N> {
                             debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
                         }
                         if let Some(document) = document {
-                            let Ok(child_cid) = Cid::try_from(child_cid.as_str()) else {continue};
-                            let Ok(child_cid_v1) = child_cid.into_v1() else {continue};
-                            self.add_document(child_cid_v1, document).await;
-                        }
+                            self.add_document(&child_cid, document).await;
+                            self.add_ancestor(&child_cid, child_name, &parent_cid).await;
+                        }    
                     } else {
                         unprioritized_documents.insert(child_cid.clone());
                     }
-                    self.add_ancestor(&child_cid, child_name, &parent_cid).await;
                 }
             }
             let mut document_count = self.document_count().await;
@@ -367,7 +370,7 @@ impl <const N: usize> DocumentIndex<N> {
         self.inner.read().await.document_count()
     }
 
-    pub async fn add_document(&self, cid: Cid, document: Document) {
+    pub async fn add_document(&self, cid: &String, document: Document) {
         self.inner.write().await.add_document(cid, document);
     }
 
