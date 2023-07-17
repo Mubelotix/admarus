@@ -8,4 +8,4 @@ pub(crate) use sha2_derive::Hashable;
 pub(crate) use libp2p::core::identity::PublicKey;
 pub(crate) use futures::future::select;
 
-pub(crate) fn now_ts() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs() }
+pub(crate) fn now_ts() -> u64 { SystemTime::now().duration_since(UNIX_EPOCH).expect("System time incorrect").as_secs() }

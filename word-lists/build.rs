@@ -3,11 +3,11 @@ fn main() {
     
     // Download words
     let url = "https://norvig.com/ngrams/count_1w.txt";
-    let rep = reqwest::blocking::get(url).unwrap();
+    let rep = reqwest::blocking::get(url).expect("Could not download wordlist");
 
     // Keep most common 5000 words
     let mut words = Vec::new();
-    for line in rep.text().unwrap().lines() {
+    for line in rep.text().expect("Invalid data").lines() {
         let Some(word) = line.split_once('\t').map(|(w, _)| w) else {continue};
         words.push(word.to_string());
         if words.len() >= 5000 {
@@ -27,5 +27,5 @@ fn main() {
     code.push_str("];");
 
     // Write code to file
-    std::fs::write("src/word_lists.rs", code).unwrap();
+    std::fs::write("src/word_lists.rs", code).expect("Could not write word_lists.rs")
 }

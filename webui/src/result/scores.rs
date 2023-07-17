@@ -158,7 +158,7 @@ impl PartialOrd for Score {
 
 impl Ord for Score {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap()
+        self.partial_cmp(other).unwrap_or(Ordering::Equal)
     }
 }
 

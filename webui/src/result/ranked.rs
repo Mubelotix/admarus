@@ -55,12 +55,16 @@ impl RankedResults {
         let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
         let mut all_scores = Vec::new();
         for (cid, _) in self.results.iter() {
-            let tf_score = tf_scores.get(cid).unwrap();
-            let variety_score = self.variety_scores.get(cid).unwrap();
-            let length_score = length_scores.get(cid).unwrap();
-            let lang_score = self.lang_scores.get(cid).unwrap();
-            let popularity_score = Score::from(self.providers.get(cid).unwrap().len() as f64 / max_provider_count);
-            let ipns_score = Score::from(self.results.get(cid).unwrap().has_ipns() as usize as f64);
+            let Some(result) = self.results.get(cid) else {continue};
+            let Some(providers) = self.providers.get(cid) else {continue};
+
+            let Some(tf_score) = tf_scores.get(cid) else {continue};
+            let Some(variety_score) = self.variety_scores.get(cid) else {continue};
+            let Some(length_score) = length_scores.get(cid) else {continue};
+            let Some(lang_score) = self.lang_scores.get(cid) else {continue};
+            let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
+            let ipns_score = Score::from(result.has_ipns() as usize as f64);
+
             let scores = Scores {
                 tf_score: Score::from(*tf_score),
                 variety_score: *variety_score,
@@ -78,6 +82,6 @@ impl RankedResults {
 
     pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, Scores)> {
         let scores = self.get_all_scores();
-        scores.into_iter().rev().map(move |(cid, scores)| (self.results.get(&cid).unwrap(), scores))
+        scores.into_iter().rev().filter_map(|(cid, scores)| self.results.get(&cid).map(|result| (result, scores)))
     }
 }

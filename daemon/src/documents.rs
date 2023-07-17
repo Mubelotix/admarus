@@ -38,7 +38,7 @@ impl HtmlDocument {
 
         // Get words
         let document = &self.parsed;
-        let body_selector = Selector::parse("body").unwrap();
+        let body_selector = Selector::parse("body").expect("Invalid body selector");
         let body_el = document.select(&body_selector).next();
                 
         fn list_words(el: ElementRef, words: &mut Vec<String>) {
@@ -48,7 +48,7 @@ impl HtmlDocument {
             for child in el.children() {
                 match child.value() {
                     scraper::node::Node::Element(_) => {
-                        let child_ref = ElementRef::wrap(child).unwrap();
+                        let child_ref = ElementRef::wrap(child).expect("Child isn't an element");
                         list_words(child_ref, words)
                     },
                     scraper::node::Node::Text(text) => {
@@ -70,7 +70,7 @@ impl HtmlDocument {
         }
 
         // Get lang
-        let html_selector = Selector::parse("html").unwrap();
+        let html_selector = Selector::parse("html").expect("Invalid html selector");
         let html_el = document.select(&html_selector).next();
         let lang = html_el
             .and_then(|el| el.value().attr("lang").map(|lang| lang.trim()))
@@ -87,7 +87,7 @@ impl HtmlDocument {
         let document = &self.parsed;
 
         // Get lang
-        let html_selector = Selector::parse("html").unwrap();
+        let html_selector = Selector::parse("html").expect("Invalid html selector");
         let html_el = document.select(&html_selector).next();
         let lang = html_el
             .and_then(|el| el.value().attr("lang").map(|lang| lang.trim()))
@@ -96,7 +96,7 @@ impl HtmlDocument {
             .unwrap_or(String::from("unknown"));
 
         // Retrieve title
-        let title_selector = Selector::parse("title").unwrap();
+        let title_selector = Selector::parse("title").expect("Invalid title selector");
         let title_el = document.select(&title_selector).next();
         let mut title = title_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
         if title.as_ref().map(|t| t.trim().is_empty()).unwrap_or(false) {
@@ -106,7 +106,7 @@ impl HtmlDocument {
         // Retrieve h1
         let mut h1 = None;
         if title.is_none() {
-            let h1_selector = Selector::parse("h1").unwrap();
+            let h1_selector = Selector::parse("h1").expect("Invalid h1 selector");
             let h1_el = document.select(&h1_selector).next();
             h1 = h1_el.map(|el| el.text().collect::<Vec<_>>().join(" "));
             if h1.as_ref().map(|t| t.trim().is_empty()).unwrap_or(false) {
@@ -119,9 +119,9 @@ impl HtmlDocument {
         }
 
         // Retrieve description
-        let description_selector = Selector::parse("meta[name=description]").unwrap();
+        let description_selector = Selector::parse("meta[name=description]").expect("Invalid description selector");
         let description_el = document.select(&description_selector).next();
-        let description = description_el.map(|el| el.value().attr("content").unwrap().to_string());
+        let description = description_el.and_then(|el| el.value().attr("content").map(|c| c.to_string()));
 
         // Retrieve the most relevant extract
         fn extract_score(extract: &str, query_positive_terms: &[&String]) -> usize {
@@ -141,7 +141,7 @@ impl HtmlDocument {
             }
             score
         }
-        let body = document.select(&Selector::parse("body").unwrap()).next().unwrap();
+        let body = document.select(&Selector::parse("body").expect("Invalid body selector")).next()?;
         let query_positive_terms = query.positive_terms();
         let fragments = body.text().collect::<Vec<_>>();
         let mut best_extract = "";
@@ -189,7 +189,7 @@ impl HtmlDocument {
             for child in el.children() {
                 match child.value() {
                     scraper::node::Node::Element(_) => {
-                        let child_ref = ElementRef::wrap(child).unwrap();
+                        let child_ref = ElementRef::wrap(child).expect("Child isn't an element");
                         count_words(child_ref, query_positive_terms, term_counts, word_count, common_words, common_words_bytes, uncommon_words_bytes, h1, h2, h3, h4, h5, h6, strong, em, small, s)
                     },
                     scraper::node::Node::Text(text) => {
@@ -207,7 +207,7 @@ impl HtmlDocument {
                                 }
                             }
                             if let Some(i) = query_positive_terms.iter().position(|q| *q == &word) {
-                                let term_count = term_counts.get_mut(i).unwrap();
+                                let term_count = term_counts.get_mut(i).expect("term_counts not initialized properly");
                                 term_count.add(h1, h2, h3, h4, h5, h6, strong, em, small, s)
                             }
                             word_count.add(h1, h2, h3, h4, h5, h6, strong, em, small, s);

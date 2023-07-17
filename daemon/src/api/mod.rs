@@ -110,5 +110,5 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
             .or(version)
     ).with(cors);
 
-    warp::serve(routes).run(api_addr.parse::<SocketAddr>().unwrap()).await;
+    warp::serve(routes).run(api_addr.parse::<SocketAddr>().expect("Invalid api_addr")).await;
 }
