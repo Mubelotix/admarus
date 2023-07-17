@@ -19,7 +19,7 @@ use {
 struct OngoingSearch {
     query: Query,
     results: Vec<(DocumentResult, PeerId)>,
-    providers: HashMap<String, Vec<(PeerId, Vec<Multiaddr>)>>,
+    providers: HashMap<String, HashSet<PeerId>>,
     last_fetch: Instant,
 }
 
@@ -39,19 +39,19 @@ impl SearchPark {
     pub async fn insert(self: Arc<Self>, query: Query, controller: SearchController) -> usize {
         let id = rand::random();
         self.searches.write().await.insert(id, OngoingSearch {
-            query,
+            query: query.clone(),
             results: Vec::new(),
             providers: HashMap::new(),
             last_fetch: Instant::now()
         });
         tokio::spawn(async move {
             let mut controller = controller;
-            while let Some((document, peer_id)) = controller.recv().await {
-                let addresses = self.node.addresses_of(peer_id).await;
+            while let Some((result, peer_id)) = controller.recv().await {
+                let Ok(result) = result.validate_no_fetch(&query) else {continue};
                 let mut searches = self.searches.write().await;
                 let Some(search) = searches.get_mut(&id) else {break};
-                search.providers.entry(document.cid.clone()).or_insert_with(Vec::new).push((peer_id, addresses));
-                search.results.push((document, peer_id));
+                search.providers.entry(result.cid.clone()).or_insert_with(HashSet::new).insert(peer_id);
+                search.results.push((result, peer_id));
                 if search.last_fetch.elapsed() > Duration::from_secs(7) {
                     searches.remove(&id);
                     trace!("Search {id} expired");

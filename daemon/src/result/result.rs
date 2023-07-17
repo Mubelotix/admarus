@@ -3,19 +3,25 @@ use crate::prelude::*;
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentResult {
     pub cid: String,
-    pub paths: Vec<Vec<String>>,
     pub icon_cid: Option<String>,
+    /// Size limit: Sum of all segment sizes <= 10kB
+    pub paths: Vec<Vec<String>>,
+    /// Size limit: 500B
     pub domain: Option<String>,
     /// Content of the title tag
+    /// Size limit: 1kB
     pub title: Option<String>,
     /// Content of the h1 tag  
     /// Required if title is not present
+    /// Size limit: 1kB
     pub h1: Option<String>,
     /// Content of the meta description tag
+    /// Size limit: 5kB
     pub description: Option<String>,
     /// This is a piece of text from the document that the provider thinks is relevant to the query.
     /// It is arbitrarily selected.  
     /// Required if description is not present
+    /// Size limit: 5kB
     pub extract: Option<String>,
 
     /// Each query term is mapped to the number of times it appears in the document.
