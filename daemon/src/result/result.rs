@@ -6,8 +6,6 @@ pub struct DocumentResult {
     pub icon_cid: Option<String>,
     /// Size limit: Sum of all segment sizes <= 10kB
     pub paths: Vec<Vec<String>>,
-    /// Size limit: 500B
-    pub domain: Option<String>,
     /// Content of the title tag
     /// Size limit: 1kB
     pub title: Option<String>,

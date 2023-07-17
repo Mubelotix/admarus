@@ -30,14 +30,6 @@ impl DocumentResult {
             warn!("Remove {} paths for {} to match the size limit of 10kB", previous_len - self.paths.len(), self.cid);
         }
 
-        // Validate domain
-        if let Some(domain) = self.domain.clone() {
-            if domain.len() > 500 {
-                warn!("Domain too long for {}: {} bytes", self.cid, domain.len());
-                self.domain = None;
-            }
-        }
-
         // Validate title and h1
         if let Some(title) = self.title.clone() {
             if title.len() > 1000 {

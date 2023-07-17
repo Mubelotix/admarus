@@ -235,7 +235,6 @@ impl HtmlDocument {
             cid: self.cid,
             paths,
             icon_cid: None,
-            domain: None,
             title,
             h1,
             description,
