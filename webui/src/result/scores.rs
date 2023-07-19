@@ -188,8 +188,8 @@ impl Scores {
     pub fn general_score(&self) -> Score {
         Score::from(
             (self.ipns_score.val * 0.10
-            + self.tf_score.val * 0.25
-            + self.variety_score.val * 0.15
+            + self.tf_score.val * 0.2
+            + self.variety_score.val * 0.2
             + self.popularity_score.val * 0.5)
             
             // Scores that multiply are those we want to always be 1.0
