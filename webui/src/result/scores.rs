@@ -23,7 +23,7 @@ impl QueryComp {
 }
 
 impl DocumentResult {
-    pub fn tf(&self, query: &Query) -> f64 {
+    pub fn tf(&self, query: &Query) -> Score {
         let query_terms = query.positive_terms();
         let word_count = self.word_count.weighted_sum();
         let mut counts = HashMap::new();
@@ -50,7 +50,7 @@ impl DocumentResult {
         }
         let title_term_count = query.map_count(&counts);
 
-        (term_count + title_term_count) / (word_count + title_word_count)
+        Score::from((term_count + title_term_count) / (word_count + title_word_count))
     }
 
     pub fn variety_score(&self, query: &Query) -> Score {

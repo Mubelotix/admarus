@@ -1,6 +1,3 @@
-use std::ops::Deref;
-use yew::virtual_dom::{VComp, VNode};
-
 use crate::prelude::*;
 
 #[derive(Debug, PartialEq, Properties, Default, Clone)]

@@ -29,7 +29,7 @@ impl RankedResults {
             return;
         }
 
-        let tf_score = Score::from(res.tf(query));
+        let tf_score = res.tf(query);
         let tf_rank = self.tf_ranking.binary_search_by_key(&tf_score, |(_,s)| *s).unwrap_or_else(|i| i);
         self.tf_ranking.insert(tf_rank, (res.cid.clone(), tf_score));
 
