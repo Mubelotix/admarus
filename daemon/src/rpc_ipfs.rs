@@ -101,16 +101,10 @@ pub async fn ls(ipfs_rpc: &str, parent_cid: String) -> Result<Vec<(String, Strin
     Ok(rep)
 }
 
-pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Option<Document>, IpfsRpcError> {
+pub async fn fetch_document(ipfs_rpc: &str, cid: &String) -> Result<Vec<u8>, IpfsRpcError> {
     let client = Client::new();
     let rep = client.post(format!("{ipfs_rpc}/api/v0/cat?arg={cid}&length={MAX_HTML_LENGTH}")).send().await?;
-    let rep: Vec<u8> = rep.bytes().await?.to_vec();
-
-    if rep.starts_with(b"<!DOCTYPE html>") || rep.starts_with(b"<!doctype html>") {
-        return Ok(Some(Document::Html(HtmlDocument::init(cid.to_owned(), String::from_utf8_lossy(&rep).to_string()))));
-    }
-
-    Ok(None)
+    Ok(rep.bytes().await?.to_vec())
 }
 
 pub async fn get_ipfs_peers(ipfs_rpc: &str) -> Result<Vec<(PeerId, Multiaddr)>, IpfsRpcError> {

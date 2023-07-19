@@ -94,7 +94,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.filter_needs_update = false;
     }
 
-    pub fn add_document(&mut self, cid: &String, document: Document) {
+    pub fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
         if self.cids.contains_right(cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
@@ -107,16 +107,15 @@ impl<const N: usize> DocumentIndexInner<N> {
         self.folders.remove(&lcid);
 
         // Index by words
-        let (words, filters) = document.into_parts();
-        let word_count = words.len() as f64;
-        for word in words {
+        let word_count = doc.words.len() as f64;
+        for word in doc.words {
             let frequencies = self.index.entry(word.clone()).or_default();
             *frequencies.entry(lcid).or_insert(0.) += 1. / word_count as f32;
             self.filter.add_word::<DocumentIndex<N>>(&word);
         }
         
         // Index by filters
-        for (key, value) in filters {
+        for (key, value) in doc.filters {
             self.filters.entry((key.to_string(), value.clone())).or_default().push(lcid);
             self.filter.add_word::<DocumentIndex<N>>(&format!("{key}={value}"));
         }
@@ -308,7 +307,7 @@ impl <const N: usize> DocumentIndex<N> {
                         self.add_ancestor(&child_cid, child_name, &parent_cid).await;
                     } else if !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
                         let document = match fetch_document(ipfs_rpc, &child_cid).await {
-                            Ok(document) => document,
+                            Ok(document) => Some(document),
                             Err(e) => {
                                 warn!("Error while fetching document: {e:?}");
                                 None
@@ -319,9 +318,11 @@ impl <const N: usize> DocumentIndex<N> {
                             debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
                         }
                         if let Some(document) = document {
-                            self.add_document(&child_cid, document).await;
-                            self.add_ancestor(&child_cid, child_name, &parent_cid).await;
-                        }    
+                            if let Some(inspected) = inspect_document(document) {
+                                self.add_document(&child_cid, inspected).await;
+                                self.add_ancestor(&child_cid, child_name, &parent_cid).await;
+                            }
+                        }
                     } else {
                         unprioritized_documents.insert(child_cid.clone());
                     }
@@ -370,8 +371,8 @@ impl <const N: usize> DocumentIndex<N> {
         self.inner.read().await.document_count()
     }
 
-    pub async fn add_document(&self, cid: &String, document: Document) {
-        self.inner.write().await.add_document(cid, document);
+    pub async fn add_document(&self, cid: &String, doc: DocumentInspectionReport) {
+        self.inner.write().await.add_document(cid, doc);
     }
 
     pub async fn add_ancestor(&self, cid: &String, name: String, folder_cid: &String) {
@@ -425,9 +426,8 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
 }
 
 async fn cid_to_result(query: Arc<Query>, cid: String, paths: Vec<Vec<String>>, config: Arc<Args>) -> Option<DocumentResult> {
-    let Ok(Some(document)) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
-    let Some(result) = document.into_result(paths, &query) else {return None};
-    Some(result)
+    let Ok(raw) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
+    generate_result(raw, cid, &query, paths)
 }
 
 fn cid_to_result_wrapper(query: Arc<Query>, cid: String, paths: Vec<Vec<String>>, config: Arc<Args>) -> Pin<Box<dyn Future<Output = Option<DocumentResult>> + Send>> {
