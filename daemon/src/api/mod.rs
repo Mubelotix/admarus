@@ -47,7 +47,7 @@ impl SearchPark {
         tokio::spawn(async move {
             let mut controller = controller;
             while let Some((result, peer_id)) = controller.recv().await {
-                let Ok(result) = result.validate_no_fetch(&query) else {continue};
+                let Ok(result) = result.validate(&query) else {continue};
                 let mut searches = self.searches.write().await;
                 let Some(search) = searches.get_mut(&id) else {break};
                 search.providers.entry(result.cid.clone()).or_insert_with(HashSet::new).insert(peer_id);

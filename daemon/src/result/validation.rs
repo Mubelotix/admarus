@@ -8,7 +8,7 @@ pub enum InvalidResult {
 }
 
 impl DocumentResult {
-    pub fn validate_no_fetch(mut self, query: &Query) -> Result<DocumentResult, InvalidResult> {
+    pub fn validate(mut self, query: &Query) -> Result<DocumentResult, InvalidResult> {
         // Validate cid and icon_cid
         if let Err(e) = Cid::try_from(self.cid.clone()) {
             warn!("Invalid CID for {}: {e}", self.cid);
