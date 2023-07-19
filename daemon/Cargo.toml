@@ -22,7 +22,6 @@ env_logger = "0.10"
 clap = {version="4.3", features = ["derive"]}
 sha2 = "0.10"
 sha2-derive = "0.1"
-trust-dns-client = "0.22"
 faster-pest = "0.1"
 word-lists = {path="../word-lists"}
 bimap = "0.6"

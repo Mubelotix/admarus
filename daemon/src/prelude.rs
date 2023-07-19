@@ -12,12 +12,6 @@ pub use crate::{
     query::*,
     discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig, Response as DiscoveryResponse, PeerListQuery}
 };
-pub use trust_dns_client::{
-    client::{AsyncClient, ClientHandle},
-    proto::iocompat::AsyncIoTokioAsStd,
-    rr::{DNSClass, Name, RData, RecordType},
-    tcp::TcpClientStream
-};
 pub use clap::Parser;
 pub use log::{info, warn, error, debug, trace};
 pub use kamilata::{prelude::*, db::TooManyLeechers, behaviour::KamilataEvent, store::{ResultStream, ResultStreamBuilderFut}};

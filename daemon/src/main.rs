@@ -24,8 +24,11 @@ async fn main() {
     
     let mut config = Args::parse();
     if let Some(addrs) = &mut config.external_addrs {
-        let dns_provider: SocketAddr = config.dns_provider.parse().expect("Invalid DNS provider address");
-        resolve_external_addrs(addrs, dns_provider).await;
+        for addr in addrs {
+            if addr.parse::<Multiaddr>().is_err() {
+                error!("Invalid external address: {addr}");
+            }
+        }
     }
 
     let config = Arc::new(config);
