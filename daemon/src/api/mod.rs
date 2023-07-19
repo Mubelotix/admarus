@@ -17,7 +17,6 @@ use {
 };
 
 struct OngoingSearch {
-    query: Query,
     results: Vec<(DocumentResult, PeerId)>,
     providers: HashMap<String, HashSet<PeerId>>,
     last_fetch: Instant,
@@ -25,21 +24,18 @@ struct OngoingSearch {
 
 pub struct SearchPark {
     searches: RwLock<HashMap<usize, OngoingSearch>>,
-    node: NodeController,
 }
 
 impl SearchPark {
-    pub fn new(node: NodeController) -> SearchPark {
+    pub fn new() -> SearchPark {
         SearchPark {
             searches: RwLock::new(HashMap::new()),
-            node,
         }
     }
 
     pub async fn insert(self: Arc<Self>, query: Query, controller: SearchController) -> usize {
         let id = rand::random();
         self.searches.write().await.insert(id, OngoingSearch {
-            query: query.clone(),
             results: Vec::new(),
             providers: HashMap::new(),
             last_fetch: Instant::now()
