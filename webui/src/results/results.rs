@@ -171,6 +171,7 @@ impl Component for ResultsPage {
         let length_score_iter = results.iter().map(|(_, scores)| scores.length_score);
         let lang_score_iter = results.iter().map(|(_, scores)| scores.lang_score);
         let popularity_score_iter = results.iter().map(|(_, scores)| scores.popularity_score);
+        let verified_score_iter = results.iter().map(|(_, scores)| scores.verified_score);
 
         // Connection status
         let conn_status = Rc::clone(&ctx.props().conn_status);

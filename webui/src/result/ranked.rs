@@ -80,6 +80,7 @@ impl RankedResults {
             let Some(lang_score) = self.lang_scores.get(cid) else {continue};
             let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
             let ipns_score = Score::from(result.has_ipns() as usize as f64);
+            let verified_score = Score::from(self.verified.contains(cid) as usize as f64);
 
             let scores = Scores {
                 tf_score: Score::from(*tf_score),
@@ -88,6 +89,7 @@ impl RankedResults {
                 lang_score: *lang_score,
                 popularity_score,
                 ipns_score,
+                verified_score,
             };
             let i = self.fully_ranked.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
             self.fully_ranked.insert(i, (cid.clone(), scores));
@@ -96,7 +98,7 @@ impl RankedResults {
 
     pub fn verify_some(&mut self, top: usize, search_id: u64, ctx: &Context<ResultsPage>) {
         let rpc_addr = ctx.props().conn_status.rpc_addr();
-        for (cid, _) in self.fully_ranked.iter().take(top) {
+        for (cid, _) in self.fully_ranked.iter().rev().take(top) {
             if self.verified.contains(cid) {
                 continue;
             }

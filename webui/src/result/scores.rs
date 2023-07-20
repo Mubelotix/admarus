@@ -181,16 +181,18 @@ pub struct Scores {
     pub lang_score: Score,
     pub popularity_score: Score,
     pub ipns_score: Score,
+    pub verified_score: Score,
 }
 
 impl Scores {
     /// This computes the final score for a document.
     pub fn general_score(&self) -> Score {
         Score::from(
-            (self.ipns_score.val * 0.10
-            + self.tf_score.val * 0.2
+            (self.popularity_score.val * 0.49
             + self.variety_score.val * 0.2
-            + self.popularity_score.val * 0.5)
+            + self.tf_score.val * 0.2
+            + self.ipns_score.val * 0.10
+            + self.verified_score.val * 0.01)
             
             // Scores that multiply are those we want to always be 1.0
             * self.lang_score.val
