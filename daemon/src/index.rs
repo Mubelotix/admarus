@@ -425,7 +425,7 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
     }
 }
 
-async fn cid_to_result(query: Arc<Query>, cid: String, paths: Vec<Vec<String>>, config: Arc<Args>) -> Option<DocumentResult> {
+pub async fn cid_to_result(query: Arc<Query>, cid: String, paths: Vec<Vec<String>>, config: Arc<Args>) -> Option<DocumentResult> {
     let Ok(raw) = fetch_document(&config.ipfs_rpc, &cid).await else {return None};
     generate_result(raw, cid, &query, paths)
 }

@@ -21,6 +21,14 @@ pub struct ApiResultsQuery {
 }
 
 #[derive(Deserialize, Serialize)]
+pub struct ApiResultQuery {
+    /// Unique search identifier from [ApiSearchResponse::id]
+    pub id: u64,
+    /// CID of the document to fetch
+    pub cid: String,
+}
+
+#[derive(Deserialize, Serialize)]
 pub struct ApiVersionResponse {
     /// Version of the protocol
     pub version: u64,

@@ -43,7 +43,7 @@ async fn main() {
     
     let search_park = Arc::new(SearchPark::new());
 
-    let f1 = serve_api(&config.api_addr, index.clone(), search_park, node.clone());
+    let f1 = serve_api(Arc::clone(&config), index.clone(), search_park, node.clone());
     let f2 = update_census_task(node.clone(), index.clone(), keypair.clone(), Arc::clone(&config));
     let f3 = maintain_swarm_task(node.clone(), Arc::clone(&config));
     let f4 = cleanup_db_task(node.clone());

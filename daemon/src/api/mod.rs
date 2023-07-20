@@ -17,6 +17,7 @@ use {
 };
 
 struct OngoingSearch {
+    query: Arc<Query>,
     results: Vec<(DocumentResult, PeerId)>,
     providers: HashMap<String, HashSet<PeerId>>,
     last_fetch: Instant,
@@ -36,6 +37,7 @@ impl SearchPark {
     pub async fn insert(self: Arc<Self>, query: Query, controller: SearchController) -> usize {
         let id = rand::random();
         self.searches.write().await.insert(id, OngoingSearch {
+            query: Arc::new(query.clone()),
             results: Vec::new(),
             providers: HashMap::new(),
             last_fetch: Instant::now()
@@ -58,6 +60,11 @@ impl SearchPark {
         id
     }
 
+    pub async fn get_query(self: Arc<Self>, id: usize) -> Option<Arc<Query>> {
+        let searches = self.searches.read().await;
+        searches.get(&id).map(|s| Arc::clone(&s.query))
+    }
+
     pub async fn fetch_results(self: Arc<Self>, id: usize) -> Option<Vec<(DocumentResult, PeerId)>> {
         let mut searches = self.searches.write().await;
         let OngoingSearch { results, last_fetch, .. } =  searches.get_mut(&id)?;
@@ -66,7 +73,7 @@ impl SearchPark {
     }
 }
 
-pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: NodeController) {
+pub async fn serve_api<const N: usize>(config: Arc<Args>, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: NodeController) {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
 
     let local_search = warp::get()
@@ -76,17 +83,34 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
         .and_then(local_search);
     
     let search_park2 = Arc::clone(&search_park);
+    let kamilata2 = kamilata.clone();
     let search = warp::get()
         .and(warp::path("search"))
         .and(warp::query::<ApiSearchQuery>())
-        .map(move |q: ApiSearchQuery| (q, Arc::clone(&search_park2), kamilata.clone()))
+        .map(move |q: ApiSearchQuery| (q, Arc::clone(&search_park2), kamilata2.clone()))
         .and_then(search);
 
-    let fetch_result = warp::get()
+    let search_park2 = Arc::clone(&search_park);
+    let results = warp::get()
+        .and(warp::path("results"))
+        .and(warp::query::<ApiResultsQuery>())
+        .map(move |id: ApiResultsQuery| (id, Arc::clone(&search_park2)))
+        .and_then(fetch_results);
+
+    // Backwards compatibility, this is the old endpoint
+    let search_park2 = Arc::clone(&search_park);
+    let fetch_results = warp::get()
         .and(warp::path("fetch-results"))
         .and(warp::query::<ApiResultsQuery>())
-        .map(move |id: ApiResultsQuery| (id, Arc::clone(&search_park)))
+        .map(move |id: ApiResultsQuery| (id, Arc::clone(&search_park2)))
         .and_then(fetch_results);
+
+    let config2 = Arc::clone(&config);
+    let result = warp::get()
+        .and(warp::path("result"))
+        .and(warp::query::<ApiResultQuery>())
+        .map(move |q: ApiResultQuery| (q, Arc::clone(&search_park), Arc::clone(&config2)))
+        .and_then(get_result);
 
     let version = warp::get()
         .and(warp::path("version"))
@@ -102,9 +126,11 @@ pub async fn serve_api<const N: usize>(api_addr: &str, index: DocumentIndex<N>, 
         hello_world
             .or(local_search)
             .or(search)
-            .or(fetch_result)
+            .or(results)
+            .or(fetch_results)
             .or(version)
+            .or(result)
     ).with(cors);
 
-    warp::serve(routes).run(api_addr.parse::<SocketAddr>().expect("Invalid api_addr")).await;
+    warp::serve(routes).run(config.api_addr.parse::<SocketAddr>().expect("Invalid api_addr")).await;
 }
