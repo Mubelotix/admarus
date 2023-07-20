@@ -75,6 +75,7 @@ impl Component for ResultsPage {
             ResultsMessage::FetchResultsSuccess { search_id: results_search_id, results } => {
                 let Some((search_id, query)) = &self.search_data else { return false };
                 let search_id = *search_id;
+                let update_counter = self.update_counter;
                 if results_search_id != search_id { return false };
 
                 // Insert results and rank them
@@ -84,10 +85,11 @@ impl Component for ResultsPage {
                     self.providers.insert(provider);
                 }
                 self.results.rerank();
-                self.results.verify_some(15, search_id, ctx);
+                if update_counter > 15 {
+                    self.results.verify_some(15, search_id, ctx);
+                }
 
                 let link = ctx.link().clone();
-                let update_counter = self.update_counter;
                 let rpc_addr = ctx.props().conn_status.rpc_addr();
                 spawn_local(async move {
                     match update_counter {
