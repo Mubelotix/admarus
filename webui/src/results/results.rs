@@ -29,6 +29,8 @@ pub enum ResultsMessage {
     SearchFailure(ApiError),
     FetchResultsSuccess { search_id: u64, results: Vec<(DocumentResult, String)> },
     FetchResultsFailure(ApiError),
+    MaliciousResult(String),
+    VerifiedResult(String, Box<DocumentResult>),
 }
 
 impl Component for ResultsPage {
@@ -75,12 +77,14 @@ impl Component for ResultsPage {
                 let search_id = *search_id;
                 if results_search_id != search_id { return false };
 
+                // Insert results and rank them
                 self.update_counter += 1;
                 for (result, provider) in results {
                     self.results.insert(result, provider.clone(), query);
                     self.providers.insert(provider);
                 }
                 self.results.rerank();
+                self.results.verify_some(15, search_id, ctx);
 
                 let link = ctx.link().clone();
                 let update_counter = self.update_counter;
@@ -97,6 +101,14 @@ impl Component for ResultsPage {
                     }
                 });
 
+                true
+            }
+            ResultsMessage::MaliciousResult(cid) => {
+                self.results.malicious_result(cid);
+                true
+            }
+            ResultsMessage::VerifiedResult(cid, trusted_result) => {
+                self.results.verified_result(cid, *trusted_result);
                 true
             }
             ResultsMessage::SearchFailure(e) | ResultsMessage::FetchResultsFailure(e) => {

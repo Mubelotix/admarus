@@ -8,7 +8,10 @@ pub struct RankedResults {
     variety_scores: HashMap<String, Score>,
     length_scores: HashMap<String, Score>,
     lang_scores: HashMap<String, Score>,
-    providers: HashMap<String, Vec<String>>,
+
+    providers: HashMap<String, HashSet<String>>,
+    malicious_providers: HashSet<String>,
+    verified: HashSet<String>,
 }
 
 impl RankedResults {
@@ -21,12 +24,22 @@ impl RankedResults {
             length_scores: HashMap::new(),
             lang_scores: HashMap::new(),
             providers: HashMap::new(),
+            malicious_providers: HashSet::new(),
+            verified: HashSet::new(),
         }
     }
 
     pub fn insert(&mut self, mut res: DocumentResult, provider: String, query: &Query) {
+        if let Some(previous_result) = self.results.get(&res.cid) {
+            if !res.agrees_with(previous_result) {
+                // TODO
+                log!("Result {} from {} disagrees with previous result", res.cid, provider);
+                return;
+            }
+        }
+
         res.rank_paths();
-        self.providers.entry(res.cid.clone()).or_default().push(provider);
+        self.providers.entry(res.cid.clone()).or_default().insert(provider);
 
         if self.results.contains_key(&res.cid) {
             return;
@@ -81,11 +94,58 @@ impl RankedResults {
         }
     } 
 
-    pub fn get_all_scores(&self) -> &[(String, Scores)] {
+    pub fn verify_some(&mut self, top: usize, search_id: u64, ctx: &Context<ResultsPage>) {
+        let rpc_addr = ctx.props().conn_status.rpc_addr();
+        for (cid, _) in self.fully_ranked.iter().take(top) {
+            if self.verified.contains(cid) {
+                continue;
+            }
+            let Some(untrusted_result) = self.results.get(cid) else {continue};
+            let link = ctx.link().clone();
+            let cid = cid.clone();
+            let untrusted_result = untrusted_result.clone();
+            spawn_local(async move {
+                let trusted_result = match get_result(rpc_addr, search_id, &cid).await {
+                    Ok(Some(result)) => result,
+                    Ok(None) => {
+                        link.send_message(ResultsMessage::MaliciousResult(cid));
+                        return;
+                    }
+                    Err(e) => {
+                        log!("Error fetching result {}: {:?}", cid, e);
+                        return;
+                    },
+                };
+                match untrusted_result.agrees_with(&trusted_result) {
+                    true => link.send_message(ResultsMessage::VerifiedResult(cid, Box::new(trusted_result))),
+                    false => link.send_message(ResultsMessage::MaliciousResult(cid)),
+                }
+            });
+        }
+    }
+
+    pub fn malicious_result(&mut self, cid: String) {
+        self.results.remove(&cid);
+        let malicious_providers = self.providers.remove(&cid).unwrap_or_default();
+        self.malicious_providers.extend(malicious_providers);
+        for providers in self.providers.values_mut() {
+            providers.retain(|p| !self.malicious_providers.contains(p));
+        }
+        self.providers.retain(|_, v| !v.is_empty());
+        self.results.retain(|cid, _| !self.providers.get(cid).map(|v| v.is_empty()).unwrap_or(true));
+    }
+
+    pub fn verified_result(&mut self, cid: String, result: DocumentResult) {
+        log!("Verified result {}", cid);
+        self.verified.insert(cid.clone());
+        self.results.insert(cid, result);
+    }
+
+    pub fn get_ranked(&self) -> &[(String, Scores)] {
         self.fully_ranked.as_slice()
     }
 
     pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, &Scores)> {
-        self.get_all_scores().iter().rev().filter_map(|(cid, scores)| self.results.get(cid).map(|result| (result, scores)))
+        self.get_ranked().iter().rev().filter_map(|(cid, scores)| self.results.get(cid).map(|result| (result, scores)))
     }
 }

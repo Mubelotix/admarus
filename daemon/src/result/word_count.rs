@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 /// Used to count words but counts different types of words separately.
 /// The sum of all fields is the total number of words.
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq)]
 pub struct WordCount {
     /// Counters for: h1, h2, h3, h4, h5, h6, strong, em, regular, small, s
     data: [usize; 11]

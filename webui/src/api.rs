@@ -136,7 +136,11 @@ pub async fn search(rpc_addr: &str, query: impl AsRef<str>) -> Result<ApiSearchR
 }
 
 pub async fn fetch_results(rpc_addr: &str, id: u64) -> Result<Vec<(DocumentResult, String)>, ApiError> {
-    get(format!("{rpc_addr}/fetch-results?id={id}")).await
+    get(format!("{rpc_addr}/results?id={id}")).await
+}
+
+pub async fn get_result(rpc_addr: &str, id: u64, cid: &str) -> Result<Option<DocumentResult>, ApiError> {
+    get(format!("{rpc_addr}/result?id={id}&cid={cid}")).await
 }
 
 pub async fn get_api_version(rpc_addr: &str) -> Result<u64, ApiError> {

@@ -3,7 +3,7 @@ pub use crate::{
     search_bar::*, lucky::*, query::*, connection_status::*, *
 };
 pub use js_sys::{Array, Function, Promise, Reflect::*};
-pub use std::{time::Duration, rc::Rc, cmp::Ordering, collections::HashMap, ops::Deref};
+pub use std::{time::Duration, rc::Rc, cmp::Ordering, collections::{HashMap, HashSet}, ops::Deref};
 pub use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 pub use wasm_bindgen_futures::{spawn_local, JsFuture};
 pub use yew::{html::Scope, prelude::*, virtual_dom::VNode};
