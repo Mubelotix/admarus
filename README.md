@@ -15,7 +15,7 @@
     <img src="https://admarus.net/demo.gif#2" alt="Demo GIF of searching on Admarus."/>
 </p>
 
-
+🔥 [**Try it!**](https://admarus.net/) 🔥
 
 ## Abstract
 
