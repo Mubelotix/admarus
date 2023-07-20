@@ -26,3 +26,23 @@ Admarus is a peer-to-peer search engine for IPFS. It is based on the [Kamilata](
 This repository contains a lightweight daemon for Admarus. The daemon works in tandem with the [Kubo](https://github.com/ipfs/kubo) IPFS daemon. Files you pin with Kubo will be indexed by Admarus, and made available to the network. No additional storage is required by the Admarus daemon. 
 
 This daemon provides an API that can be used by other applications as a gateway to the Admarus network. An official Admarus web interface is in development.
+
+## Scalability
+
+There is no use in having a search engine if it breaks under load.
+While previous attempts at building a peer-to-peer, powerful search engine have all failed, **Admarus was designed with scalability in mind**.
+Actually, Admarus gets faster and more reliable as the network grows to thousands of peers.
+This is all thanks to the [Kamilata protocol](https://github.com/mubelotix/kamilata) and its routing algorithm for queries.
+It allows Admarus to download results at constant speed, regardless of the size of the network.
+Of course, the client cannot afford to download and rank millions of results, but we actually don't need a [recall](https://en.wikipedia.org/wiki/Precision_and_recall) of 100%.
+That's because some documents are more popular than others, and these are the ones we want to find.
+(By default, 50% of the score of a document is based on its popularity.)
+The more popular a document is, the faster we will find it, hence we don't need 100% recall to find the top `n` results.
+I have only been able to run simulations with up to `30000` peers, so the behavior of the network with millions of peers is still unknown.
+However, we can confidently say that Admarus can scale to at least a `200k` peers and billions of documents.
+Even if problems were to arise, these would be limited to queries made of a single common word, as for each additional term, you divide the pool of peers to query by a huge factor.
+
+The current slowness of the network is due to the fact that there are not enough peers on it.
+They are doing their best at generating results for queries. Each result is generated from the document.
+The thing is, each document must be read from the Kubo store on the disk, which only yields 11 documents per second on my machines.
+As we parallelize the process by querying multiple peers concurrently, search will get significantly faster.
