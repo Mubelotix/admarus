@@ -9,25 +9,25 @@
             <button id="settings-button" onclick={{onclick_settings}}><svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
         </div>
         <div id="result-selectors">
-            <div class="selected">
+            <div class={{all_selector_class}} onclick={{onclick_select_all}}>
                 <img src="assets/globe.svg"/>
                 <span>All</span>
             </div>
-            <div>
+            <div class={{documents_selector_class}} onclick={{onclick_select_documents}}>
                 <img src="assets/document.svg"/>
                 <span>Documents</span>
             </div>
-            <div>
+            <div class={{images_selector_class}} onclick={{onclick_select_images}}>
                 <img src="assets/image.svg"/>
                 <span>Images</span>
             </div>
-            <div>
+            <div class={{videos_selector_class}} onclick={{onclick_select_videos}}>
                 <img src="assets/video.svg"/>
                 <div>Videos</div>
             </div>
         </div>
     </div>
-    <div id="result-list">
+    <div present-if={{all_or_documents_selected}} id="result-list">
         <p id="result-counter" opt>{{opt_result_counter}}</p>
         <div class="search-error" opt>
             <h3>{{opt_error_title}}</h3>
@@ -60,6 +60,12 @@
                 <span>Popularity: {{popularity_score_iter}}</span>
                 <span>Verified: {{verified_score_iter}}</span>
             </div>
+        </div>
+    </div>
+    <div present-if=!{{all_or_documents_selected}} id="result-list">
+        <div class="search-error">
+            <h3>Unimplemented</h3>
+            Only HTML documents are currently supported. Please select "All" or "Documents" to see results.
         </div>
     </div>
 </main>

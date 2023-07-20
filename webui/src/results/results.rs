@@ -16,7 +16,15 @@ impl PartialEq for ResultsPageProps {
     }
 }
 
+enum DocumentType {
+    All,
+    Documents,
+    Images,
+    Videos,
+}
+
 pub struct ResultsPage {
+    document_type: DocumentType,
     search_data: Option<(u64, Query)>,
     search_error: Option<ApiError>,
     update_counter: u32,
@@ -25,6 +33,7 @@ pub struct ResultsPage {
 }
 
 pub enum ResultsMessage {
+    SelectDocumentType(DocumentType),
     SearchSuccess(ApiSearchResponse),
     SearchFailure(ApiError),
     FetchResultsSuccess { search_id: u64, results: Vec<(DocumentResult, String)> },
@@ -49,6 +58,7 @@ impl Component for ResultsPage {
         });
 
         Self {
+            document_type: DocumentType::All,
             search_data: None,
             search_error: None,
             update_counter: 0,
@@ -59,6 +69,10 @@ impl Component for ResultsPage {
     
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            ResultsMessage::SelectDocumentType(document_type) => {
+                self.document_type = document_type;
+                true
+            }
             ResultsMessage::SearchSuccess(resp) => {
                 let link = ctx.link().clone();
                 self.search_data = Some((resp.id, resp.query));
@@ -135,6 +149,21 @@ impl Component for ResultsPage {
         let onsearch = ctx.props().app_link.callback(move |query| AppMsg::ChangePage(Page::Results(Rc::new(query))));
         let onclick_home = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home));
         let onclick_settings = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings));
+
+        // Document type selectors
+        let all_selected = matches!(self.document_type, DocumentType::All);
+        let documents_selected = matches!(self.document_type, DocumentType::Documents);
+        let all_or_documents_selected = all_selected || documents_selected;
+        let images_selected = matches!(self.document_type, DocumentType::Images);
+        let videos_selected = matches!(self.document_type, DocumentType::Videos);
+        let all_selector_class = if all_selected { "selected" } else { "" };
+        let documents_selector_class = if documents_selected { "selected" } else { "" };
+        let images_selector_class = if images_selected { "selected" } else { "" };
+        let videos_selector_class = if videos_selected { "selected" } else { "" };
+        let onclick_select_all = ctx.link().callback(|_| ResultsMessage::SelectDocumentType(DocumentType::All));
+        let onclick_select_documents = ctx.link().callback(|_| ResultsMessage::SelectDocumentType(DocumentType::Documents));
+        let onclick_select_images = ctx.link().callback(|_| ResultsMessage::SelectDocumentType(DocumentType::Images));
+        let onclick_select_videos = ctx.link().callback(|_| ResultsMessage::SelectDocumentType(DocumentType::Videos));
 
         // Result counter
         let opt_result_counter = match (results.len(), self.providers.len()) {
