@@ -9,8 +9,9 @@
 
 <p align="center">Peer-to-Peer Search Engine for IPFS</p>
 
-<!-- GIF: -->
-![](https://admarus.net/demo.gif)
+<p align="center">
+    <img src="https://admarus.net/demo.gif" alt="Demo GIF of searching on Admarus."/>
+</p>
 
 
 
