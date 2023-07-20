@@ -2,6 +2,8 @@ use crate::prelude::*;
 
 pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
+    fully_ranked: Vec<(String, Scores)>,
+
     tf_ranking: Vec<(String, Score)>,
     variety_scores: HashMap<String, Score>,
     length_scores: HashMap<String, Score>,
@@ -13,6 +15,7 @@ impl RankedResults {
     pub fn new() -> Self {
         Self {
             results: HashMap::new(),
+            fully_ranked: Vec::new(),
             tf_ranking: Vec::new(),
             variety_scores: HashMap::new(),
             length_scores: HashMap::new(),
@@ -42,7 +45,7 @@ impl RankedResults {
         self.results.insert(res.cid.clone(), res);
     }
 
-    pub fn get_all_scores(&self) -> Vec<(String, Scores)> {
+    pub fn rerank(&mut self) {
         let res_count = self.results.len() as f64;
 
         let mut tf_scores = HashMap::new();
@@ -53,7 +56,7 @@ impl RankedResults {
         let length_scores = &self.length_scores;
 
         let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
-        let mut all_scores = Vec::new();
+        self.fully_ranked = Vec::new();
         for (cid, _) in self.results.iter() {
             let Some(result) = self.results.get(cid) else {continue};
             let Some(providers) = self.providers.get(cid) else {continue};
@@ -73,15 +76,16 @@ impl RankedResults {
                 popularity_score,
                 ipns_score,
             };
-            let i = all_scores.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
-            all_scores.insert(i, (cid.clone(), scores));
+            let i = self.fully_ranked.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
+            self.fully_ranked.insert(i, (cid.clone(), scores));
         }
+    } 
 
-        all_scores
+    pub fn get_all_scores(&self) -> &[(String, Scores)] {
+        self.fully_ranked.as_slice()
     }
 
-    pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, Scores)> {
-        let scores = self.get_all_scores();
-        scores.into_iter().rev().filter_map(|(cid, scores)| self.results.get(&cid).map(|result| (result, scores)))
+    pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, &Scores)> {
+        self.get_all_scores().iter().rev().filter_map(|(cid, scores)| self.results.get(cid).map(|result| (result, scores)))
     }
 }

@@ -80,6 +80,7 @@ impl Component for ResultsPage {
                     self.results.insert(result, provider.clone(), query);
                     self.providers.insert(provider);
                 }
+                self.results.rerank();
 
                 let link = ctx.link().clone();
                 let update_counter = self.update_counter;
