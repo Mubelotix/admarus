@@ -21,7 +21,7 @@ Admarus unlocks the full potential of IPFS by making it searchable. It is an ope
 
 <!-- todo: talk about how it incentivize IPFS -->
 
-## Features
+## ✨ Features
 
 - **No storage use**: Admarus indexes data that's already in your Kubo node
 - **Search operators**: `AND`, `OR`, and `NOT`
@@ -33,7 +33,7 @@ Admarus unlocks the full potential of IPFS by making it searchable. It is an ope
 - **Decentralized**: No central authority. Multiple peer discovery mechanisms available
 - **Blockchain-free**: No blockchain, no token, just peer-to-peer magic
 
-## Scalability
+## 🌍 Scalability
 
 There is no use in having a search engine if it breaks under load.
 While previous attempts at building a peer-to-peer, powerful search engine have all failed, **Admarus was designed with scalability in mind**.
@@ -52,3 +52,12 @@ The current slowness of the network is due to the fact that there are not enough
 They are doing their best at generating results for queries. Each result is generated from the document.
 The thing is, each document must be read from the Kubo store on the disk, which only yields 11 documents per second on my machines.
 As we parallelize the process by querying multiple peers concurrently, search will get significantly faster.
+
+## 📚 Guides and Documentation
+
+See [the wiki](https://github.com/Mubelotix/admarus/wiki) for guides and documentation.
+
+## 👨‍💻 About
+
+Admarus is developped by [Mubelotix](https://github.com/Mubelotix), a 20yo french cypherpunk.
+Admarus means Google in Gaulish (literally "very big").
