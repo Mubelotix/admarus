@@ -19,13 +19,19 @@ Admarus unlocks the full potential of IPFS by making it searchable. It is an ope
 
 🔥 [**Try the gateway-based demo!**](https://admarus.net/) 🔥
 
-## Abstract
+<!-- todo: talk about how it incentivize IPFS -->
 
-Admarus is a peer-to-peer search engine for IPFS. It is based on the [Kamilata](https://github.com/mubelotix/kamilata) protocol.
+## Features
 
-This repository contains a lightweight daemon for Admarus. The daemon works in tandem with the [Kubo](https://github.com/ipfs/kubo) IPFS daemon. Files you pin with Kubo will be indexed by Admarus, and made available to the network. No additional storage is required by the Admarus daemon. 
-
-This daemon provides an API that can be used by other applications as a gateway to the Admarus network. An official Admarus web interface is in development.
+- **No storage use**: Admarus indexes data that's already stored on your Kubo node
+- **Search operators**: The `AND`, `OR`, and `NOT` are supported
+- **Trustless**: Results are verified by the client and malicious peers are banned when detected
+- **Language detection**: Language is detected even when document metadata isn't accurate
+- [**Scalable**](#scalability): The network speed can only increase as more peers join
+- **Censorship-resistant**: Censors would need full control of more than 95% of the network to affect information reachability
+- **Open**: Anyone can join the network, nodes don't discriminate on obscure criteria (hi emails)
+- **Decentralized**: There is no central authority at all, and multiple peer discovery mechanisms are available
+- **Blockchain-free**: No blockchain is used, and no token is required to use the network. Just peer-to-peer magic
 
 ## Scalability
 
