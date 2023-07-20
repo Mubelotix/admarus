@@ -60,4 +60,5 @@ See [the wiki](https://github.com/Mubelotix/admarus/wiki) for guides and documen
 ## 👨‍💻 About
 
 Admarus is developped by [Mubelotix](https://github.com/Mubelotix), a 20yo french cypherpunk.
+
 Admarus means Google in Gaulish (literally "very big").
