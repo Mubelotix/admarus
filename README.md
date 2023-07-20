@@ -11,11 +11,13 @@
 
 <p align="center">Peer-to-Peer Search Engine for IPFS</p>
 
+Admarus unlocks the full potential of IPFS by making it searchable. It is an open, decentralized network of peers indexing their IPFS documents. Admarus relies on no central authority, and is censorship-resistant by design.
+
 <p align="center">
     <img src="https://admarus.net/demo.gif#2" alt="Demo GIF of searching on Admarus."/>
 </p>
 
-🔥 [**Try it!**](https://admarus.net/) 🔥
+🔥 [**Try the gateway-based demo!**](https://admarus.net/) 🔥
 
 ## Abstract
 
