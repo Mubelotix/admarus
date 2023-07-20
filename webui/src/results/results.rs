@@ -16,7 +16,7 @@ impl PartialEq for ResultsPageProps {
     }
 }
 
-enum DocumentType {
+pub enum DocumentType {
     All,
     Documents,
     Images,
