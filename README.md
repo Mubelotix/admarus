@@ -23,15 +23,15 @@ Admarus unlocks the full potential of IPFS by making it searchable. It is an ope
 
 ## Features
 
-- **No storage use**: Admarus indexes data that's already stored on your Kubo node
-- **Search operators**: The `AND`, `OR`, and `NOT` are supported
-- **Trustless**: Results are verified by the client and malicious peers are banned when detected
-- **Language detection**: Language is detected even when document metadata isn't accurate
-- [**Scalable**](#scalability): The network speed can only increase as more peers join
-- **Censorship-resistant**: Censors would need full control of more than 95% of the network to affect information reachability
-- **Open**: Anyone can join the network, nodes don't discriminate on obscure criteria (hi emails)
-- **Decentralized**: There is no central authority at all, and multiple peer discovery mechanisms are available
-- **Blockchain-free**: No blockchain is used, and no token is required to use the network. Just peer-to-peer magic
+- **No storage use**: Admarus indexes data that's already in your Kubo node
+- **Search operators**: `AND`, `OR`, and `NOT`
+- **Trustless**: Results are verified, not trusted
+- **Language detection**: Language is detected from text
+- [**Scalable**](#scalability): Gets faster as more peers join
+- **Censorship-resistant**: Censors would need full control of more than 95% of the network
+- **Open**: Nodes don't discriminate on obscure criteria (hi emails)
+- **Decentralized**: No central authority. Multiple peer discovery mechanisms available
+- **Blockchain-free**: No blockchain, no token, just peer-to-peer magic
 
 ## Scalability
 
