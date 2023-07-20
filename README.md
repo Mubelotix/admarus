@@ -2,7 +2,9 @@
 
 <p align="center">
     <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"/></a>
-    <img alt="Lines of code" src="https://img.shields.io/tokei/lines/github/Mubelotix/admarus-daemon"/>
+    <img alt="Lines of code badge" src="https://img.shields.io/badge/total%20lines-8157-blue">
+    <a href="https://census.admarus.net/"><img alt="Documents in corpus badge" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcensus.admarus.net%2Fapi%2Fv0%2Fstats&query=%24.stats_24h.documents&suffix=%20documents&label=corpus&color=purple"></a>
+    <a href="https://census.admarus.net/"><img alt="Peers in network badge" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcensus.admarus.net%2Fapi%2Fv0%2Fstats&query=%24.stats_24h.peers&suffix=%20peers&label=network&color=purple"></a>
     <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/Mubelotix/admarus-daemon?color=%23347d39" alt="last commit badge"/>
     <a href="https://github.com/Mubelotix/admarus/issues?q=is%3Aissue+is%3Aclosed"><img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/Mubelotix/admarus-daemon?color=%23347d39" alt="closed issues badge"/></a>
 </p>
