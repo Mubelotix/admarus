@@ -6,7 +6,7 @@
     <a href="https://census.admarus.net/"><img alt="Documents in corpus badge" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcensus.admarus.net%2Fapi%2Fv0%2Fstats&query=%24.stats_1h.documents&suffix=%20documents&label=corpus&color=purple"></a>
     <a href="https://census.admarus.net/"><img alt="Peers in network badge" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcensus.admarus.net%2Fapi%2Fv0%2Fstats&query=%24.stats_1h.peers&suffix=%20peers&label=network&color=purple"></a>
     <img alt="GitHub last commit" src="https://img.shields.io/github/last-commit/Mubelotix/admarus-daemon?color=%23347d39" alt="last commit badge"/>
-    <a href="https://github.com/Mubelotix/admarus/issues?q=is%3Aissue+is%3Aclosed"><img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/Mubelotix/admarus-daemon?color=%23347d39" alt="closed issues badge"/></a>
+    <a href="https://github.com/Mubelotix/admarus/issues?q=is%3Aissue+is%3Aclosed"><img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/Mubelotix/admarus-daemon?color=%23347d39"/></a>
 </p>
 
 <p align="center">Peer-to-Peer Search Engine for IPFS</p>
@@ -60,5 +60,7 @@ See [the wiki](https://github.com/Mubelotix/admarus/wiki) for guides and documen
 ## 👨‍💻 About
 
 Admarus is developped by [Mubelotix](https://github.com/Mubelotix), a 20yo french cypherpunk.
+Feel free to [get in touch](mailto:mubelotix@gmail.com) if you have any question or suggestion.
+I'm available to help people run nodes to make the network grow.
 
 Admarus means Google in Gaulish (literally "very big").
