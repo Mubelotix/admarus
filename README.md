@@ -10,7 +10,7 @@
 <p align="center">Peer-to-Peer Search Engine for IPFS</p>
 
 <p align="center">
-    <img src="https://admarus.net/demo.gif" alt="Demo GIF of searching on Admarus."/>
+    <img src="https://admarus.net/demo.gif#2" alt="Demo GIF of searching on Admarus."/>
 </p>
 
 
