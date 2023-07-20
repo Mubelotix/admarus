@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-const LUCKY_QUERIES: &[&str] = &["ipfs", "rust language", "bitcoin", "blog", "founder", "libp2p", "filecoin", "protocol labs", "peer to peer", "github"];
+const LUCKY_QUERIES: &[&str] = &["ipfs", "rust language", "bitcoin", "blog", "founder", "libp2p", "filecoin", "protocol labs", "peer to peer", "github", "auld + alliance", "bitcoin / hedera"];
 
 pub fn get_lucky_query(rng: Option<u64>) -> &'static str {
     let rng = match rng {
