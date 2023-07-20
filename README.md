@@ -7,7 +7,12 @@
     <a href="https://github.com/Mubelotix/admarus/issues?q=is%3Aissue+is%3Aclosed"><img alt="GitHub closed issues" src="https://img.shields.io/github/issues-closed-raw/Mubelotix/admarus-daemon?color=%23347d39" alt="closed issues badge"/></a>
 </p>
 
-<p align="center">A Peer-to-Peer Search Engine for IPFS</p>
+<p align="center">Peer-to-Peer Search Engine for IPFS</p>
+
+<!-- GIF: -->
+![](https://admarus.net/demo.gif)
+
+
 
 ## Abstract
 
