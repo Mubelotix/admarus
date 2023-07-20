@@ -54,18 +54,11 @@ impl<const N: usize> DocumentIndexInner<N> {
     }
 
     pub fn folders(&self) -> HashMap<String, usize> {
-        let mut lfolders = HashMap::new();
-        for ancestors in self.ancestors.values() {
-            for ancestor in ancestors.keys() {
-                *lfolders.entry(ancestor.to_owned()).or_default() += 1;
-            }
-        }
-
         let mut folders = HashMap::new();
-        for (lcid, count) in lfolders {
-            if let Some(cid) = self.cids.get_by_left(&lcid) {
-                folders.insert(cid.to_owned(), count);
-            }
+        for lcid in self.cids.left_values() {
+            let Some(ancestor_lcid) = self.ancestors.get(lcid).and_then(|a| a.keys().next()) else {continue}; // TODO: files not in folder
+            let Some(ancestor_cid) = self.cids.get_by_left(ancestor_lcid) else {continue};
+            *folders.entry(ancestor_cid.to_owned()).or_default() += 1;
         }
         
         folders
