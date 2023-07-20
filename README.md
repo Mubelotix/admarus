@@ -64,3 +64,8 @@ Feel free to [get in touch](mailto:mubelotix@gmail.com) if you have any question
 I'm available to help people run nodes to make the network grow.
 
 Admarus means Google in Gaulish (literally "very big").
+
+## 📜 License
+
+Admarus is licensed under the GNU AGPL v3.
+However, the underlying [Kamilata protocol](https://github.com/Mubelotix/kamilata) uses the less restrictive MIT license.
