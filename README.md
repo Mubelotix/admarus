@@ -1,7 +1,7 @@
 <h1 align="center">Admarus</h1>
 
 <p align="center">
-    <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-blue" alt="License: MIT"/></a>
+    <a href="https://opensource.org/licenses/agpl-v3"><img src="https://img.shields.io/badge/license-AGPL v3-blue" alt="License: AGPL v3"/></a>
     <img alt="Lines of code badge" src="https://img.shields.io/badge/total%20lines-8157-blue">
     <a href="https://census.admarus.net/"><img alt="Documents in corpus badge" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcensus.admarus.net%2Fapi%2Fv0%2Fstats&query=%24.stats_1h.documents&suffix=%20documents&label=corpus&color=purple"></a>
     <a href="https://census.admarus.net/"><img alt="Peers in network badge" src="https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fcensus.admarus.net%2Fapi%2Fv0%2Fstats&query=%24.stats_1h.peers&suffix=%20peers&label=network&color=purple"></a>
@@ -32,6 +32,7 @@ Admarus unlocks the full potential of IPFS by making it searchable. It is an ope
 - **Open**: Nodes don't discriminate on obscure criteria (hi emails)
 - **Decentralized**: No central authority. Multiple peer discovery mechanisms available
 - **Blockchain-free**: No blockchain, no token, just peer-to-peer magic
+- **Developer-friendly**: Practical API for building apps and bots
 
 ## 🌍 Scalability
 
