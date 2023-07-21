@@ -100,7 +100,7 @@ impl Component for ResultsPage {
                 }
                 self.results.rerank();
                 if update_counter > 15 {
-                    self.results.verify_some(15, search_id, ctx);
+                    self.results.verify_some(10, search_id, ctx);
                 }
 
                 let link = ctx.link().clone();
