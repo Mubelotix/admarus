@@ -137,9 +137,10 @@ impl RankedResults {
         self.results.retain(|cid, _| !self.providers.get(cid).map(|v| v.is_empty()).unwrap_or(true));
     }
 
-    pub fn verified_result(&mut self, cid: String, result: DocumentResult) {
-        log!("Verified result {}", cid);
+    pub fn verified_result(&mut self, cid: String, mut result: DocumentResult) {
         self.verified.insert(cid.clone());
+        let old_paths = self.results.get(&cid).map(|r| r.paths.clone()).unwrap_or_default();
+        result.paths = old_paths;
         self.results.insert(cid, result);
     }
 
