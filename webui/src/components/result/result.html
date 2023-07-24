@@ -1,0 +1,27 @@
+<div class="result">
+    <h3><a href="{{href_first}}">{{title_first}}</a></h3>
+    <div class="result-path">{{addr_first}}</div>
+    <p>{{desc_first}}</p>
+    <div present-if={{display_scores}} class="result-scores">
+        <span>Frequency: {{term_frequency_score_first}}</span>
+        <span>Variety: {{variety_score_first}}</span>
+        <span>Lenght: {{length_score_first}}</span>
+        <span>Lang: {{lang_score_first}}</span>
+        <span>Popularity: {{popularity_score_first}}</span>
+        <span>Verified: {{verified_score_first}}</span>
+    </div>
+</div>
+<div iter class="result child-result">
+    <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
+    <div class="result-path">{{addr_iter}}</div>
+    <p>{{desc_iter}}</p>
+    <div present-if={{display_scores}} class="result-scores">
+        <span>Frequency: {{term_frequency_score_iter}}</span>
+        <span>Variety: {{variety_score_iter}}</span>
+        <span>Lenght: {{length_score_iter}}</span>
+        <span>Lang: {{lang_score_iter}}</span>
+        <span>Popularity: {{popularity_score_iter}}</span>
+        <span>Verified: {{verified_score_iter}}</span>
+    </div>
+</div>
+<button present-if={{has_children}} class="expand-result-children">View more results from {{root_id}}</button>

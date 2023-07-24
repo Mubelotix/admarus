@@ -189,24 +189,21 @@ impl Component for ResultsPage {
         };
         let error_recommandation_iter = error_recommandations.into_iter();
 
-        // Results
-        let addr_iter = results.iter().map(|(result,_)| result.format_best_addr());
-        let href_iter = results.iter().map(|(result,_)| result.format_best_href());
-        let title_iter = results.iter().map(|(result,_)| result.format_result_title());
-        let description_iter = results.iter().map(|(result,_)| result.view_desc(query.unwrap()));
-
-        // Scores
-        let display_scores = cfg!(debug_assertions);
-        let term_frequency_score_iter = results.iter().map(|(_, scores)| scores.tf_score);
-        let variety_score_iter = results.iter().map(|(_, scores)| scores.variety_score);
-        let length_score_iter = results.iter().map(|(_, scores)| scores.length_score);
-        let lang_score_iter = results.iter().map(|(_, scores)| scores.lang_score);
-        let popularity_score_iter = results.iter().map(|(_, scores)| scores.popularity_score);
-        let verified_score_iter = results.iter().map(|(_, scores)| scores.verified_score);
-
         // Connection status
         let conn_status = Rc::clone(&ctx.props().conn_status);
         let onchange_conn_status = ctx.props().onchange_conn_status.clone();
+
+        let result_components: Html = match query {
+            Some(query) => {
+                let query = Rc::new(query.to_owned());
+                results.into_iter().map(|results| {
+                    html! {
+                        <GroupedResultsComp results={results} query={Rc::clone(&query)} />
+                    }
+                }).collect()
+            },
+            None => html!(),
+        };
 
         template_html!(
             "pages/results/results.html",

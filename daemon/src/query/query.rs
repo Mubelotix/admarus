@@ -2,7 +2,7 @@
 
 use crate::prelude::*;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub struct Query {
     #[serde(flatten)]
     pub root: QueryComp,
@@ -22,7 +22,7 @@ impl Query {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum QueryComp {
     // word
     Word(String),
