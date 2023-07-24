@@ -209,7 +209,7 @@ impl Component for ResultsPage {
         let onchange_conn_status = ctx.props().onchange_conn_status.clone();
 
         template_html!(
-            "results/results.html",
+            "pages/results/results.html",
             onclick_home = { onclick_home.clone() },
             ...
         )

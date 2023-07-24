@@ -32,7 +32,7 @@ impl Component for SearchPage {
         let onchange_conn_status = ctx.props().onchange_conn_status.clone();
 
         template_html!(
-            "search/search.html",
+            "pages/search/search.html",
             ...
         )
     }

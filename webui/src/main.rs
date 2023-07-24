@@ -7,11 +7,11 @@ mod api;
 mod lucky;
 mod lang;
 
-#[path = "search/search.rs"]
+#[path = "pages/search/search.rs"]
 mod search;
-#[path = "settings/settings.rs"]
+#[path = "pages/settings/settings.rs"]
 mod settings;
-#[path = "results/results.rs"]
+#[path = "pages/results/results.rs"]
 mod results;
 #[path = "components/search_bar/search_bar.rs"]
 mod search_bar;

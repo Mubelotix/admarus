@@ -27,7 +27,7 @@ impl Component for SettingsPage {
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         template_html!(
-            "settings/settings.html",
+            "pages/settings/settings.html",
             onclick_search = { ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home)) }
         )
     }
