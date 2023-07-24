@@ -174,6 +174,7 @@ impl std::fmt::Debug for Score {
     }
 }
 
+#[derive(Clone)]
 pub struct Scores {
     pub tf_score: Score,
     pub variety_score: Score,
@@ -199,6 +200,18 @@ impl Scores {
             * self.length_score.val
         )
     }
+
+    pub fn zero() -> Self {
+        Self {
+            tf_score: Score::from(0.0),
+            variety_score: Score::from(0.0),
+            length_score: Score::from(0.0),
+            lang_score: Score::from(0.0),
+            popularity_score: Score::from(0.0),
+            ipns_score: Score::from(0.0),
+            verified_score: Score::from(0.0),
+        }
+    }
 }
 
 impl PartialEq for Scores {
@@ -211,12 +224,12 @@ impl Eq for Scores {}
 
 impl PartialOrd for Scores {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.general_score().partial_cmp(&other.general_score())
+        other.general_score().partial_cmp(&self.general_score())
     }
 }
 
 impl Ord for Scores {
     fn cmp(&self, other: &Self) -> Ordering {
-        self.partial_cmp(other).unwrap_or(Ordering::Equal)
+        other.general_score().partial_cmp(&self.general_score()).unwrap_or(Ordering::Equal)
     }
 }
