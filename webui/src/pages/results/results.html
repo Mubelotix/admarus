@@ -48,19 +48,7 @@
                 <li>Contribute to the network by adding your own content!</li>
             </ul>
         </div>
-        <div class="result" iter>
-            <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-            <div class="result-path">{{addr_iter}}</div>
-            <p>{{description_iter}}</p>
-            <div present-if={{display_scores}} class="result-scores">
-                <span>Frequency: {{term_frequency_score_iter}}</span>
-                <span>Variety: {{variety_score_iter}}</span>
-                <span>Lenght: {{length_score_iter}}</span>
-                <span>Lang: {{lang_score_iter}}</span>
-                <span>Popularity: {{popularity_score_iter}}</span>
-                <span>Verified: {{verified_score_iter}}</span>
-            </div>
-        </div>
+        {{result_components}}
     </div>
     <div present-if=!{{all_or_documents_selected}} id="result-list">
         <div class="search-error">

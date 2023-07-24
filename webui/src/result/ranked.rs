@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
-    fully_ranked: Vec<GroupedResults>,
+    fully_ranked: Vec<GroupedResultRefs>,
 
     tf_ranking: Vec<(String, Score)>,
     variety_scores: HashMap<String, Score>,
@@ -76,7 +76,7 @@ impl RankedResults {
         let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
         self.fully_ranked = Vec::new();
         for (_, cids) in groups {
-            let mut groupes_results = GroupedResults::default();
+            let mut grouped_refs = GroupedResultRefs::default();
             for cid in cids {
                 let Some(result) = self.results.get(cid) else {continue};
                 let Some(providers) = self.providers.get(cid) else {continue};
@@ -98,13 +98,13 @@ impl RankedResults {
                     ipns_score,
                     verified_score,
                 };
-                groupes_results.insert(cid.to_owned(), scores);
+                grouped_refs.insert(cid.to_owned(), scores);
             }
-            if groupes_results.is_empty() {
+            if grouped_refs.is_empty() {
                 continue;
             }
-            let i = self.fully_ranked.binary_search_by_key(&groupes_results.scores(), |others| others.scores()).unwrap_or_else(|i| i);
-            self.fully_ranked.insert(i, groupes_results);
+            let i = self.fully_ranked.binary_search_by_key(&grouped_refs.scores(), |others| others.scores()).unwrap_or_else(|i| i);
+            self.fully_ranked.insert(i, grouped_refs);
         }
     } 
 
@@ -156,44 +156,11 @@ impl RankedResults {
         self.results.insert(cid, result);
     }
 
-    pub fn get_ranked(&self) -> &[GroupedResults] {
+    pub fn get_ranked(&self) -> &[GroupedResultRefs] {
         self.fully_ranked.as_slice()
     }
 
-    pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, &Scores)> {
-        struct RankedGroupedIterator<'a> {
-            inner: &'a [GroupedResults],
-            results: &'a HashMap<String, DocumentResult>,
-            i: usize,
-            j: usize,
-        }
-
-        impl<'a> Iterator for RankedGroupedIterator<'a> {
-            type Item = (&'a DocumentResult, &'a Scores);
-
-            fn next(&mut self) -> Option<Self::Item> {
-                if self.i >= self.inner.len() {
-                    return None;
-                }
-                let (cid, scores) = &self.inner[self.i].results[self.j];
-                if self.j < self.inner[self.i].results.len() - 1 {
-                    self.j += 1;
-                } else {
-                    self.i += 1;
-                    self.j = 0;
-                }
-                match self.results.get(cid) {
-                    Some(result) => Some((result, scores)),
-                    None => self.next(),
-                }
-            }
-        }
-
-        RankedGroupedIterator {
-            inner: self.fully_ranked.as_slice(),
-            results: &self.results,
-            i: 0,
-            j: 0,
-        }
+    pub fn iter_with_scores(&self) -> impl Iterator<Item = Vec<(DocumentResult, Scores)>> + '_ {
+        self.fully_ranked.iter().filter_map(|refs| refs.to_docs(&self.results))
     }
 }

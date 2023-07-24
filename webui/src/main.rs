@@ -17,6 +17,8 @@ mod results;
 mod search_bar;
 #[path = "components/connection_status/connection_status.rs"]
 mod connection_status;
+#[path = "components/result/result.rs"]
+mod result_comp;
 
 mod query;
 
