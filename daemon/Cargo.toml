@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-libp2p = {version="0.51", features=["tcp", "tokio", "noise", "mplex", "macros"]}
-libp2p-identify = "0.42"
+libp2p = {version="0.52", features=["tcp", "tokio", "noise", "yamux", "macros"]}
+libp2p-identity = "0.2"
+libp2p-identify = "0.43"
 libipld = "0.16"
-kamilata = "0.1"
+kamilata = "0.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.0", features = ["full"] }

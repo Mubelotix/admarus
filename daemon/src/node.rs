@@ -3,7 +3,7 @@ use crate::prelude::*;
 const FILTER_SIZE: usize = 125000;
 
 #[derive(NetworkBehaviour)]
-#[behaviour(out_event = "Event")]
+#[behaviour(to_swarm = "Event")]
 struct AdmarusBehaviour {
     kamilata: KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>,
     identify: IdentifyBehaviour,
@@ -80,7 +80,7 @@ impl Node {
             .authenticate(
                 noise::Config::new(&keypair).expect("Signing libp2p-noise static DH keypair failed."),
             )
-            .multiplex(MplexConfig::default())
+            .multiplex(YamuxConfig::default())
             .boxed();
         
         let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
@@ -103,10 +103,6 @@ impl Node {
 
     fn kam_mut(&mut self) -> &mut KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>> {
         &mut self.swarm.behaviour_mut().kamilata
-    }
-
-    fn disc(&self) -> &DiscoveryBehavior {
-        &self.swarm.behaviour().discovery
     }
 
     fn disc_mut(&mut self) -> &mut DiscoveryBehavior {
@@ -134,11 +130,6 @@ impl Node {
                         ClientCommand::GetExternalAddrs { sender } => {
                             let addrs = self.swarm.external_addresses();
                             let _ = sender.send(addrs.cloned().collect());
-                        },
-                        ClientCommand::GetAddressesOf { peer_id, sender } => {
-                            let disc = self.disc();
-                            let addrs = disc.get_info(peer_id).await.map(|info| info.listen_addrs).unwrap_or_default();
-                            let _ = sender.send(addrs);
                         },
                         ClientCommand::QueryPeers { query: q, sender } => {
                             self.disc_mut().start_query(q, sender);
@@ -205,6 +196,10 @@ impl Node {
                                 self.sw.on_seeder_removed(&peer_id).await;
                             },
                         },
+                        // Discovery events
+                        SwarmEvent::Behaviour(Event::Discovery(event)) => match event {
+
+                        }
                         SwarmEvent::NewListenAddr { listener_id, address } => debug!("Listening on {address} (listener id: {listener_id:?})"),
                         SwarmEvent::ConnectionEstablished { peer_id, endpoint, num_established, .. } => {
                             debug!("Connection established with {peer_id} (num_established: {num_established}, endpoint: {endpoint:?})");
@@ -216,12 +211,13 @@ impl Node {
                                 self.sw.on_peer_disconnected(&peer_id).await;
                             }
                         },
-                        SwarmEvent::OutgoingConnectionError { peer_id, error } => debug!("Outgoing connection error to {peer_id:?}: {error}"),
+                        SwarmEvent::OutgoingConnectionError { peer_id, connection_id, error } => debug!("Outgoing connection {connection_id:?} error to {peer_id:?}: {error}"),
                         SwarmEvent::ExpiredListenAddr { listener_id, address } => debug!("Expired listen addr {address} (listener id: {listener_id:?})"),
                         SwarmEvent::ListenerClosed { listener_id, addresses, reason } => debug!("Listener closed (listener id: {listener_id:?}, addresses: {addresses:?}, reason: {reason:?})"),
                         SwarmEvent::ListenerError { listener_id, error } => debug!("Listener error (listener id: {listener_id:?}, error: {error})"),
-                        SwarmEvent::Dialing(peer_id) => debug!("Dialing {peer_id}"),
-                        _ => (),
+                        SwarmEvent::Dialing { peer_id, connection_id } => debug!("Dialing {peer_id:?} ({connection_id:?})"),
+                        SwarmEvent::IncomingConnection { connection_id, local_addr, send_back_addr } => trace!("Incoming connection from {send_back_addr} (local addr: {local_addr}, connection id: {connection_id:?})"),
+                        SwarmEvent::IncomingConnectionError { connection_id, local_addr, send_back_addr, error } => trace!("Incoming connection error from {send_back_addr} (local addr: {local_addr}, connection id: {connection_id:?}, error: {error})"),
                     },
                 }
             }
@@ -237,7 +233,7 @@ enum ClientCommand {
         sender: OneshotSender<OngoingSearchController<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>>,
     },
     GetExternalAddrs {
-        sender: OneshotSender<Vec<AddressRecord>>,
+        sender: OneshotSender<Vec<Multiaddr>>,
     },
     QueryPeers {
         query: PeerListQuery,  
@@ -248,10 +244,6 @@ enum ClientCommand {
         peer_id: PeerId,
     },
     LeechFrom(PeerId),
-    GetAddressesOf {
-        peer_id: PeerId,
-        sender: OneshotSender<Vec<Multiaddr>>,
-    },
 }
 
 #[derive(Clone)]
@@ -276,18 +268,9 @@ impl NodeController {
         receiver.await.expect("Channel closed")
     }
 
-    pub async fn external_addresses(&self) -> Vec<AddressRecord> {
+    pub async fn external_addresses(&self) -> Vec<Multiaddr> {
         let (sender, receiver) = oneshot_channel();
         let _ = self.sender.send(ClientCommand::GetExternalAddrs {
-            sender,
-        }).await;
-        receiver.await.expect("Channel closed")
-    }
-
-    pub async fn addresses_of(&self, peer_id: PeerId) -> Vec<Multiaddr> {
-        let (sender, receiver) = oneshot_channel();
-        let _ = self.sender.send(ClientCommand::GetAddressesOf {
-            peer_id,
             sender,
         }).await;
         receiver.await.expect("Channel closed")

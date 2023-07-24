@@ -10,7 +10,7 @@ pub use libp2p::{
     swarm::{
         handler::ConnectionEvent, ConnectionHandler, ConnectionHandlerEvent, ConnectionId,
         FromSwarm, KeepAlive, NetworkBehaviour, PollParameters, SubstreamProtocol, THandlerInEvent,
-        THandlerOutEvent, ToSwarm, NotifyHandler,
+        THandlerOutEvent, ToSwarm, NotifyHandler, Stream,
     },
     InboundUpgrade, Multiaddr, OutboundUpgrade, PeerId,
 };
@@ -34,5 +34,4 @@ mod query;
 
 pub use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*, query::*};
 
-pub type Stream = Negotiated<SubstreamBox>;
 pub type RequestReplier = OneshotSender<Result<Response, IoError>>;

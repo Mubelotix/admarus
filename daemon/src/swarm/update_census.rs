@@ -17,7 +17,7 @@ pub async fn update_census_task<const N: usize>(node: NodeController, index: Doc
         let new_addrs = node
             .external_addresses().await
             .into_iter()
-            .map(|rec| rec.addr.to_string())
+            .map(|a| a.to_string())
             .filter(|a| !external_addrs.contains(a))
             .collect::<Vec<_>>();
         external_addrs.extend(new_addrs);

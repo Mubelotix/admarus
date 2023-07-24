@@ -27,10 +27,10 @@ pub use tokio::{
     net::TcpStream as TokioTcpStream
 };
 pub use libp2p::{
-    swarm::{dial_opts::DialOpts, Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour, AddressRecord},
-    core::{identity::Keypair, upgrade},
-    PeerId, Multiaddr, multiaddr::Protocol, tcp, Transport, mplex::MplexConfig, noise
+    swarm::{dial_opts::DialOpts, Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour},
+    core::upgrade, PeerId, Multiaddr, multiaddr::Protocol, tcp, Transport, yamux::Config as YamuxConfig, noise
 };
+pub use libp2p_identity::Keypair;
 pub use libipld::cid::Cid;
 pub use futures::{
     future::{BoxFuture, join_all, Either},

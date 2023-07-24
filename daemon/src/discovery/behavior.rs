@@ -8,7 +8,7 @@ pub enum Event {
 pub struct Behaviour {
     config: Arc<Config>,
     db: Arc<Db>,
-    events_to_dispatch: Vec<(PeerId, HandlerInEvent)>,
+    events_to_dispatch: Vec<(PeerId, BehaviorToHandlerEvent)>,
 }
 
 impl Behaviour {
@@ -32,7 +32,7 @@ impl Behaviour {
     pub fn start_query(&mut self, query: PeerListQuery, sender: OneshotSender<Result<Response, IoError>>) {
         self.events_to_dispatch.push((
             query.peer_id,
-            HandlerInEvent::Request {
+            BehaviorToHandlerEvent::Request {
                 request: Request::GetPeers {
                     protocol_version: query.protocol_version,
                     agent_version: query.agent_version,
@@ -72,7 +72,7 @@ impl Behaviour {
             protocol_version: info.protocol_version,
             agent_version: info.agent_version,
             listen_addrs: info.listen_addrs,
-            protocols: info.protocols,
+            protocols: info.protocols.into_iter().map(|p| p.as_ref().to_string()).collect(),
             observed_addr: Some(info.observed_addr),
             metadata: Vec::new(),
         }).await;
@@ -94,7 +94,7 @@ impl Behaviour {
         let (sender, receiver) = oneshot_channel();
         self.events_to_dispatch.push((
             peer_id,
-            HandlerInEvent::Request {
+            BehaviorToHandlerEvent::Request {
                 request: Request::SetVisibility(visible),
                 replier: sender
             }
@@ -110,7 +110,7 @@ impl Behaviour {
 
 impl NetworkBehaviour for Behaviour {
     type ConnectionHandler = Handler;
-    type OutEvent = Event;
+    type ToSwarm = Event;
 
     fn on_swarm_event(&mut self, event: FromSwarm<Self::ConnectionHandler>) {
         match event {
@@ -156,7 +156,7 @@ impl NetworkBehaviour for Behaviour {
         Ok(Handler::new(remote_peer_id, Arc::clone(&self.config), Arc::clone(&self.db)))
     }
 
-    fn poll(&mut self, _cx: &mut Context<'_>, _params: &mut impl PollParameters) -> Poll<ToSwarm<Self::OutEvent, THandlerInEvent<Self>>> {
+    fn poll(&mut self, _cx: &mut Context<'_>, _params: &mut impl PollParameters) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         if let Some((peer_id, event)) = self.events_to_dispatch.pop() {
             return Poll::Ready(ToSwarm::NotifyHandler { peer_id, handler: NotifyHandler::Any, event });
         }

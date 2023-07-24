@@ -1,7 +1,7 @@
 use super::*;
 
 #[derive(Debug)]
-pub enum HandlerInEvent {
+pub enum BehaviorToHandlerEvent {
     Request {
         request: Request,
         replier: RequestReplier,
@@ -9,7 +9,7 @@ pub enum HandlerInEvent {
 }
 
 #[derive(Debug)]
-pub enum HandlerOutEvent {}
+pub enum HandlerToBehaviorEvent {}
 
 #[derive(Debug)]
 pub enum HandlerError {}
@@ -47,8 +47,8 @@ impl Handler {
 
 
 impl ConnectionHandler for Handler {
-    type InEvent = HandlerInEvent;
-    type OutEvent = HandlerOutEvent;
+    type FromBehaviour = BehaviorToHandlerEvent;
+    type ToBehaviour = HandlerToBehaviorEvent;
     type Error = HandlerError;
     type InboundProtocol = ArcConfig;
     type OutboundProtocol = ArcConfig;
@@ -63,9 +63,9 @@ impl ConnectionHandler for Handler {
         KeepAlive::Yes
     }
 
-    fn on_behaviour_event(&mut self, event: HandlerInEvent) {
+    fn on_behaviour_event(&mut self, event: BehaviorToHandlerEvent) {
         match event {
-            HandlerInEvent::Request { request, replier } => {
+            BehaviorToHandlerEvent::Request { request, replier } => {
                 self.pending_requests.push((request, replier))
             },
         }
@@ -92,11 +92,11 @@ impl ConnectionHandler for Handler {
                 let e = e.error;
                 error!("ListenUpgradeError: {e:?}");
             },
-            ConnectionEvent::AddressChange(_) => (),
+            ConnectionEvent::AddressChange(_) | ConnectionEvent::LocalProtocolsChange(_) | ConnectionEvent::RemoteProtocolsChange(_) => (),
         }
     }
 
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, (Request, RequestReplier), HandlerOutEvent, HandlerError>> {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, (Request, RequestReplier), HandlerToBehaviorEvent, HandlerError>> {
         if let Some(pending_info) = self.pending_requests.pop() {
             return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
                 protocol: SubstreamProtocol::new((&self.config).into(), pending_info),
