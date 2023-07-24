@@ -7,5 +7,6 @@ mod word_count;
 mod ranked;
 mod format;
 mod verification;
+mod grouped;
 
-pub use {result::*, scores::*, word_count::*, ranked::*, format::*, verification::*};
+pub use {result::*, scores::*, word_count::*, ranked::*, format::*, verification::*, grouped::*};

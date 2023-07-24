@@ -2,7 +2,7 @@ use crate::prelude::*;
 
 pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
-    fully_ranked: Vec<(String, Scores)>,
+    fully_ranked: Vec<GroupedResults>,
 
     tf_ranking: Vec<(String, Score)>,
     variety_scores: HashMap<String, Score>,
@@ -59,45 +59,57 @@ impl RankedResults {
     }
 
     pub fn rerank(&mut self) {
+        // Recompute TF scores
         let res_count = self.results.len() as f64;
-
         let mut tf_scores = HashMap::new();
         for (i, (cid, _)) in self.tf_ranking.iter().enumerate() {
             tf_scores.insert(cid, i as f64 / res_count);
         }
 
-        let length_scores = &self.length_scores;
+        // Group results by domain name
+        let mut groups = HashMap::new();
+        for (cid, result) in self.results.iter() {
+            groups.entry(result.root_id()).or_insert_with(Vec::new).push(cid);
+        }
 
+        // Compute scores and rank groups
         let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
         self.fully_ranked = Vec::new();
-        for (cid, _) in self.results.iter() {
-            let Some(result) = self.results.get(cid) else {continue};
-            let Some(providers) = self.providers.get(cid) else {continue};
-
-            let Some(tf_score) = tf_scores.get(cid) else {continue};
-            let Some(variety_score) = self.variety_scores.get(cid) else {continue};
-            let Some(length_score) = length_scores.get(cid) else {continue};
-            let Some(lang_score) = self.lang_scores.get(cid) else {continue};
-            let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
-            let ipns_score = Score::from(result.has_ipns() as usize as f64);
-            let verified_score = Score::from(self.verified.contains(cid) as usize as f64);
-
-            let scores = Scores {
-                tf_score: Score::from(*tf_score),
-                variety_score: *variety_score,
-                length_score: *length_score,
-                lang_score: *lang_score,
-                popularity_score,
-                ipns_score,
-                verified_score,
-            };
-            let i = self.fully_ranked.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
-            self.fully_ranked.insert(i, (cid.clone(), scores));
+        for (_, cids) in groups {
+            let mut groupes_results = GroupedResults::default();
+            for cid in cids {
+                let Some(result) = self.results.get(cid) else {continue};
+                let Some(providers) = self.providers.get(cid) else {continue};
+    
+                let Some(tf_score) = tf_scores.get(cid) else {continue};
+                let Some(variety_score) = self.variety_scores.get(cid) else {continue};
+                let Some(length_score) = self.length_scores.get(cid) else {continue};
+                let Some(lang_score) = self.lang_scores.get(cid) else {continue};
+                let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
+                let ipns_score = Score::from(result.has_ipns() as usize as f64);
+                let verified_score = Score::from(self.verified.contains(cid) as usize as f64);
+    
+                let scores = Scores {
+                    tf_score: Score::from(*tf_score),
+                    variety_score: *variety_score,
+                    length_score: *length_score,
+                    lang_score: *lang_score,
+                    popularity_score,
+                    ipns_score,
+                    verified_score,
+                };
+                groupes_results.insert(cid.to_owned(), scores);
+            }
+            if groupes_results.is_empty() {
+                continue;
+            }
+            let i = self.fully_ranked.binary_search_by_key(&groupes_results.scores(), |others| others.scores()).unwrap_or_else(|i| i);
+            self.fully_ranked.insert(i, groupes_results);
         }
     } 
 
     pub fn verify_some(&mut self, top: usize, search_id: u64, ctx: &Context<ResultsPage>) {
-        let rpc_addr = ctx.props().conn_status.rpc_addr();
+        /*let rpc_addr = ctx.props().conn_status.rpc_addr();
         for (cid, _) in self.fully_ranked.iter().rev().take(top) {
             if self.verified.contains(cid) {
                 continue;
@@ -123,7 +135,7 @@ impl RankedResults {
                     false => link.send_message(ResultsMessage::MaliciousResult(cid)),
                 }
             });
-        }
+        }*/
     }
 
     pub fn malicious_result(&mut self, cid: String) {
@@ -144,11 +156,44 @@ impl RankedResults {
         self.results.insert(cid, result);
     }
 
-    pub fn get_ranked(&self) -> &[(String, Scores)] {
+    pub fn get_ranked(&self) -> &[GroupedResults] {
         self.fully_ranked.as_slice()
     }
 
     pub fn iter_with_scores(&self) -> impl Iterator<Item = (&DocumentResult, &Scores)> {
-        self.get_ranked().iter().rev().filter_map(|(cid, scores)| self.results.get(cid).map(|result| (result, scores)))
+        struct RankedGroupedIterator<'a> {
+            inner: &'a [GroupedResults],
+            results: &'a HashMap<String, DocumentResult>,
+            i: usize,
+            j: usize,
+        }
+
+        impl<'a> Iterator for RankedGroupedIterator<'a> {
+            type Item = (&'a DocumentResult, &'a Scores);
+
+            fn next(&mut self) -> Option<Self::Item> {
+                if self.i >= self.inner.len() {
+                    return None;
+                }
+                let (cid, scores) = &self.inner[self.i].results[self.j];
+                if self.j < self.inner[self.i].results.len() - 1 {
+                    self.j += 1;
+                } else {
+                    self.i += 1;
+                    self.j = 0;
+                }
+                match self.results.get(cid) {
+                    Some(result) => Some((result, scores)),
+                    None => self.next(),
+                }
+            }
+        }
+
+        RankedGroupedIterator {
+            inner: self.fully_ranked.as_slice(),
+            results: &self.results,
+            i: 0,
+            j: 0,
+        }
     }
 }
