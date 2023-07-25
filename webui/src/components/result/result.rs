@@ -28,7 +28,7 @@ impl PartialEq for GroupedResultsProps {
 }
 
 pub struct GroupedResultsComp {
-
+    displayed: usize,
 }
 
 impl Component for GroupedResultsComp {
@@ -36,34 +36,34 @@ impl Component for GroupedResultsComp {
     type Properties = GroupedResultsProps;
 
     fn create(_ctx: &Context<Self>) -> Self {
-        GroupedResultsComp {}
-    }
-
-    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
-        *self = Component::create(ctx);
-        true
+        GroupedResultsComp {
+            displayed: 3,
+        }
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
         if ctx.props().results.is_empty() {
             return html! {};
         }
-        let has_children = ctx.props().results.len() > 1;
+        let all_displayed = self.displayed >= ctx.props().results.len();
         let root_id = ctx.props().results.first().map(|(result,_)| result.root_id()).unwrap_or_default();
 
-        let mut addr_iter = ctx.props().results.iter().map(|(result,_)| result.format_best_addr());
-        let mut href_iter = ctx.props().results.iter().map(|(result,_)| result.format_best_href());
-        let mut title_iter = ctx.props().results.iter().map(|(result,_)| result.format_result_title());
-        let mut desc_iter = ctx.props().results.iter().map(|(result,_)| result.view_desc(&ctx.props().query));
+        let result_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(result,_)| result);
+        let scores_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(_,scores)| scores);
+
+        let mut addr_iter = result_iter().map(|result| result.format_best_addr());
+        let mut href_iter = result_iter().map(|result| result.format_best_href());
+        let mut title_iter = result_iter().map(|result| result.format_result_title());
+        let mut desc_iter = result_iter().map(|result| result.view_desc(&ctx.props().query));
 
         // Scores
         let display_scores = false; // cfg!(debug_assertions);
-        let mut term_frequency_score_iter = ctx.props().results.iter().map(|(_, scores)| scores.tf_score);
-        let mut variety_score_iter = ctx.props().results.iter().map(|(_, scores)| scores.variety_score);
-        let mut length_score_iter = ctx.props().results.iter().map(|(_, scores)| scores.length_score);
-        let mut lang_score_iter = ctx.props().results.iter().map(|(_, scores)| scores.lang_score);
-        let mut popularity_score_iter = ctx.props().results.iter().map(|(_, scores)| scores.popularity_score);
-        let mut verified_score_iter = ctx.props().results.iter().map(|(_, scores)| scores.verified_score);
+        let mut term_frequency_score_iter = scores_iter().map(|scores| scores.tf_score);
+        let mut variety_score_iter = scores_iter().map(|scores| scores.variety_score);
+        let mut length_score_iter = scores_iter().map(|scores| scores.length_score);
+        let mut lang_score_iter = scores_iter().map(|scores| scores.lang_score);
+        let mut popularity_score_iter = scores_iter().map(|scores| scores.popularity_score);
+        let mut verified_score_iter = scores_iter().map(|scores| scores.verified_score);
         
         let href_first = href_iter.next().unwrap_or_default();
         let title_first = title_iter.next().unwrap_or_default();
