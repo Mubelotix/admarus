@@ -72,7 +72,7 @@ impl RankedResults {
                 path.pop();
 
                 // Make sure there isn't a higher level grouping result already
-                if self.get_grouping_parent(path.clone()).is_some() {log!("has parent {path:?}"); break 'grouping};
+                if self.get_grouping_parent(path.clone()).is_some() {break 'grouping};
                 
                 self.grouping_results.insert(res.cid.clone());
                 self.grouping_result_paths.insert(path.to_owned(), res.cid.clone());
