@@ -41,6 +41,11 @@ impl Component for GroupedResultsComp {
         }
     }
 
+    fn update(&mut self, _ctx: &Context<Self>, _msg: Self::Message) -> bool {
+        self.displayed += 5;
+        true
+    }
+
     fn view(&self, ctx: &Context<Self>) -> Html {
         if ctx.props().results.is_empty() {
             return html! {};
@@ -51,10 +56,16 @@ impl Component for GroupedResultsComp {
         let result_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(result,_)| result);
         let scores_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(_,scores)| scores);
 
+        // General
         let mut addr_iter = result_iter().map(|result| result.format_best_addr());
         let mut href_iter = result_iter().map(|result| result.format_best_href());
         let mut title_iter = result_iter().map(|result| result.format_result_title());
         let mut desc_iter = result_iter().map(|result| result.view_desc(&ctx.props().query));
+        
+        let href_first = href_iter.next().unwrap_or_default();
+        let title_first = title_iter.next().unwrap_or_default();
+        let desc_first = desc_iter.next().unwrap_or_default();
+        let addr_first = addr_iter.next().unwrap_or_default();
 
         // Scores
         let display_scores = false; // cfg!(debug_assertions);
@@ -64,17 +75,16 @@ impl Component for GroupedResultsComp {
         let mut lang_score_iter = scores_iter().map(|scores| scores.lang_score);
         let mut popularity_score_iter = scores_iter().map(|scores| scores.popularity_score);
         let mut verified_score_iter = scores_iter().map(|scores| scores.verified_score);
-        
-        let href_first = href_iter.next().unwrap_or_default();
-        let title_first = title_iter.next().unwrap_or_default();
-        let desc_first = desc_iter.next().unwrap_or_default();
-        let addr_first = addr_iter.next().unwrap_or_default();
+
         let term_frequency_score_first = term_frequency_score_iter.next().unwrap();
         let variety_score_first = variety_score_iter.next().unwrap();
         let length_score_first = length_score_iter.next().unwrap();
         let lang_score_first = lang_score_iter.next().unwrap();
         let popularity_score_first = popularity_score_iter.next().unwrap();
         let verified_score_first = verified_score_iter.next().unwrap();
+
+        // Events
+        let onclick_more = ctx.link().callback(|_| ());
 
         template_html!("components/result/result.html", ...)
     }
