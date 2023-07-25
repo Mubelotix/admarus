@@ -94,13 +94,14 @@ impl Component for ResultsPage {
 
                 // Insert results and rank them
                 self.update_counter += 1;
+                let new_results = !results.is_empty();
                 for (result, provider) in results {
                     self.results.insert(result, provider.clone(), query);
                     self.providers.insert(provider);
                 }
                 self.results.rerank();
-                if update_counter > 15 {
-                    self.results.verify_some(10, search_id, ctx);
+                if new_results {
+                    self.results.rerank();
                 }
 
                 let link = ctx.link().clone();
