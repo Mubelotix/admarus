@@ -7,27 +7,31 @@ impl DocumentResult {
 }
 
 // TODO: switch to references
-#[derive(Default)]
-pub struct GroupedResultRefs {
-    pub results: Vec<(String, Scores)>, // TODO remove pub
+pub struct GroupedResults {
+    pub first: (String, Scores),
+    pub children: Vec<(String, Scores)>, // TODO remove pub
 }
 
-impl GroupedResultRefs {
+impl GroupedResults {
+    pub fn new(first: (String, Scores)) -> Self {
+        Self {
+            first,
+            children: Vec::new(),
+        }
+    }
+
     pub fn insert(&mut self, cid: String, scores: Scores) {
-        let i = self.results.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
-        self.results.insert(i, (cid, scores));
+        let i = self.children.binary_search_by_key(&&scores, |(_,s)| s).unwrap_or_else(|i| i);
+        self.children.insert(i, (cid, scores));
     }
 
-    pub fn is_empty(&self) -> bool {
-        self.results.is_empty()
-    }
-
+    // Returns the best [Scores] it contains
     pub fn scores(&self) -> Scores {
-        self.results.first().map(|(_,s)| s.to_owned()).unwrap_or(Scores::zero())
+        std::cmp::min(self.first.1.clone(), self.children.first().map(|(_,s)| s.to_owned()).unwrap_or(Scores::zero()))
     }
 
     pub fn to_docs(&self, results: &HashMap<String, DocumentResult>) -> Option<Vec<(DocumentResult, Scores)>> {
-        let results = self.results.iter().filter_map(|(cid, scores)| {
+        let results = std::iter::once(&self.first).chain(self.children.iter()).filter_map(|(cid, scores)| {
             results.get(cid).map(|r| (r.to_owned(), scores.to_owned()))
         }).collect::<Vec<_>>();
         match results.is_empty() {

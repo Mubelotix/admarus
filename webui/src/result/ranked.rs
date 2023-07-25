@@ -2,7 +2,10 @@ use crate::prelude::*;
 
 pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
-    fully_ranked: Vec<GroupedResultRefs>,
+    /// Grouping results are results whose title directly matches the query.
+    /// Other results under the same path are grouped under the grouping result.
+    grouping_results: HashSet<String>,
+    fully_ranked: Vec<GroupedResults>,
 
     tf_ranking: Vec<(String, Score)>,
     variety_scores: HashMap<String, Score>,
@@ -18,6 +21,7 @@ impl RankedResults {
     pub fn new() -> Self {
         Self {
             results: HashMap::new(),
+            grouping_results: HashSet::new(),
             fully_ranked: Vec::new(),
             tf_ranking: Vec::new(),
             variety_scores: HashMap::new(),
@@ -55,7 +59,35 @@ impl RankedResults {
 
         self.lang_scores.insert(res.cid.clone(), res.lang_score(Lang::English));
 
+        if res.is_grouping_result(query) {
+            // FIXME: handle the case where a grouping result is itself grouped under another grouping result
+            self.grouping_results.insert(res.cid.clone());
+        }
         self.results.insert(res.cid.clone(), res);
+    }
+
+    fn get_scores(&self, cid: &String, tf_score: Score) -> Option<Scores> {
+        let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
+
+        let Some(result) = self.results.get(cid) else {return None};
+        let Some(providers) = self.providers.get(cid) else {return None};
+
+        let Some(variety_score) = self.variety_scores.get(cid) else {return None};
+        let Some(length_score) = self.length_scores.get(cid) else {return None};
+        let Some(lang_score) = self.lang_scores.get(cid) else {return None};
+        let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
+        let ipns_score = Score::from(result.has_ipns() as usize as f64);
+        let verified_score = Score::from(self.verified.contains(cid) as usize as f64);
+
+        Some(Scores {
+            tf_score,
+            variety_score: *variety_score,
+            length_score: *length_score,
+            lang_score: *lang_score,
+            popularity_score,
+            ipns_score,
+            verified_score,
+        })
     }
 
     pub fn rerank(&mut self) {
@@ -67,46 +99,44 @@ impl RankedResults {
         }
 
         // Group results by domain name
+        log!("{} grouping results", self.grouping_results.len());
         let mut groups = HashMap::new();
-        for (cid, result) in self.results.iter() {
-            groups.entry(result.root_id()).or_insert_with(Vec::new).push(cid);
+        for parent_cid in self.grouping_results.iter() {
+            let Some(parent_result) = self.results.get(parent_cid) else {continue};
+            let Some(path) = parent_result.paths.first() else {continue}; 
+            groups.insert(path.as_slice(), (parent_cid, Vec::new())); // TODO: handle the case where 2 results claim to have the same path
         }
+        let mut ungrouped = HashSet::new();
+        'grouping: for (cid, result) in self.results.iter().filter(|(cid,_)| !self.grouping_results.contains(*cid)) {
+            let Some(path) = result.paths.first() else {continue};
+            let mut path = path.as_slice();
+            loop {
+                if path.is_empty() {
+                    break;
+                }
+                if let Some((_, cids)) = groups.get_mut(path) {
+                    cids.push(cid);
+                    continue 'grouping;
+                }
+                path = &path[..path.len()-1];
+            }
+            ungrouped.insert(cid);
+        }
+        log!("{} ungrouped results", ungrouped.len());
 
         // Compute scores and rank groups
-        let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
         self.fully_ranked = Vec::new();
-        for (_, cids) in groups {
-            let mut grouped_refs = GroupedResultRefs::default();
+        for (parent_cid, cids) in groups.into_values().chain(ungrouped.into_iter().map(|cid| (cid, Vec::new()))) {
+            let Some(parent_scores) = self.get_scores(parent_cid, Score::from(tf_scores[&parent_cid])) else {continue};
+            let mut grouped_results = GroupedResults::new((parent_cid.to_owned(), parent_scores));
             for cid in cids {
-                let Some(result) = self.results.get(cid) else {continue};
-                let Some(providers) = self.providers.get(cid) else {continue};
-    
-                let Some(tf_score) = tf_scores.get(cid) else {continue};
-                let Some(variety_score) = self.variety_scores.get(cid) else {continue};
-                let Some(length_score) = self.length_scores.get(cid) else {continue};
-                let Some(lang_score) = self.lang_scores.get(cid) else {continue};
-                let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
-                let ipns_score = Score::from(result.has_ipns() as usize as f64);
-                let verified_score = Score::from(self.verified.contains(cid) as usize as f64);
-    
-                let scores = Scores {
-                    tf_score: Score::from(*tf_score),
-                    variety_score: *variety_score,
-                    length_score: *length_score,
-                    lang_score: *lang_score,
-                    popularity_score,
-                    ipns_score,
-                    verified_score,
-                };
-                grouped_refs.insert(cid.to_owned(), scores);
+                let Some(scores) = self.get_scores(cid, Score::from(tf_scores[&cid])) else {continue};
+                grouped_results.insert(cid.to_owned(), scores);
             }
-            if grouped_refs.is_empty() {
-                continue;
-            }
-            let i = self.fully_ranked.binary_search_by_key(&grouped_refs.scores(), |others| others.scores()).unwrap_or_else(|i| i);
-            self.fully_ranked.insert(i, grouped_refs);
+            let i = self.fully_ranked.binary_search_by_key(&grouped_results.scores(), |others| others.scores()).unwrap_or_else(|i| i);
+            self.fully_ranked.insert(i, grouped_results);
         }
-    } 
+    }
 
     pub fn verify_some(&mut self, top: usize, search_id: u64, ctx: &Context<ResultsPage>) {
         /*let rpc_addr = ctx.props().conn_status.rpc_addr();
@@ -140,6 +170,7 @@ impl RankedResults {
 
     pub fn malicious_result(&mut self, cid: String) {
         self.results.remove(&cid);
+        self.grouping_results.remove(&cid);
         let malicious_providers = self.providers.remove(&cid).unwrap_or_default();
         self.malicious_providers.extend(malicious_providers);
         for providers in self.providers.values_mut() {
@@ -156,7 +187,7 @@ impl RankedResults {
         self.results.insert(cid, result);
     }
 
-    pub fn get_ranked(&self) -> &[GroupedResultRefs] {
+    pub fn get_ranked(&self) -> &[GroupedResults] {
         self.fully_ranked.as_slice()
     }
 
