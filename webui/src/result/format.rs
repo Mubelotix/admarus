@@ -6,6 +6,37 @@ impl DocumentResult {
         // TODO: sort using more advanced algorithm
         self.paths.sort_by(|a, b| b.first().map(|f| f.contains('.')).cmp(&a.first().map(|f| f.contains('.'))).then_with(|| b.len().cmp(&a.len())));
     }
+
+    pub fn is_grouping_result(&self, query: &Query) -> bool {
+        let title = match (&self.title, &self.h1) {
+            (Some(title), _) => title,
+            (_, Some(h1)) => h1,
+            (None, None) => return false,
+        };
+        let title_words = title.split(|c: char| !c.is_ascii_alphanumeric()).filter(|w| w.len() >= 3).map(|w| w.to_lowercase()).collect::<Vec<_>>();
+
+        fn words_match_query(comp: &QueryComp, words: &[String]) -> bool {
+            match comp {
+                QueryComp::Word(word) => words.contains(word),
+                QueryComp::Filter { .. } => true,
+                QueryComp::Not(inner) => !words_match_query(inner, words),
+                QueryComp::NAmong { n, among } => {
+                    let mut matching = 0;
+                    for inner in among {
+                        if words_match_query(inner, words) {
+                            matching += 1;
+                            if matching >= *n {
+                                return true;
+                            }
+                        }
+                    }
+                    false
+                }
+            }
+        }
+
+        words_match_query(&query.root, &title_words)
+    }
     
     pub fn format_result_title(&self) -> String {
         match self.title {
