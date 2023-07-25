@@ -198,8 +198,9 @@ impl Component for ResultsPage {
             Some(query) => {
                 let query = Rc::new(query.to_owned());
                 results.into_iter().map(|results| {
+                    let key = results.first().unwrap().0.cid.clone();
                     html! {
-                        <GroupedResultsComp results={results} query={Rc::clone(&query)} />
+                        <GroupedResultsComp key={key} results={results} query={Rc::clone(&query)} />
                     }
                 }).collect()
             },
