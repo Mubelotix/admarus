@@ -167,7 +167,7 @@ impl Component for ResultsPage {
         let onclick_select_videos = ctx.link().callback(|_| ResultsMessage::SelectDocumentType(DocumentType::Videos));
 
         // Result counter
-        let opt_result_counter = match (results.len(), self.providers.len()) {
+        let opt_result_counter = match (results.iter().map(|g| g.len()).sum(), self.providers.len()) {
             (0, _) => None,
             (1, _) => Some(String::from("1 result")),
             (n, 1) => Some(format!("{} results from 1 provider", n)),
