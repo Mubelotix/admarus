@@ -4,9 +4,7 @@ pub struct RankedResults {
     pub results: HashMap<String, DocumentResult>,
     /// Grouping results are results whose title directly matches the query.
     /// Other results under the same path are grouped under the grouping result.
-    /// A result that groups other grouping results will replace them as grouping results.
     grouping_results: HashSet<String>,
-    grouping_result_paths: HashMap<Vec<String>, String>,
     fully_ranked: Vec<GroupedResults>,
 
     tf_ranking: Vec<(String, Score)>,
@@ -24,7 +22,6 @@ impl RankedResults {
         Self {
             results: HashMap::new(),
             grouping_results: HashSet::new(),
-            grouping_result_paths: HashMap::new(),
             fully_ranked: Vec::new(),
             tf_ranking: Vec::new(),
             variety_scores: HashMap::new(),
@@ -63,31 +60,8 @@ impl RankedResults {
         self.lang_scores.insert(res.cid.clone(), res.lang_score(Lang::English));
 
         if res.is_grouping_result(query) {
-            'grouping: {
-                let Some(path) = res.paths.first() else {break 'grouping};
-                if !path.last().map(|l| l=="index.html").unwrap_or(false) {
-                    break 'grouping;
-                }
-                let mut path = path.clone();
-                path.pop();
-
-                // Make sure there isn't a higher level grouping result already
-                if self.get_grouping_parent(path.clone()).is_some() {break 'grouping};
-                
-                self.grouping_results.insert(res.cid.clone());
-                self.grouping_result_paths.insert(path.to_owned(), res.cid.clone());
-
-                // Remove lower level grouping results
-                self.grouping_results.retain(|other_cid| {
-                    if other_cid == &res.cid {
-                        return true;
-                    }
-                    let Some(other_result) = self.results.get(other_cid) else {return false};
-                    let Some(other_path) = other_result.paths.first() else {return false};
-                    !other_path.starts_with(&path)
-                });
-                self.grouping_result_paths.retain(|_, cid| self.grouping_results.contains(cid));
-            }
+            // FIXME: handle the case where a grouping result is itself grouped under another grouping result
+            self.grouping_results.insert(res.cid.clone());
         }
         self.results.insert(res.cid.clone(), res);
     }
@@ -116,20 +90,6 @@ impl RankedResults {
         })
     }
 
-    /// Returns the CID of the grouping result that contains the given path.
-    /// Doesn't return the grouping result with the exact same given path.
-    fn get_grouping_parent(&self, mut path: Vec<String>) -> Option<String> {
-        loop {
-            if path.is_empty() {
-                return None;
-            }
-            path.pop();
-            if let Some(cid) = self.grouping_result_paths.get(&path) {
-                return Some(cid.to_owned());
-            }
-        }
-    }
-
     pub fn rerank(&mut self) {
         // Recompute TF scores
         let res_count = self.results.len() as f64;
@@ -141,8 +101,10 @@ impl RankedResults {
         // Group results by domain name
         log!("{} grouping results", self.grouping_results.len());
         let mut groups = HashMap::new();
-        for (parent_path, parent_cid) in self.grouping_result_paths.iter() {
-            groups.insert(parent_path.as_slice(), (parent_cid, Vec::new())); // TODO: handle the case where 2 results claim to have the same path
+        for parent_cid in self.grouping_results.iter() {
+            let Some(parent_result) = self.results.get(parent_cid) else {continue};
+            let Some(path) = parent_result.paths.first() else {continue}; 
+            groups.insert(path.as_slice(), (parent_cid, Vec::new())); // TODO: handle the case where 2 results claim to have the same path
         }
         let mut ungrouped = HashSet::new();
         'grouping: for (cid, result) in self.results.iter().filter(|(cid,_)| !self.grouping_results.contains(*cid)) {
@@ -207,11 +169,8 @@ impl RankedResults {
     }
 
     pub fn malicious_result(&mut self, cid: String) {
-        let path = self.results.get(&cid).and_then(|r| r.paths.first()).cloned().unwrap_or_default();
         self.results.remove(&cid);
         self.grouping_results.remove(&cid);
-        self.grouping_result_paths.remove(&path);
-
         let malicious_providers = self.providers.remove(&cid).unwrap_or_default();
         self.malicious_providers.extend(malicious_providers);
         for providers in self.providers.values_mut() {
