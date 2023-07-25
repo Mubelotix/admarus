@@ -108,7 +108,6 @@ impl RankedResults {
         }
 
         // Group results
-        log!("{} grouping results", self.grouping_results.len());
         let mut groups = HashMap::new();
         for parent_cid in self.grouping_results.iter() {
             let Some(path) = self.get_index_path(parent_cid) else {continue}; 
@@ -132,7 +131,6 @@ impl RankedResults {
             }
             ungrouped.insert(cid);
         }
-        log!("{} ungrouped results", ungrouped.len());
 
         // Disband small groups
         'disbanding: for grouping_result in &self.grouping_results {
