@@ -90,6 +90,15 @@ impl RankedResults {
         })
     }
 
+    fn get_index_path(&self, cid: &String) -> Option<Vec<String>> {
+        let mut path = self.results.get(cid).and_then(|r| r.paths.first())?.to_owned();
+        if !path.last().map(|l| l=="index.html").unwrap_or(false) {
+            return None;
+        }
+        path.pop();
+        Some(path)
+    }
+
     pub fn rerank(&mut self) {
         // Recompute TF scores
         let res_count = self.results.len() as f64;
@@ -98,14 +107,15 @@ impl RankedResults {
             tf_scores.insert(cid, i as f64 / res_count);
         }
 
-        // Group results by domain name
+        // Group results
         log!("{} grouping results", self.grouping_results.len());
         let mut groups = HashMap::new();
         for parent_cid in self.grouping_results.iter() {
-            let Some(parent_result) = self.results.get(parent_cid) else {continue};
-            let Some(path) = parent_result.paths.first() else {continue}; 
-            groups.insert(path.as_slice(), (parent_cid, Vec::new())); // TODO: handle the case where 2 results claim to have the same path
+            let Some(path) = self.get_index_path(parent_cid) else {continue}; 
+            groups.insert(path, (parent_cid, Vec::new())); // TODO: handle the case where 2 results claim to have the same path
         }
+
+        // List ungrouped results
         let mut ungrouped = HashSet::new();
         'grouping: for (cid, result) in self.results.iter().filter(|(cid,_)| !self.grouping_results.contains(*cid)) {
             let Some(path) = result.paths.first() else {continue};
@@ -114,15 +124,39 @@ impl RankedResults {
                 if path.is_empty() {
                     break;
                 }
+                path = &path[..path.len()-1];
                 if let Some((_, cids)) = groups.get_mut(path) {
                     cids.push(cid);
                     continue 'grouping;
                 }
-                path = &path[..path.len()-1];
             }
             ungrouped.insert(cid);
         }
         log!("{} ungrouped results", ungrouped.len());
+
+        // Disband small groups
+        'disbanding: for grouping_result in &self.grouping_results {
+            let Some(path) = self.get_index_path(grouping_result) else {continue};
+
+            let (parent, children) = groups.get(&path).unwrap();
+            if children.len() <= 3 { // TODO: make this configurable
+                let Some(mut path) = self.get_index_path(parent) else {continue}; 
+                let (parent, children) = groups.remove(&path).unwrap();
+                loop {
+                    if path.is_empty() {
+                        break;
+                    }
+                    path.pop();
+                    if let Some((_, cids)) = groups.get_mut(&path) {
+                        cids.push(parent);
+                        cids.extend(children);
+                        continue 'disbanding;
+                    }
+                }
+                ungrouped.insert(parent);
+                ungrouped.extend(children);
+            }
+        }
 
         // Compute scores and rank groups
         self.fully_ranked = Vec::new();
