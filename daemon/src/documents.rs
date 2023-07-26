@@ -107,6 +107,16 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
         return None;
     }
 
+    // Retrieve favicons
+    let favicon_selector = Selector::parse("html>head>link[rel=icon], html>head>link[rel=shortcut icon], html>head>link[rel=apple-touch-icon], html>head>link[rel=apple-touch-icon-precomposed]").expect("Invalid icon selector");
+    let mut favicons = Vec::new();
+    for favicon_el in document.select(&favicon_selector) {
+        let Some(href) = favicon_el.value().attr("href").map(|href| href.to_string()) else {continue};
+        let Some(mime_type) = favicon_el.value().attr("type").map(|mime_type| mime_type.to_string()) else {continue};
+        let Some(sizes) = favicon_el.value().attr("sizes").map(|sizes| sizes.to_string()) else {continue};
+        favicons.push(FaviconDescriptor { href, mime_type, sizes });
+    }
+
     // Retrieve description
     let description_selector = Selector::parse("meta[name=description]").expect("Invalid description selector");
     let description_el = document.select(&description_selector).next();
@@ -223,7 +233,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     Some(DocumentResult {
         cid: String::new(),
         paths: Vec::new(),
-        icon_cid: None,
+        favicons,
         title,
         h1,
         description,

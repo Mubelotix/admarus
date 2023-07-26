@@ -1,9 +1,17 @@
 use crate::prelude::*;
 
+/// Data as found in link[rel=icon].
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FaviconDescriptor {
+    pub href: String,
+    pub mime_type: String,
+    pub sizes: String,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentResult {
     pub cid: String,
-    pub icon_cid: Option<String>,
+    pub favicons: Vec<FaviconDescriptor>,
     /// Size limit: Sum of all segment sizes <= 10kB
     pub paths: Vec<Vec<String>>,
     /// Content of the title tag

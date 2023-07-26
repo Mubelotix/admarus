@@ -14,11 +14,14 @@ impl DocumentResult {
             warn!("Invalid CID for {}: {e}", self.cid);
             return Err(InvalidResult::InvalidCid(e));
         }
-        if let Some(icon_cid) = self.icon_cid.clone() {
-            if let Err(e) = Cid::try_from(icon_cid) {
-                warn!("Invalid icon CID for {}: {e}", self.cid);
-                self.icon_cid = None;
-            }
+
+        // Validate paths
+        let previous_len = self.paths.len();
+        while self.favicons.iter().map(|desc| desc.href.len() + desc.mime_type.len() + desc.sizes.len()).sum::<usize>() >= 1000 {
+            self.favicons.pop();
+        }
+        if previous_len != self.favicons.len() {
+            warn!("Removed {} favicons for {} to match the size limit of 1kB", previous_len - self.favicons.len(), self.cid);
         }
 
         // Validate paths
@@ -27,7 +30,7 @@ impl DocumentResult {
             self.paths.pop();
         }
         if previous_len != self.paths.len() {
-            warn!("Remove {} paths for {} to match the size limit of 10kB", previous_len - self.paths.len(), self.cid);
+            warn!("Removed {} paths for {} to match the size limit of 10kB", previous_len - self.paths.len(), self.cid);
         }
 
         // Validate title and h1
