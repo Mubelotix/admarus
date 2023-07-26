@@ -3,7 +3,7 @@ use crate::prelude::*;
 impl DocumentResult {
     pub fn agrees_with(&self, trusted: &DocumentResult) -> bool {
         self.cid == trusted.cid
-            && (self.icon_cid.is_none() || self.icon_cid == trusted.icon_cid) // TODO: remove none here
+            && (self.favicons.is_empty() || self.favicons == trusted.favicons) // TODO: remove none here
             // TODO self.paths
             && self.title == trusted.title
             && self.h1 == trusted.h1

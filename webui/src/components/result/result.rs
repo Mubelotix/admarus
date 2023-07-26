@@ -54,10 +54,10 @@ impl Component for GroupedResultsComp {
         let root_id = ctx.props().results.first().map(|(result,_)| result.root_id()).unwrap_or_default();
 
         let result_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(result,_)| result);
+        let favicon_iter = || ctx.props().results.first().unwrap().0.favicons.iter();
         let scores_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(_,scores)| scores);
 
         // General
-        let mut addr_iter = result_iter().map(|result| result.format_best_addr());
         let mut href_iter = result_iter().map(|result| result.format_best_href());
         let mut title_iter = result_iter().map(|result| result.format_result_title());
         let mut desc_iter = result_iter().map(|result| result.view_desc(&ctx.props().query));
@@ -65,7 +65,12 @@ impl Component for GroupedResultsComp {
         let href_first = href_iter.next().unwrap_or_default();
         let title_first = title_iter.next().unwrap_or_default();
         let desc_first = desc_iter.next().unwrap_or_default();
-        let addr_first = addr_iter.next().unwrap_or_default();
+        let addr_first = ctx.props().results.first().unwrap().0.format_best_addr();
+
+        // Favicons
+        let icon_sizes_iter = favicon_iter().map(|desc| desc.sizes.to_owned());
+        let icon_srcset_iter = favicon_iter().map(|desc| desc.format_srcset(ctx.props().results.first().unwrap().0.paths.first().unwrap()));
+        let icon_type_iter = favicon_iter().map(|desc| desc.mime_type.to_owned());
 
         // Scores
         let display_scores = false; // cfg!(debug_assertions);

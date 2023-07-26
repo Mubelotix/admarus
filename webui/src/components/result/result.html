@@ -1,6 +1,13 @@
 <div class="result">
-    <h3><a href="{{href_first}}">{{title_first}}</a></h3>
-    <div class="result-path">{{addr_first}}</div>
+    <div class="result-path">
+        <picture>
+            <source iter srcset={{icon_srcset_iter}} type={{icon_type_iter}} sizes={{icon_sizes_iter}} />
+            <img src="assets/globe.svg" alt="Website Icon" />
+        </picture>
+        <div>{{addr_first}}</div>
+    </div>
+    <a href="{{href_first}}"><h3>{{title_first}}</h3></a>
+    <div class="result-path"></div>
     <p>{{desc_first}}</p>
     <div present-if={{display_scores}} class="result-scores">
         <span>Frequency: {{term_frequency_score_first}}</span>
@@ -12,8 +19,7 @@
     </div>
 </div>
 <div iter class="result child-result">
-    <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-    <div class="result-path">{{addr_iter}}</div>
+    <a href="{{href_iter}}"><h3>{{title_iter}}</h3></a>
     <p>{{desc_iter}}</p>
     <div present-if={{display_scores}} class="result-scores">
         <span>Frequency: {{term_frequency_score_iter}}</span>
