@@ -1,6 +1,6 @@
 .result {
     width: 50%;
-    padding: 2rem 0 0 0;
+    padding: 2.5rem 0 0 0;
     box-sizing: border-box;
 }
 
@@ -8,19 +8,20 @@
     padding: 0;
 }
 
-.result>h3, .result>p {
+.result>p {
     margin: 0;
     padding: 0;
 }
 
-.result>h3 {
+.result>a, .result>a>h3 {
     font-size: 1.4rem;
-}
-
-.result>h3>a {
     text-decoration: none;
     font-weight: normal;
     color: #1a0dab;
+}
+
+.result>a>h3 {
+    margin: .3rem 0 .2rem 0;
 }
 
 .result>h3:hover {
@@ -28,9 +29,15 @@
 }
 
 .result>.result-path {
-    color: #006d21;
-    margin: .3rem 0;
+    display: flex;
+    color: #333;
     font-size: .9rem;
+}
+
+.result>.result-path>img {
+    width: 1rem;
+    height: 1rem;
+    margin-right: .3rem;
 }
 
 .result-scores {
@@ -48,16 +55,17 @@
 
 .child-result {
     padding-left: 2.5rem;
-    padding-top: .8rem;
+    padding-top: .7rem;
 }
 
-.child-result>h3 {
+.child-result>a>h3 {
+    margin-top: 0;
     font-size: 1.3rem;
 }
 
 .expand-result-children {
     all: unset;
-    margin-top: .8rem;
+    margin-top: .7rem;
     margin-left: calc(2.5rem - .2rem);
     border-radius: .3rem;
     background-color: #eaeaea;
