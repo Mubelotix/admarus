@@ -65,12 +65,51 @@ impl FaviconDescriptor {
         path.extend(href.split('/').map(|p| p.to_string()));
         Some(path)
     }
+
+    fn square_sizes(&self) -> Vec<usize> {
+        let mut sizes = Vec::new();
+        for size in self.sizes.split(' ') {
+            let Some((first, second)) = size.split_once('x') else {continue};
+            let Ok(first) = first.parse::<usize>() else {continue};
+            let Ok(second) = second.parse::<usize>() else {continue};
+            if first != second {continue}
+            sizes.push(first);
+        }
+        sizes
+    }
+
+    fn best_square_size(&self) -> Option<usize> {
+        let mut best_square_size = None;
+        for size in self.square_sizes() {
+            best_square_size = Some(match best_square_size {
+                Some(old_size) => match (old_size >= 16, size >= 16) {
+                    (true, true) => std::cmp::min(old_size, size),
+                    (true, false) => old_size,
+                    (false, true) => size,
+                    (false, false) => std::cmp::max(old_size, size),
+                }
+                None => size,
+            });
+        }
+
+        best_square_size
+    }
 }
 
 impl DocumentResult {
-    pub fn rank_paths(&mut self) {
+    pub fn sort_paths(&mut self) {
         // TODO: sort using more advanced algorithm
         self.paths.sort_by(|a, b| b.first().map(|f| f.contains('.')).cmp(&a.first().map(|f| f.contains('.'))).then_with(|| b.len().cmp(&a.len())));
+    }
+
+    pub fn sort_favicons(&mut self) {
+        self.favicons.sort_by_cached_key(|desc| {
+            if desc.mime_type == "image/svg+xml" {
+                return 16;
+            }
+            let best_size = desc.best_square_size().unwrap_or(500);
+            if best_size < 16 {1000-best_size} else  {best_size}
+        });
     }
 
     pub fn is_grouping_result(&self, query: &Query) -> bool {
