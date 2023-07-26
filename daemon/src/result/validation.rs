@@ -16,7 +16,7 @@ impl DocumentResult {
         }
 
         // Validate paths
-        let previous_len = self.paths.len();
+        let previous_len = self.favicons.len();
         while self.favicons.iter().map(|desc| desc.href.len() + desc.mime_type.len() + desc.sizes.len()).sum::<usize>() >= 1000 {
             self.favicons.pop();
         }
