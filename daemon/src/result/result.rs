@@ -1,7 +1,7 @@
 use crate::prelude::*;
 
 /// Data as found in link[rel=icon].
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct FaviconDescriptor {
     pub href: String,
     pub mime_type: String,

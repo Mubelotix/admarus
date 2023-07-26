@@ -34,7 +34,7 @@
     font-size: .9rem;
 }
 
-.result>.result-path>img {
+.result>.result-path>picture>img {
     width: 1rem;
     height: 1rem;
     margin-right: .3rem;

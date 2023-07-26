@@ -1,6 +1,72 @@
 use crate::prelude::*;
 use yew::virtual_dom::{VList, VText, VTag};
 
+fn format_path_for_gateway(mut path: &[String]) -> Option<String> {
+    if path.last().map(|l| l == "index.html").unwrap_or(false) {
+        path = &path[..path.len() - 1];
+    }
+
+    match path.first().map(|f| f.contains('.')).unwrap_or(false) {
+        true => {
+            let mut domain = path[0].to_owned();
+            domain = domain.replace('-', "--");
+            domain = domain.replace('.', "-");
+            path = &path[1..];
+            Some(format!("https://{domain}.ipns.dweb.link/{}", path.join("/")))
+        },
+        false if !path.is_empty() => {
+            let first = &path[0];
+            path = &path[1..];
+            Some(format!("https://{first}.ipfs.dweb.link/{}", path.join("/")))
+        }
+        false => None,
+    }
+
+}
+
+impl FaviconDescriptor {
+    pub fn format_srcset(&self, doc_path: &[String]) -> Option<String> {
+        if self.href.starts_with("http://") || self.href.starts_with("https://") || self.href.starts_with("ipfs://") || self.href.starts_with("ipns://") {
+            return Some(self.href.to_owned());
+        }
+        
+        let tmp = self.process_relative_srcset(doc_path).and_then(|path| format_path_for_gateway(&path));
+        log!("{doc_path:?} -> {} -> {tmp:?}", self.href);
+        tmp
+    }
+
+    fn process_relative_srcset(&self, mut doc_path: &[String]) -> Option<Vec<String>> {
+        if self.href.starts_with("http://") || self.href.starts_with("https://") || self.href.starts_with("ipfs://") || self.href.starts_with("ipns://") {
+            return None;
+        }
+
+        if doc_path.last().map(|l| l=="index.html").unwrap_or(false) {
+            doc_path = &doc_path[..doc_path.len() - 1];
+        }
+
+        let mut path = doc_path.to_vec();
+        let mut href = self.href.as_str();
+
+        if href.starts_with("../") {
+            // Get back in the path
+            while href.starts_with("../") {
+                if path.is_empty() {
+                    return None;
+                }
+                path.pop();
+                href = &href[3..];
+            }
+        } else if href.starts_with('/') || href.starts_with("./") {
+            // Build from root
+            href = href.split_at(href.find('/').unwrap_or(href.len())).1;
+            path.truncate(1);
+        }
+
+        path.extend(href.split('/').map(|p| p.to_string()));
+        Some(path)
+    }
+}
+
 impl DocumentResult {
     pub fn rank_paths(&mut self) {
         // TODO: sort using more advanced algorithm
@@ -68,27 +134,14 @@ impl DocumentResult {
     }
 
     pub fn format_best_href(&self) -> String {
-        let mut best_addr = match self.paths.first() {
+        let best_path = match self.paths.first() {
             Some(f) => f.clone(),
             None => return format!("https://{}.ipfs.dweb.link/", self.cid),
         };
 
-        if best_addr.last().map(|l| l == "index.html").unwrap_or(false) {
-            best_addr.truncate(best_addr.len() - 1);
-        }
-
-        match best_addr.first().map(|f| f.contains('.')).unwrap_or(false) {
-            true => {
-                let mut domain = best_addr.remove(0);
-                domain = domain.replace('-', "--");
-                domain = domain.replace('.', "-");
-                format!("https://{domain}.ipns.dweb.link/{}", best_addr.join("/"))
-            },
-            false if !best_addr.is_empty() => {
-                let first = best_addr.remove(0);
-                format!("https://{first}.ipfs.dweb.link/{}", best_addr.join("/"))
-            }
-            false => format!("https://{}.ipfs.dweb.link/", self.cid),
+        match format_path_for_gateway(&best_path) {
+            Some(addr) => addr,
+            None => format!("https://{}.ipfs.dweb.link/", self.cid),
         }
     }
 
