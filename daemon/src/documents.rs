@@ -108,7 +108,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     }
 
     // Retrieve favicons
-    let favicon_selector = Selector::parse("html>head>link[rel=icon], html>head>link[rel=shortcut icon], html>head>link[rel=apple-touch-icon], html>head>link[rel=apple-touch-icon-precomposed]").expect("Invalid icon selector");
+    let favicon_selector = Selector::parse(r#"html>head>link[rel="icon"], html>head>link[rel="shortcut icon"], html>head>link[rel="apple-touch-icon"], html>head>link[rel="apple-touch-icon-precomposed"]"#).expect("Invalid icon selector");
     let mut favicons = Vec::new();
     for favicon_el in document.select(&favicon_selector) {
         let Some(href) = favicon_el.value().attr("href").map(|href| href.to_string()) else {continue};
