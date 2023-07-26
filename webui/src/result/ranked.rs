@@ -34,6 +34,9 @@ impl RankedResults {
     }
 
     pub fn insert(&mut self, mut res: DocumentResult, provider: String, query: &Query) {
+        res.sort_paths();
+        res.sort_favicons();
+
         if let Some(previous_result) = self.results.get(&res.cid) {
             if !res.agrees_with(previous_result) {
                 // TODO
@@ -42,7 +45,6 @@ impl RankedResults {
             }
         }
 
-        res.rank_paths();
         self.providers.entry(res.cid.clone()).or_default().insert(provider);
 
         if self.results.contains_key(&res.cid) {
