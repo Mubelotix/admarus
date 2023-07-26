@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="src/pages/results/results.css" />
     <link rel="stylesheet" href="src/components/search_bar/search_bar.css" />
     <link rel="stylesheet" href="src/components/connection_status/connection_status.css" />
+    <link rel="stylesheet" href="src/components/result/result.css" />
 </head>
 <body>
     <main id="results-page">
@@ -45,30 +46,37 @@
         <div present-if={{all_or_documents_selected}} id="result-list">
             <p id="result-counter" opt>{{opt_result_counter}}</p>
             <div class="result" iter>
-                <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-                <div class="result-path">{{addr_iter}}</div>
-                <p>{{description_iter}}</p>
+                <div class="result-path">
+                    <img src="assets/globe.svg" />
+                    <div>ipns://en.wikipedia-on-ipfs.org/</div>
+                </div>
+                <a href="{{href_iter}}"><h3>Wikipedia</h3></a>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Accusamus delectus at, ipsam iusto quo obcaecati vel blanditiis minus dolor iure, maiores harum possimus repudiandae accusantium cum illum corporis earum eius!</p>
             </div>
             <div class="result child-result" iter>
-                <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-                <div class="result-path">{{addr_iter}}</div>
-                <p>{{description_iter}}</p>
+                <a href="{{href_iter}}"><h3>Amboise - Wikipedia</h3></a>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Accusamus delectus at, ipsam iusto quo obcaecati vel blanditiis minus dolor iure, maiores harum possimus repudiandae accusantium cum illum corporis earum eius!</p>
             </div>
             <div class="result child-result" iter>
-                <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-                <div class="result-path">{{addr_iter}}</div>
-                <p>{{description_iter}}</p>
+                <a href="{{href_iter}}"><h3>Tours - Wikipedia</h3></a>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Accusamus delectus at, ipsam iusto quo obcaecati vel blanditiis minus dolor iure, maiores harum possimus repudiandae accusantium cum illum corporis earum eius!</p>
             </div>
-            <button class="expand-result-children">View more results from admarus.net</button>
+            <button class="expand-result-children">View more results from en.wikipedia-on-ipfs.org</button>
             <div class="result" iter>
-                <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-                <div class="result-path">{{addr_iter}}</div>
-                <p>{{description_iter}}</p>
+                <div class="result-path">
+                    <img src="assets/globe.svg" />
+                    <div>ipns://filecoin.io/</div>
+                </div>
+                <a href="{{href_iter}}"><h3>Filecoin</h3></a>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Accusamus delectus at, ipsam iusto quo obcaecati vel blanditiis minus dolor iure, maiores harum possimus repudiandae accusantium cum illum corporis earum eius!</p>
             </div>
             <div class="result" iter>
-                <h3><a href="{{href_iter}}">{{title_iter}}</a></h3>
-                <div class="result-path">{{addr_iter}}</div>
-                <p>{{description_iter}}</p>
+                <div class="result-path">
+                    <img src="assets/globe.svg" />
+                    <div>ipns://foo.bar/blog/test</div>
+                </div>
+                <a href="{{href_iter}}"><h3>Test - Filecoin Blog</h3></a>
+                <p>Lorem ipsum, dolor sit amet consectetur adipisicing elit. Accusamus delectus at, ipsam iusto quo obcaecati vel blanditiis minus dolor iure, maiores harum possimus repudiandae accusantium cum illum corporis earum eius!</p>
             </div>
         </div>
     </main>
