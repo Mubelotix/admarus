@@ -7,7 +7,7 @@ pub struct ResultsPageProps {
     pub app_link: AppLink,
     pub query: Rc<String>,
     pub conn_status: Rc<ConnectionStatus>,
-    pub onchange_conn_status: Callback<ConnectionStatus>,
+    pub onchange_conn_status: Callback<ConnectionStatusChange>,
 }
 
 impl PartialEq for ResultsPageProps {
@@ -49,7 +49,7 @@ impl Component for ResultsPage {
     fn create(ctx: &Context<Self>) -> Self {
         let query = Rc::clone(&ctx.props().query);
         let link = ctx.link().clone();
-        let rpc_addr = ctx.props().conn_status.rpc_addr();
+        let rpc_addr = ctx.props().conn_status.admarus_addr();
         spawn_local(async move {
             match search(rpc_addr, query.as_ref()).await {
                 Ok(id) => link.send_message(ResultsMessage::SearchSuccess(id)),
@@ -76,7 +76,7 @@ impl Component for ResultsPage {
             ResultsMessage::SearchSuccess(resp) => {
                 let link = ctx.link().clone();
                 self.search_data = Some((resp.id, resp.query));
-                let rpc_addr = ctx.props().conn_status.rpc_addr();
+                let rpc_addr = ctx.props().conn_status.admarus_addr();
                 spawn_local(async move {
                     sleep(Duration::from_millis(100)).await;
                     match fetch_results(rpc_addr, resp.id).await {
@@ -105,7 +105,7 @@ impl Component for ResultsPage {
                 }
 
                 let link = ctx.link().clone();
-                let rpc_addr = ctx.props().conn_status.rpc_addr();
+                let rpc_addr = ctx.props().conn_status.admarus_addr();
                 spawn_local(async move {
                     match update_counter {
                         0..=10 => sleep(Duration::from_millis(100)).await,
