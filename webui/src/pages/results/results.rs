@@ -199,8 +199,9 @@ impl Component for ResultsPage {
                 let query = Rc::new(query.to_owned());
                 results.into_iter().map(|results| {
                     let key = results.first().unwrap().0.cid.clone();
+                    let conn_status = Rc::clone(&conn_status);
                     html! {
-                        <GroupedResultsComp key={key} results={results} query={Rc::clone(&query)} />
+                        <GroupedResultsComp key={key} results={results} query={Rc::clone(&query)} connection_status={conn_status} />
                     }
                 }).collect()
             },
