@@ -1,7 +1,7 @@
 use crate::prelude::*;
 use yew::virtual_dom::{VList, VText, VTag};
 
-fn format_path_for_gateway(mut path: &[String]) -> Option<String> {
+fn format_path_for_gateway(mut path: &[String], conn_status: &ConnectionStatus) -> Option<String> {
     if path.last().map(|l| l == "index.html").unwrap_or(false) {
         path = &path[..path.len() - 1];
     }
@@ -12,25 +12,26 @@ fn format_path_for_gateway(mut path: &[String]) -> Option<String> {
             domain = domain.replace('-', "--");
             domain = domain.replace('.', "-");
             path = &path[1..];
-            Some(format!("https://{domain}.ipns.dweb.link/{}", path.join("/")))
+            let http_domain = conn_status.ipfs_addr().replace("://", &format!("://{domain}.ipns."));
+            Some(format!("{http_domain}/{}", path.join("/")))
         },
         false if !path.is_empty() => {
             let first = &path[0];
             path = &path[1..];
-            Some(format!("https://{first}.ipfs.dweb.link/{}", path.join("/")))
+            let http_domain = conn_status.ipfs_addr().replace("://", &format!("://{first}.ipfs."));
+            Some(format!("{http_domain}/{}", path.join("/")))
         }
         false => None,
     }
-
 }
 
 impl FaviconDescriptor {
-    pub fn format_srcset(&self, doc_path: &[String]) -> Option<String> {
+    pub fn format_srcset(&self, doc_path: &[String], conn_status: &ConnectionStatus) -> Option<String> {
         if self.href.starts_with("http://") || self.href.starts_with("https://") || self.href.starts_with("ipfs://") || self.href.starts_with("ipns://") {
             return Some(self.href.to_owned());
         }
         
-        let tmp = self.process_relative_srcset(doc_path).and_then(|path| format_path_for_gateway(&path));
+        let tmp = self.process_relative_srcset(doc_path).and_then(|path| format_path_for_gateway(&path, conn_status));
         log!("{doc_path:?} -> {} -> {tmp:?}", self.href);
         tmp
     }
@@ -172,13 +173,13 @@ impl DocumentResult {
         }
     }
 
-    pub fn format_best_href(&self) -> String {
+    pub fn format_best_href(&self, conn_status: &ConnectionStatus) -> String {
         let best_path = match self.paths.first() {
             Some(f) => f.clone(),
             None => return format!("https://{}.ipfs.dweb.link/", self.cid),
         };
 
-        match format_path_for_gateway(&best_path) {
+        match format_path_for_gateway(&best_path, conn_status) {
             Some(addr) => addr,
             None => format!("https://{}.ipfs.dweb.link/", self.cid),
         }

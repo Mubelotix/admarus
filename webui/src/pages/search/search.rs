@@ -7,7 +7,7 @@ pub struct SearchPage {
 pub struct SearchPageProps {
     pub app_link: AppLink,
     pub conn_status: Rc<ConnectionStatus>,
-    pub onchange_conn_status: Callback<ConnectionStatus>,
+    pub onchange_conn_status: Callback<ConnectionStatusChange>,
 }
 
 impl PartialEq for SearchPageProps {

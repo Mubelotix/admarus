@@ -1,25 +1,71 @@
 use crate::prelude::*;
 
+#[derive(Debug, PartialEq, Default, Clone)]
+pub enum ServiceHealth {
+    #[default]
+    Unknown,
+    Loading,
+    Ok,
+    Err(String),
+}
+
+impl ServiceHealth {
+    pub fn is_unknown(&self) -> bool {
+        matches!(self, ServiceHealth::Unknown)
+    }
+
+    pub fn is_err(&self) -> bool {
+        matches!(self, ServiceHealth::Err(_))
+    }
+}
+
 #[derive(Debug, PartialEq, Properties, Default, Clone)]
 pub struct ConnectionStatus {
-    pub daemon: Option<Result<(), String>>,
-    pub gateway: Option<Result<(), String>>,
+    pub admarus_daemon: ServiceHealth,
+    pub admarus_gateway: ServiceHealth,
+    pub ipfs_daemon: ServiceHealth,
+    pub ipfs_gateway: ServiceHealth,
 }
 
 impl ConnectionStatus {
-    pub fn rpc_addr(&self) -> &'static str {
+    pub fn admarus_addr(&self) -> &'static str {
         match self {
-            ConnectionStatus { daemon: Some(Ok(_)), .. } => "http://127.0.0.1:5002",
-            ConnectionStatus { gateway: Some(Ok(_)), .. } => "https://gateway.admarus.net",
+            ConnectionStatus { admarus_daemon: ServiceHealth::Ok, .. } => "http://127.0.0.1:5002",
+            ConnectionStatus { admarus_gateway: ServiceHealth::Ok, .. } => "https://gateway.admarus.net",
             _ => "http://127.0.0.1:5002",
         }
     }
+
+    pub fn ipfs_addr(&self) -> &'static str {
+        match self {
+            ConnectionStatus { ipfs_daemon: ServiceHealth::Ok, .. } => "http://localhost:8080",
+            ConnectionStatus { ipfs_gateway: ServiceHealth::Ok, .. } => "https://dweb.link",
+            _ => "https://dweb.link"
+        }
+    }
+
+    pub fn apply_change(&mut self, change: ConnectionStatusChange) {
+        match change {
+            ConnectionStatusChange::AdmarusDaemon(admarus_daemon) => self.admarus_daemon = admarus_daemon,
+            ConnectionStatusChange::AdmarusGateway(admarus_gateway) => self.admarus_gateway = admarus_gateway,
+            ConnectionStatusChange::IpfsDaemon(ipfs_daemon) => self.ipfs_daemon = ipfs_daemon,
+            ConnectionStatusChange::IpfsGateway(ipfs_gateway) => self.ipfs_gateway = ipfs_gateway,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub enum ConnectionStatusChange {
+    AdmarusDaemon(ServiceHealth),
+    AdmarusGateway(ServiceHealth),
+    IpfsDaemon(ServiceHealth),
+    IpfsGateway(ServiceHealth),
 }
 
 #[derive(Debug, PartialEq, Properties)]
 pub struct ConnectionStatusProps {
     pub conn_status: Rc<ConnectionStatus>,
-    pub onchange: Callback<ConnectionStatus>,
+    pub onchange: Callback<ConnectionStatusChange>,
 }
 
 pub struct ConnectionStatusComp {
@@ -31,59 +77,48 @@ impl Component for ConnectionStatusComp {
     type Properties = ConnectionStatusProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        match ctx.props().conn_status.deref() {
-            ConnectionStatus { daemon: None, .. } => {
-                let onchange = ctx.props().onchange.clone();
-                spawn_local(async move {
-                    match get_api_version("http://127.0.0.1:5002").await {
-                        Ok(0) => {
-                            onchange.emit(ConnectionStatus {
-                                daemon: Some(Ok(())),
-                                gateway: None,
-                            });
-                        },
-                        Ok(_) => {
-                            onchange.emit(ConnectionStatus {
-                                daemon: Some(Err(String::from("Daemon runs an incompatible api version"))),
-                                gateway: None,
-                            });
-                        },
-                        Err(e) => {
-                            onchange.emit(ConnectionStatus {
-                                daemon: Some(Err(format!("Failed to connect to daemon: {e:?}"))),
-                                gateway: None,
-                            });
-                        }
-                    }
-                })
-            },
-            ConnectionStatus { daemon: Some(Err(daemon_error)), gateway: None } => {
-                let daemon = Some(Err(daemon_error.clone()));
-                let onchange = ctx.props().onchange.clone();
-                spawn_local(async move {
-                    match get_api_version("https://gateway.admarus.net").await {
-                        Ok(0) => {
-                            onchange.emit(ConnectionStatus {
-                                daemon,
-                                gateway: Some(Ok(())),
-                            });
-                        },
-                        Ok(_) => {
-                            onchange.emit(ConnectionStatus {
-                                daemon,
-                                gateway: Some(Err(String::from("Gateway runs an incompatible api version"))),
-                            });
-                        },
-                        Err(e) => {
-                            onchange.emit(ConnectionStatus {
-                                daemon,
-                                gateway: Some(Err(format!("Failed to connect to gateway: {e:?}"))),
-                            });
-                        }
-                    }
-                })
-            },
-            _ => ()
+        let conn_status = ctx.props().conn_status.deref();
+        if conn_status.admarus_daemon.is_unknown() {
+            let onchange = ctx.props().onchange.clone();
+            onchange.emit(ConnectionStatusChange::AdmarusDaemon(ServiceHealth::Loading));
+            spawn_local(async move {
+                onchange.emit(ConnectionStatusChange::AdmarusDaemon(match get_api_version("http://127.0.0.1:5002").await {
+                    Ok(0) => ServiceHealth::Ok,
+                    Ok(_) => ServiceHealth::Err(String::from("Daemon runs an incompatible api version")),
+                    Err(e) => ServiceHealth::Err(format!("Failed to connect to daemon: {e:?}"))
+                }));
+            })
+        }
+        if conn_status.admarus_daemon.is_err() && conn_status.admarus_gateway.is_unknown() {
+            let onchange = ctx.props().onchange.clone();
+            onchange.emit(ConnectionStatusChange::AdmarusGateway(ServiceHealth::Loading));
+            spawn_local(async move {
+                onchange.emit(ConnectionStatusChange::AdmarusGateway(match get_api_version("https://gateway.admarus.net").await {
+                    Ok(0) => ServiceHealth::Ok,
+                    Ok(_) => ServiceHealth::Err(String::from("Gateway runs an incompatible api version")),
+                    Err(e) => ServiceHealth::Err(format!("Failed to connect to gateway: {e:?}")),
+                }));
+            })
+        }
+        if conn_status.ipfs_daemon.is_unknown() {
+            let onchange = ctx.props().onchange.clone();
+            onchange.emit(ConnectionStatusChange::IpfsDaemon(ServiceHealth::Loading));
+            spawn_local(async move {
+                onchange.emit(ConnectionStatusChange::IpfsDaemon(match check_ipfs("http://localhost:8080").await {
+                    Ok(()) => ServiceHealth::Ok,
+                    Err(e) => ServiceHealth::Err(format!("Failed to connect to daemon: {e:?}"))
+                }));
+            })
+        }
+        if conn_status.ipfs_daemon.is_err() && conn_status.ipfs_gateway.is_unknown() {
+            let onchange = ctx.props().onchange.clone();
+            onchange.emit(ConnectionStatusChange::IpfsGateway(ServiceHealth::Loading));
+            spawn_local(async move {
+                onchange.emit(ConnectionStatusChange::IpfsGateway(match check_ipfs("https://dweb.link").await {
+                    Ok(()) => ServiceHealth::Ok,
+                    Err(e) => ServiceHealth::Err(format!("Failed to connect to gateway: {e:?}"))
+                }));
+            })
         }
 
         Self {}
@@ -95,12 +130,44 @@ impl Component for ConnectionStatusComp {
     }
 
     fn view(&self, ctx: &Context<Self>) -> Html {
-        let (target, connected, connecting, error) = match ctx.props().conn_status.deref() {
-            ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Err(_)) } => ("disconnected", false, false, true),
-            ConnectionStatus { daemon: Some(Err(_)), gateway: Some(Ok(_)) } => ("gateway", true, false, false),
-            ConnectionStatus { daemon: Some(Err(_)), gateway: None } => ("gateway", false, true, false),
-            ConnectionStatus { daemon: Some(Ok(_)), .. } => ("daemon", true, false, false),
-            ConnectionStatus { daemon: None, .. } => ("daemon", false, true, false),
+        let connected = matches!(
+            ctx.props().conn_status.deref(),
+            ConnectionStatus { admarus_daemon: ServiceHealth::Ok, ipfs_daemon: ServiceHealth::Ok, .. } |
+            ConnectionStatus { admarus_daemon: ServiceHealth::Ok, ipfs_gateway: ServiceHealth::Ok, .. } |
+            ConnectionStatus { admarus_gateway: ServiceHealth::Ok, ipfs_daemon: ServiceHealth::Ok, .. } |
+            ConnectionStatus { admarus_gateway: ServiceHealth::Ok, ipfs_gateway: ServiceHealth::Ok, .. }
+        );
+
+        let error = !connected && matches!(
+            ctx.props().conn_status.deref(),
+            ConnectionStatus { admarus_daemon: ServiceHealth::Err(_), admarus_gateway: ServiceHealth::Err(_), .. } |
+            ConnectionStatus { ipfs_daemon: ServiceHealth::Err(_), ipfs_gateway: ServiceHealth::Err(_), .. }
+        );
+
+        let connecting = !connected && !error && matches!(
+            ctx.props().conn_status.deref(),
+            ConnectionStatus { admarus_daemon: ServiceHealth::Loading, .. } |
+            ConnectionStatus { admarus_gateway: ServiceHealth::Loading, .. } |
+            ConnectionStatus { ipfs_daemon: ServiceHealth::Loading, .. } |
+            ConnectionStatus { ipfs_gateway: ServiceHealth::Loading, .. }
+        );
+
+        let admarus_state = match ctx.props().conn_status.deref() {
+            ConnectionStatus { admarus_daemon: ServiceHealth::Ok | ServiceHealth::Loading, .. } => "daemon",
+            ConnectionStatus { admarus_gateway: ServiceHealth::Ok | ServiceHealth::Loading, .. } => "gateway",
+            ConnectionStatus { admarus_daemon: ServiceHealth::Err(_), admarus_gateway: ServiceHealth::Err(_), .. } => "disconnected",
+            _ => "unknown",
+        };
+        let ipfs_state = match ctx.props().conn_status.deref() {
+            ConnectionStatus { ipfs_daemon: ServiceHealth::Ok | ServiceHealth::Loading, .. } => "daemon",
+            ConnectionStatus { ipfs_gateway: ServiceHealth::Ok | ServiceHealth::Loading, .. } => "gateway",
+            ConnectionStatus { ipfs_daemon: ServiceHealth::Err(_), ipfs_gateway: ServiceHealth::Err(_), .. } => "disconnected",
+            _ => "unknown",
+        };
+        let state = if admarus_state == ipfs_state {
+            format!("{admarus_state}s")
+        } else {
+            format!("Admarus {admarus_state} + IPFS {ipfs_state}")
         };
 
         // Storing the SVG here is necessary to prevent yew from lowering the case of SVG attributes

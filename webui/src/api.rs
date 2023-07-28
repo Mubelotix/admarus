@@ -131,6 +131,25 @@ async fn api_custom_method<I: Serialize, O: DeserializeOwned>(endpoint: impl AsR
     }
 }
 
+pub async fn check_ipfs(ipfs_addr: &str) -> Result<(), ApiError> {
+    use ApiError::*;
+
+    let url = ipfs_addr.replace("://", "://bafybeigmfwlweiecbubdw4lq6uqngsioqepntcfohvrccr2o5f7flgydme.ipfs.");
+    let request = Request::new_with_str(&url).unwrap();
+    let promise = wndw().fetch_with_request(&request);
+    let future = JsFuture::from(promise);
+    let response = future.await.map_err(ApiError::Fetch)?;
+    let response: Response = response.dyn_into().expect("response isn't a Response");
+    let text = JsFuture::from(response.text().map_err(NotText)?).await.map_err(NotText)?;
+    let text: String = text.as_string().expect("text isn't a string");
+
+    if response.status() == 200 && text == "Hello World!\r\n"  {
+        Ok(())
+    } else {
+        Err(ApiError::Server(String::from("Failed to fetch example CID")))
+    }
+}
+
 pub async fn search(rpc_addr: &str, query: impl AsRef<str>) -> Result<ApiSearchResponse, ApiError> {
     get(format!("{rpc_addr}/search?q={}", url_encode(query.as_ref()))).await
 }

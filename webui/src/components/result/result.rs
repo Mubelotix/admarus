@@ -3,6 +3,7 @@ use crate::prelude::*;
 #[derive(Clone, Properties)]
 pub struct GroupedResultsProps {
     pub results: Vec<(DocumentResult, Scores)>,
+    pub connection_status: Rc<ConnectionStatus>,
     pub query: Rc<Query>,
 }
 
@@ -52,13 +53,14 @@ impl Component for GroupedResultsComp {
         }
         let all_displayed = self.displayed >= ctx.props().results.len();
         let root_id = ctx.props().results.first().map(|(result,_)| result.root_id()).unwrap_or_default();
+        let conn_status = &ctx.props().connection_status;
 
         let result_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(result,_)| result);
         let favicon_iter = || ctx.props().results.first().unwrap().0.favicons.iter();
         let scores_iter = || ctx.props().results.iter().take(self.displayed + 1).map(|(_,scores)| scores);
 
         // General
-        let mut href_iter = result_iter().map(|result| result.format_best_href());
+        let mut href_iter = result_iter().map(|result| result.format_best_href(conn_status));
         let mut title_iter = result_iter().map(|result| result.format_result_title());
         let mut desc_iter = result_iter().map(|result| result.view_desc(&ctx.props().query));
         
@@ -69,7 +71,7 @@ impl Component for GroupedResultsComp {
 
         // Favicons
         let icon_sizes_iter = favicon_iter().map(|desc| desc.sizes.to_owned());
-        let icon_srcset_iter = favicon_iter().map(|desc| desc.format_srcset(ctx.props().results.first().unwrap().0.paths.first().unwrap()));
+        let icon_srcset_iter = favicon_iter().map(|desc| desc.format_srcset(ctx.props().results.first().unwrap().0.paths.first().unwrap(), conn_status));
         let icon_type_iter = favicon_iter().map(|desc| desc.mime_type.to_owned());
 
         // Scores

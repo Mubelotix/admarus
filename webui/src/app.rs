@@ -12,7 +12,7 @@ pub enum Page {
 #[derive(Clone)]
 pub enum AppMsg {
     ChangePage(Page),
-    ConnectionStatusChanged(ConnectionStatus),
+    ConnectionStatusChanged(ConnectionStatusChange),
 }
 
 pub struct App {
@@ -37,8 +37,10 @@ impl Component for App {
                 self.page = page;
                 true
             }
-            AppMsg::ConnectionStatusChanged(conn_status) => {
-                self.conn_status = Rc::new(conn_status);
+            AppMsg::ConnectionStatusChanged(conn_status_change) => {
+                let mut new_conn_status = self.conn_status.deref().clone();
+                new_conn_status.apply_change(conn_status_change);
+                self.conn_status = Rc::new(new_conn_status);
                 true
             }
         }
