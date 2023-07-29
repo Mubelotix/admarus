@@ -164,3 +164,9 @@ impl NetworkBehaviour for Behaviour {
         Poll::Pending
     }
 }
+
+impl Default for Behaviour {
+    fn default() -> Self {
+        Behaviour::new()
+    }
+}
