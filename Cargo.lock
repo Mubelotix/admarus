@@ -1121,6 +1121,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "discovery-protocol"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "libp2p 0.52.1",
+ "libp2p-identify",
+ "log",
+ "serde",
+ "serde_json",
+ "tokio",
+]
+
+[[package]]
 name = "dtoa"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"

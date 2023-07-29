@@ -1,0 +1,15 @@
+[package]
+name = "discovery-protocol"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+tokio = "1.29"
+libp2p = "0.52"
+libp2p-identify = "0.43"
+serde = "1.0"
+serde_json = "1.0"
+futures = "0.3"
+log = "0.4"

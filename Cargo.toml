@@ -2,6 +2,7 @@
 members = [
     "census",
     "daemon",
+    "discovery-protocol",
     "webui",
     "word-lists"
 ]
