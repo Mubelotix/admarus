@@ -10,8 +10,8 @@ pub use crate::{
     swarm::*,
     dns_pins::*,
     query::*,
-    discovery::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig, Response as DiscoveryResponse, PeerListQuery}
 };
+pub use discovery_protocol::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig, Response as DiscoveryResponse, PeerListQuery};
 pub use clap::Parser;
 pub use log::{info, warn, error, debug, trace};
 pub use kamilata::{prelude::*, db::TooManyLeechers, behaviour::KamilataEvent, store::{ResultStream, ResultStreamBuilderFut}};

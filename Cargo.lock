@@ -237,6 +237,7 @@ dependencies = [
  "async-trait",
  "bimap",
  "clap",
+ "discovery-protocol",
  "env_logger",
  "faster-pest",
  "futures",

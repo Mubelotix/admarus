@@ -11,7 +11,6 @@ mod api;
 mod node;
 mod clap;
 mod swarm;
-mod discovery;
 mod query;
 mod dns_pins;
 
