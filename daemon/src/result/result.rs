@@ -38,7 +38,7 @@ pub struct DocumentResult {
     pub word_count: WordCount,
 
     /// Structured data extracted from the document.
-    pub structured_data: Vec<StructuredData>,
+    pub structured_data: Vec<schemas::types::Types>,
 
     /// Present if daemon supports the language of the document.
     /// Is intended to represent the share of words in the document that are common in that language.

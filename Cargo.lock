@@ -220,6 +220,7 @@ name = "admarus-webui"
 version = "0.1.0"
 dependencies = [
  "js-sys",
+ "schemas",
  "serde",
  "serde_json",
  "wasm-bindgen",
