@@ -31,7 +31,6 @@ mod db;
 mod config;
 mod query;
 
-#[allow(unused_imports)]
-pub(crate) use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*, query::*};
+pub use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*, query::*};
 
 pub(crate) type RequestReplier = OneshotSender<Result<Response, IoError>>;
