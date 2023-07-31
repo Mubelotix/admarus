@@ -1,5 +1,6 @@
 #![allow(implied_bounds_entailment)]
 #![allow(clippy::module_inception)]
+#![recursion_limit = "256"]
 
 mod result;
 mod index;

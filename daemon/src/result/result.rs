@@ -11,6 +11,7 @@ pub struct FaviconDescriptor {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DocumentResult {
     pub cid: String,
+    /// Size limit: Sum of all field sizes <= 1kB
     pub favicons: Vec<FaviconDescriptor>,
     /// Size limit: Sum of all segment sizes <= 10kB
     pub paths: Vec<Vec<String>>,
@@ -35,6 +36,9 @@ pub struct DocumentResult {
     pub term_counts: Vec<WordCount>,
     /// The number of words in the document.
     pub word_count: WordCount,
+
+    /// Structured data extracted from the document.
+    pub structured_data: Vec<StructuredData>,
 
     /// Present if daemon supports the language of the document.
     /// Is intended to represent the share of words in the document that are common in that language.

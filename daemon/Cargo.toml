@@ -27,3 +27,4 @@ sha2-derive = "0.1"
 faster-pest = "0.1"
 word-lists = {path="../word-lists"}
 bimap = "0.6"
+schemas = { path="../../schemas" }

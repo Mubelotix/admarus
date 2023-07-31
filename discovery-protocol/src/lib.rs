@@ -1,28 +1,27 @@
 //! This module contains a simple protocol for peer discovery.
 #![allow(dead_code)]
 
-pub use futures::{
+pub(crate) use futures::{
     future::{self, BoxFuture},
-    io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt},
+    io::{AsyncReadExt, AsyncWriteExt},
 };
-pub use libp2p::{
-    core::{muxing::SubstreamBox, Negotiated, UpgradeInfo},
+pub(crate) use libp2p::{
     swarm::{
         handler::ConnectionEvent, ConnectionHandler, ConnectionHandlerEvent, ConnectionId,
         FromSwarm, KeepAlive, NetworkBehaviour, PollParameters, SubstreamProtocol, THandlerInEvent,
         THandlerOutEvent, ToSwarm, NotifyHandler, Stream,
     },
-    InboundUpgrade, Multiaddr, OutboundUpgrade, PeerId,
+    core::UpgradeInfo, InboundUpgrade, Multiaddr, OutboundUpgrade, PeerId,
 };
-pub use log::{debug, error, info, trace, warn};
-pub use serde::{Deserialize, Serialize};
-pub use std::{
+pub(crate) use log::{debug, error};
+pub(crate) use serde::{Deserialize, Serialize};
+pub(crate) use std::{
     collections::HashMap,
     sync::Arc,
     task::{Context, Poll},
     io::Error as IoError,
 };
-pub use tokio::sync::{RwLock, oneshot::{Sender as OneshotSender, Receiver as OneshotReceiver, channel as oneshot_channel}};
+pub(crate) use tokio::sync::{RwLock, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 
 mod behavior;
 mod client_server;
@@ -32,6 +31,7 @@ mod db;
 mod config;
 mod query;
 
-pub use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*, query::*};
+#[allow(unused_imports)]
+pub(crate) use {behavior::*, client_server::*, handler::*, protocol::*, db::*, config::*, query::*};
 
-pub type RequestReplier = OneshotSender<Result<Response, IoError>>;
+pub(crate) type RequestReplier = OneshotSender<Result<Response, IoError>>;

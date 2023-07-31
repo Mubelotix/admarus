@@ -239,6 +239,8 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
         description,
         extract,
 
+        structured_data: Vec::new(),
+
         term_counts,
         word_count,
         common_words,
