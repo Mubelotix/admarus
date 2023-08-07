@@ -6,6 +6,7 @@ pub(self) use crate::prelude::*;
 pub(self) const REFRESH_PINNED_INTERVAL: u64 = 120;
 
 mod index;
+mod inner_common;
 pub use index::*;
 
 #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
