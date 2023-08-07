@@ -61,10 +61,13 @@ impl DocumentIndexInner {
 
         let mut items = Vec::new();
         for word in words {
-            let Some(data) = self.in_memory_index.remove(&word) else { continue };
             if !self.changed_index.contains(&word) {
                 continue;
             }
+            let Some(data) = self.in_memory_index.remove(&word) else { continue };
+            self.changed_index.remove(&word);
+            self.loaded_index.remove(&word);
+            self.in_use_index.remove(&word);
             items.push((word, data));
         }
         if let Err(e) = self.index_db.put_batch(items).await {
