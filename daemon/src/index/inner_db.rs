@@ -43,7 +43,7 @@ impl DocumentIndexInner {
 
     // TODO: optimize
     async fn load_index_batch(&mut self, words: Vec<String>) {
-        let new_data = self.index_db.get_batch(words.into_iter().collect()).await.unwrap_or_default();
+        let new_data = self.index_db.get(words.into_iter().collect()).await.unwrap_or_default();
         for (word, data) in new_data {
             self.loaded_index.insert(word.clone());
             self.in_memory_index.entry(word).or_default().extend(data.into_iter().filter(|(lcid, _)| self.cids.contains_left(lcid)));
@@ -70,7 +70,7 @@ impl DocumentIndexInner {
             self.in_use_index.remove(&word);
             items.push((word, data));
         }
-        if let Err(e) = self.index_db.put_batch(items).await {
+        if let Err(e) = self.index_db.put(items).await {
             error!("Failed to unload index for words: {e:?}");
             // TODO handle error
         }
@@ -97,7 +97,6 @@ impl DocumentIndexInner {
         
         folders
     }
-
 
     pub fn documents(&self) -> HashSet<String> {
         self.cids
