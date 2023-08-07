@@ -39,7 +39,7 @@ impl DocumentIndexInner {
         }
     }
 
-    // TODO: move outside inner
+    // TODO: optimize
     async fn load_index(&mut self, word: String) {
         let new_data = match self.index_db.get(word.clone()).await {
             Ok(data) => data,
@@ -54,6 +54,9 @@ impl DocumentIndexInner {
     async fn unload_index(&mut self, word: String) {
         if !self.loaded_index.contains(&word) {
             self.load_index(word.clone()).await;
+        }
+        if self.in_use_index.get(&word).unwrap_or(&0) > &0 {
+            return;
         }
         let data = match self.in_memory_index.remove(&word) {
             Some(data) => data,
