@@ -31,7 +31,9 @@ impl DocumentIndexInner {
             index: HashMap::new(),
             filters: HashMap::new()
         }
-    }
+    }   
+    
+    pub(super) async fn sweep(&mut self) {}
 
     pub fn folders(&self) -> HashMap<String, usize> {
         let mut folders = HashMap::new();
