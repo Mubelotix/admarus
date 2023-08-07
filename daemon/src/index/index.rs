@@ -59,8 +59,8 @@ impl DocumentIndex {
             let start = Instant::now();
 
             // Explore directories and fetch prioritized documents
-            let mut listed_folders: HashSet<String> = self.documents().await;
-            let mut fetched_documents: HashSet<String> = listed_folders.clone();
+            let mut listed_folders: HashSet<String> = self.folders().await.keys().cloned().collect();
+            let mut fetched_documents: HashSet<String> = self.documents().await;
             let mut unprioritized_documents: HashSet<String> = HashSet::new();
             let mut prev_document_count = fetched_documents.len();
             while let Some(parent_cid) = pinned.pop() {
