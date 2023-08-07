@@ -2,6 +2,7 @@ use crate::prelude::*;
 use heed::{Database as HeedDatabase, Error as HeedError, Env, EnvOpenOptions, types::*};
 use futures::executor::block_on;
 
+#[derive(Debug)]
 pub enum DbError {
     CommandChannelUnavailable,
     UnresponsiveDatabase,
