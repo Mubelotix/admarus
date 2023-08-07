@@ -27,10 +27,14 @@ impl DbController {
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 
-    async fn index_put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> {
+    async fn index_put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> {
         let (sender, receiver) = oneshot_channel();
-        self.sender.send(DbCommand::IndexWrite{key, value, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        self.sender.send(DbCommand::IndexPutBatch{items, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
+    }
+
+    async fn index_put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> {
+        self.index_put_batch(vec![(key, value)]).await
     }
 }
 
@@ -40,19 +44,20 @@ pub struct DbIndexController(DbController);
 impl DbIndexController {
     pub async fn get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> { self.0.index_get(key).await }
     pub async fn put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> { self.0.index_put(key, value).await }
+    pub async fn put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> { self.0.index_put_batch(items).await }
 }
 impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
 
 enum DbCommand {
     IndexGet { key: String, sender: OneshotSender<Result<Vec<(LocalCid, f32)>, HeedError>> },
-    IndexWrite { key: String, value: HashMap<LocalCid, f32>, sender: OneshotSender<Result<(), HeedError>> },
+    IndexPutBatch { items: Vec<(String, HashMap<LocalCid, f32>)>, sender: OneshotSender<Result<(), HeedError>> },
 }
 
 impl std::fmt::Debug for DbCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             DbCommand::IndexGet { key, .. } => f.debug_struct("IndexGet").field("key", key).finish_non_exhaustive(),
-            DbCommand::IndexWrite { key, value, .. } => f.debug_struct("IndexWrite").field("key", key).field("index", &format!("{:?} entries", value.len())).finish_non_exhaustive(),
+            DbCommand::IndexPutBatch { items, .. } => f.debug_struct("IndexWriteAll").field("index", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
         }
     }
 }
@@ -69,14 +74,16 @@ fn index_get(key: &str, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Resu
     Ok(value)
 }
 
-fn index_put(key: &str, value: HashMap<LocalCid, f32>, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<(), HeedError> {
+fn index_put_batch(items: &[(String, HashMap<LocalCid, f32>)], env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<(), HeedError> {
     let mut wtxn = env.write_txn()?;
-    let mut data = Vec::with_capacity(value.len() * 8);
-    for (lcid, score) in value {
-        data.extend_from_slice(&lcid.0.to_le_bytes());
-        data.extend_from_slice(&score.to_le_bytes());
+    for (key, value) in items {
+        let mut data = Vec::with_capacity(value.len() * 8);
+        for (lcid, score) in value {
+            data.extend_from_slice(&lcid.0.to_le_bytes());
+            data.extend_from_slice(&score.to_le_bytes());
+        }
+        index.put(&mut wtxn, key, &data)?;
     }
-    index.put(&mut wtxn, key, &data)?;
     wtxn.commit()?;
     Ok(())
 }
@@ -98,11 +105,11 @@ fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, mut receiver: Rec
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send index database read result: {e:?}") }
             },
-            DbCommand::IndexWrite { key, value, sender } => {
-                let result = index_put(&key, value, &env, &index);
+            DbCommand::IndexPutBatch { items, sender } => {
+                let result = index_put_batch(&items, &env, &index);
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send index database write result: {e:?}") }
-            },
+            }
         }
     }
 }
