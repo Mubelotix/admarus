@@ -10,6 +10,7 @@ pub(super) struct DocumentIndexInner {
     pub(super) cids: BiHashMap<LocalCid, String>,
 
     loaded_index: HashSet<String>,
+    changed_index: HashSet<String>,
     in_use_index: HashMap<String, usize>,
     in_memory_index: HashMap<String, HashMap<LocalCid, f32>>,
     // todo filters
@@ -32,6 +33,7 @@ impl DocumentIndexInner {
             cids: BiHashMap::new(),
 
             loaded_index: HashSet::new(),
+            changed_index: HashSet::new(),
             in_use_index: HashMap::new(),
             in_memory_index: HashMap::new(),
 
@@ -50,15 +52,19 @@ impl DocumentIndexInner {
     async fn unload_index_batch(&mut self, mut words: Vec<String>) {
         words.retain(|word| self.in_use_index.get(word).unwrap_or(&0) == &0);
 
-        let to_load = words.iter().filter(|word| !self.loaded_index.contains(*word)).cloned().collect::<Vec<_>>();
+        // Load entries that changed and still need to be loaded
+        let to_load = words.iter()
+            .filter(|word| self.changed_index.contains(*word) && !self.loaded_index.contains(*word))
+            .cloned()
+            .collect::<Vec<_>>();
         self.load_index_batch(to_load).await;
 
         let mut items = Vec::new();
         for word in words {
-            let data = match self.in_memory_index.remove(&word) {
-                Some(data) => data,
-                None => return, // Was unloaded in the meantime
-            };
+            let Some(data) = self.in_memory_index.remove(&word) else { continue };
+            if !self.changed_index.contains(&word) {
+                continue;
+            }
             items.push((word, data));
         }
         if let Err(e) = self.index_db.put_batch(items).await {
@@ -119,6 +125,7 @@ impl DocumentIndexInner {
         for word in doc.words {
             let frequencies = self.in_memory_index.entry(word.clone()).or_default();
             *frequencies.entry(lcid).or_insert(0.) += 1. / word_count as f32;
+            self.changed_index.insert(word.clone());
             self.filter.add_word::<DocumentIndex>(&word);
         }
         
