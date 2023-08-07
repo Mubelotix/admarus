@@ -16,6 +16,22 @@ impl DocumentIndex {
     }
 
     pub async fn run(&self) {
+        let f1 = self.refresh();
+        let f2 = self.sweep();
+        let f = futures::future::join(f1, f2);
+        f.await;
+    }
+
+    pub async fn sweep(&self) {
+        #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+        loop {
+            sleep(Duration::from_secs(SWEEP_INTERVAL)).await;
+            let mut inner = self.inner.write().await;
+            inner.sweep().await; // TODO: optimize
+        }
+    }
+
+    pub async fn refresh(&self) {
         let mut already_explored = HashSet::new();
         let mut last_printed_error = None;
         let ipfs_rpc = &self.config.ipfs_rpc;
@@ -29,14 +45,14 @@ impl DocumentIndex {
                         error!("Error while listing pinned elements: {}", e_string);
                     }
                     last_printed_error = Some(e_string);
-                    sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
+                    sleep(Duration::from_secs(REFRESH_INTERVAL)).await;
                     continue;
                 }
             };
             last_printed_error = None;
             pinned.retain(|cid| already_explored.insert(cid.clone()));
             if pinned.is_empty() {
-                sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
+                sleep(Duration::from_secs(REFRESH_INTERVAL)).await;
                 continue;
             }
             debug!("{} new pinned elements", pinned.len());
@@ -123,7 +139,7 @@ impl DocumentIndex {
             self.update_filter().await;
             debug!("Filter filled at {:.04}% ({:02}s)", self.get_filter().await.load()*100.0, start.elapsed().as_secs_f32());
 
-            sleep(Duration::from_secs(REFRESH_PINNED_INTERVAL)).await;
+            sleep(Duration::from_secs(REFRESH_INTERVAL)).await;
         }
     }
 

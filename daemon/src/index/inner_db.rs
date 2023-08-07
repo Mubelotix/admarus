@@ -68,6 +68,14 @@ impl DocumentIndexInner {
         }
     }
 
+    // TODO: optimize
+    pub(super) async fn sweep(&mut self) {
+        let to_unload = self.in_memory_index.keys().filter(|word| !self.in_use_index.contains_key(*word)).cloned().collect::<Vec<_>>();
+        for word in to_unload {
+            self.unload_index(word).await;
+        }
+    }
+
     pub fn folders(&self) -> HashMap<String, usize> {
         let mut folders = HashMap::new();
         for lcid in self.cids.left_values() {
