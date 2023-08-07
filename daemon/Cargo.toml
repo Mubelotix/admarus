@@ -28,3 +28,10 @@ faster-pest = "0.1"
 word-lists = {path="../word-lists"}
 bimap = "0.6"
 schemas = { path="../../schemas", features=["serde"] }
+heed = { git="https://github.com/meilisearch/heed", tag="v0.12.7", default-features=false, features=["read-txn-no-tls"], optional=true }
+
+[features]
+default = []
+database = ["database-lmdb"]
+database-lmdb = ["heed/lmdb"]
+database-mdbx = ["heed/mdbx"]
