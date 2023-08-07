@@ -49,4 +49,9 @@ pub struct Args {
     /// Number of leechers to allow to connect
     #[arg(long, default_value = "50")]
     pub leechers: usize,
+
+    /// Path to the database.
+    /// Admarus does not require using a database, which is fine under 10000 documents.
+    #[arg(long)]
+    pub database_path: Option<String>
 }

@@ -11,6 +11,9 @@ pub use crate::{
     dns_pins::*,
     query::*,
 };
+#[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+pub use crate::database::*;
+
 pub use discovery_protocol::{Behaviour as DiscoveryBehavior, Event as DiscoveryEvent, Config as DiscoveryConfig, Response as DiscoveryResponse, PeerListQuery};
 pub use clap::Parser;
 pub use log::{info, warn, error, debug, trace};

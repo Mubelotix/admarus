@@ -4,6 +4,9 @@ use crate::prelude::*;
 
 const REFRESH_PINNED_INTERVAL: u64 = 120;
 
+#[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
+type DatabaseController = ();
+
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct LocalCid(u32);
 impl Hash for LocalCid {
@@ -22,6 +25,7 @@ impl Hash for LocalDid {
 
 struct DocumentIndexInner<const N: usize> {
     config: Arc<Args>,
+
     filter: Filter<N>,
     filter_needs_update: bool,
 
@@ -33,10 +37,12 @@ struct DocumentIndexInner<const N: usize> {
 
     index: HashMap<String, HashMap<LocalCid, f32>>,
     filters: HashMap<(String, String), Vec<LocalCid>>,
+    
+    db: Option<DatabaseController>,
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
-    pub fn new(config: Arc<Args>) -> DocumentIndexInner<N> {
+    pub fn new(config: Arc<Args>, db: Option<DatabaseController>) -> DocumentIndexInner<N> {
         DocumentIndexInner {
             config,
             filter: Filter::new(),
@@ -50,6 +56,8 @@ impl<const N: usize> DocumentIndexInner<N> {
 
             index: HashMap::new(),
             filters: HashMap::new(),
+
+            db,
         }
     }
 
@@ -233,9 +241,9 @@ pub struct DocumentIndex<const N: usize> {
 
 #[allow(dead_code)]
 impl <const N: usize> DocumentIndex<N> {
-    pub fn new(config: Arc<Args>) -> DocumentIndex<N> {
+    pub fn new(config: Arc<Args>, db: Option<DatabaseController>) -> DocumentIndex<N> {
         DocumentIndex {
-            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config)))),
+            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config), db))),
             config,
         }
     }
