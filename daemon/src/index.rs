@@ -23,10 +23,10 @@ impl Hash for LocalDid {
     }
 }
 
-struct DocumentIndexInner<const N: usize> {
+struct DocumentIndexInner {
     config: Arc<Args>,
 
-    filter: Filter<N>,
+    filter: Filter<FILTER_SIZE>,
     filter_needs_update: bool,
 
     ancestors: HashMap<LocalCid, HashMap<LocalCid, String>>,
@@ -41,8 +41,8 @@ struct DocumentIndexInner<const N: usize> {
     db: Option<DbIndexController>,
 }
 
-impl<const N: usize> DocumentIndexInner<N> {
-    pub fn new(config: Arc<Args>, db: Option<DbIndexController>) -> DocumentIndexInner<N> {
+impl DocumentIndexInner {
+    pub fn new(config: Arc<Args>, db: Option<DbIndexController>) -> DocumentIndexInner {
         DocumentIndexInner {
             config,
             filter: Filter::new(),
@@ -90,7 +90,7 @@ impl<const N: usize> DocumentIndexInner<N> {
         }
         self.filter = Filter::new();
         for word in self.index.keys() {
-            self.filter.add_word::<DocumentIndex<N>>(word);
+            self.filter.add_word::<DocumentIndex>(word);
         }
         self.filter_needs_update = false;
     }
@@ -112,13 +112,13 @@ impl<const N: usize> DocumentIndexInner<N> {
         for word in doc.words {
             let frequencies = self.index.entry(word.clone()).or_default();
             *frequencies.entry(lcid).or_insert(0.) += 1. / word_count as f32;
-            self.filter.add_word::<DocumentIndex<N>>(&word);
+            self.filter.add_word::<DocumentIndex>(&word);
         }
         
         // Index by filters
         for (key, value) in doc.filters {
             self.filters.entry((key.to_string(), value.clone())).or_default().push(lcid);
-            self.filter.add_word::<DocumentIndex<N>>(&format!("{key}={value}"));
+            self.filter.add_word::<DocumentIndex>(&format!("{key}={value}"));
         }
     }
 
@@ -234,14 +234,14 @@ impl<const N: usize> DocumentIndexInner<N> {
 }
 
 #[derive(Clone)]
-pub struct DocumentIndex<const N: usize> {
+pub struct DocumentIndex {
     config: Arc<Args>,
-    inner: Arc<RwLock<DocumentIndexInner<N>>>,
+    inner: Arc<RwLock<DocumentIndexInner>>,
 }
 
 #[allow(dead_code)]
-impl <const N: usize> DocumentIndex<N> {
-    pub fn new(config: Arc<Args>, db: Option<DbIndexController>) -> DocumentIndex<N> {
+impl DocumentIndex {
+    pub fn new(config: Arc<Args>, db: Option<DbIndexController>) -> DocumentIndex {
         DocumentIndex {
             inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config), db))),
             config,
@@ -398,7 +398,7 @@ impl <const N: usize> DocumentIndex<N> {
 
 
 #[async_trait]
-impl <const N: usize> Store<N> for DocumentIndex<N> {
+impl Store<FILTER_SIZE> for DocumentIndex {
     type Result = DocumentResult;
     type Query = Query;
 
@@ -411,10 +411,10 @@ impl <const N: usize> Store<N> for DocumentIndex<N> {
                 result = result.overflowing_add(c as usize + RANDOM_SEED[i*2+1]).0;
             }
         }
-        vec![result % (N * 8)]
+        vec![result % (FILTER_SIZE * 8)]
     }
 
-    async fn get_filter(&self) -> Filter<N> {
+    async fn get_filter(&self) -> Filter<FILTER_SIZE> {
         self.inner.read().await.filter.clone()
     }
 

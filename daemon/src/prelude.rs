@@ -45,7 +45,7 @@ pub use sha2_derive::Hashable;
 pub use libp2p_identify::{Behaviour as IdentifyBehaviour, Event as IdentifyEvent, Config as IdentifyConfig};
 pub use word_lists::HackTraitSortedContains;
 
-pub type SearchController = OngoingSearchController<125000, DocumentIndex<125000>>;
+pub type SearchController = OngoingSearchController<FILTER_SIZE, DocumentIndex>;
 
 pub fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).expect("Invalid system time").as_secs()

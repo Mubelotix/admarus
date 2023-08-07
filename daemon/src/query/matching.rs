@@ -1,9 +1,9 @@
 use crate::prelude::*;
 
-impl<const N: usize> SearchQuery<N> for Query {
+impl SearchQuery<FILTER_SIZE> for Query {
     type ParsingError = serde_json::Error;
 
-    fn match_score(&self, filter: &Filter<N>) -> u32 {
+    fn match_score(&self, filter: &Filter<FILTER_SIZE>) -> u32 {
         self.root.match_score(filter)
     }
 
@@ -17,10 +17,10 @@ impl<const N: usize> SearchQuery<N> for Query {
 }
 
 impl QueryComp {
-    fn match_score<const N: usize>(&self, filter: &Filter<N>) -> u32 {
+    fn match_score(&self, filter: &Filter<FILTER_SIZE>) -> u32 {
         match self {
-            QueryComp::Word(word) => filter.get_word::<DocumentIndex<N>>(word) as u32,
-            QueryComp::Filter { name, value } => filter.get_word::<DocumentIndex<N>>(&format!("{name}={value}")) as u32,
+            QueryComp::Word(word) => filter.get_word::<DocumentIndex>(word) as u32,
+            QueryComp::Filter { name, value } => filter.get_word::<DocumentIndex>(&format!("{name}={value}")) as u32,
             QueryComp::Not(comp) => match comp.match_score(filter) { 0 => 1, _ => 0 },
             QueryComp::NAmong { n, among } => {
                 let mut sum = 0;
