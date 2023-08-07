@@ -8,7 +8,7 @@ const REFRESH_PINNED_INTERVAL: u64 = 120;
 type DatabaseController = ();
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct LocalCid(u32);
+pub struct LocalCid(pub u32);
 impl Hash for LocalCid {
     fn hash<H: Hasher>(&self, state: &mut H) {
         Hash::hash(&self.0, state)
@@ -38,11 +38,11 @@ struct DocumentIndexInner<const N: usize> {
     index: HashMap<String, HashMap<LocalCid, f32>>,
     filters: HashMap<(String, String), Vec<LocalCid>>,
     
-    db: Option<DatabaseController>,
+    db: Option<DbController>,
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
-    pub fn new(config: Arc<Args>, db: Option<DatabaseController>) -> DocumentIndexInner<N> {
+    pub fn new(config: Arc<Args>, db: Option<DbController>) -> DocumentIndexInner<N> {
         DocumentIndexInner {
             config,
             filter: Filter::new(),
@@ -241,7 +241,7 @@ pub struct DocumentIndex<const N: usize> {
 
 #[allow(dead_code)]
 impl <const N: usize> DocumentIndex<N> {
-    pub fn new(config: Arc<Args>, db: Option<DatabaseController>) -> DocumentIndex<N> {
+    pub fn new(config: Arc<Args>, db: Option<DbController>) -> DocumentIndex<N> {
         DocumentIndex {
             inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config), db))),
             config,
