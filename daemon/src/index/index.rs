@@ -187,9 +187,15 @@ impl Store<FILTER_SIZE> for DocumentIndex {
 
     fn search(&self, query: Arc<Query>) -> ResultStreamBuilderFut<DocumentResult> {
         let inner2 = Arc::clone(&self.inner);
+
         Box::pin(async move {
-            inner2.read().await.search(query).await
+            #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+            let res = inner2.write().await.search(query).await;
+    
+            #[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
+            let res = inner2.read().await.search(query).await;
+
+            res
         })
     }
 }
-

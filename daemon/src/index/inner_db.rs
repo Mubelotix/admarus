@@ -10,6 +10,7 @@ pub(super) struct DocumentIndexInner {
     cids: BiHashMap<LocalCid, String>,
 
     loaded_index: HashSet<String>,
+    in_use_index: HashMap<String, usize>,
     in_memory_index: HashMap<String, HashMap<LocalCid, f32>>,
     // todo filters
 
@@ -31,6 +32,7 @@ impl DocumentIndexInner {
             cids: BiHashMap::new(),
 
             loaded_index: HashSet::new(),
+            in_use_index: HashMap::new(),
             in_memory_index: HashMap::new(),
 
             index_db,
@@ -206,5 +208,30 @@ impl DocumentIndexInner {
 
     pub fn update_filter(&mut self) {
         warn!("Unimplemented function: update_filter");
+    }
+
+    pub async fn search(&mut self, query: Arc<Query>) -> ResultStream<DocumentResult> {
+        for term in query.terms() {
+            *self.in_use_index.entry(term.to_owned()).or_default() += 1;
+            self.load_index(term.clone()).await;
+        }
+        
+        let matching_docs = match query.match_score(&self.filter) > 0 {
+            true => query.matching_docs(&self.in_memory_index, &HashMap::new()), // TODO
+            false => Vec::new(),
+        };
+
+        for term in query.terms() {
+            *self.in_use_index.entry(term.to_owned()).or_default() -= 1;
+        }
+
+        let futures = matching_docs
+            .into_iter()
+            .filter_map(|lcid| self.cids.get_by_left(&lcid))
+            .map(|cid| (cid, self.build_path(cid).unwrap_or_default()))
+            .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid.to_owned(), paths, Arc::clone(&self.config)))
+            .collect();
+
+        Box::pin(DocumentResultStream { futures })
     }
 }
