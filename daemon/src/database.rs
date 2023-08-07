@@ -110,6 +110,7 @@ fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, mut receiver: Rec
 pub fn open_database(database_path: &str) -> DbController {
     trace!("Opening database at {database_path}");
 
+    let _ = std::fs::remove_dir(database_path); // FIXME: remove this line
     std::fs::create_dir_all(database_path).expect("Failed to create directories to database");
     let env = EnvOpenOptions::new()
         .map_size(25_000 * 4096) // ~100MB
