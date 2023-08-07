@@ -1,11 +1,11 @@
 use crate::prelude::*;
 
-const FILTER_SIZE: usize = 125000;
+pub const FILTER_SIZE: usize = 125000;
 
 #[derive(NetworkBehaviour)]
 #[behaviour(to_swarm = "Event")]
 struct AdmarusBehaviour {
-    kamilata: KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>,
+    kamilata: KamilataBehaviour<FILTER_SIZE, DocumentIndex>,
     identify: IdentifyBehaviour,
     discovery: DiscoveryBehavior,
 }
@@ -41,7 +41,7 @@ pub struct Node {
 }
 
 impl Node {
-    pub async fn init(config: Arc<Args>, index: DocumentIndex<FILTER_SIZE>) -> (Node, Keypair) {
+    pub async fn init(config: Arc<Args>, index: DocumentIndex) -> (Node, Keypair) {
         let keypair = Keypair::generate_ed25519();
         let peer_id = PeerId::from(keypair.public());
         info!("Local peer id: {peer_id}");
@@ -101,7 +101,7 @@ impl Node {
         }, keypair)
     }
 
-    fn kam_mut(&mut self) -> &mut KamilataBehaviour<FILTER_SIZE, DocumentIndex<FILTER_SIZE>> {
+    fn kam_mut(&mut self) -> &mut KamilataBehaviour<FILTER_SIZE, DocumentIndex> {
         &mut self.swarm.behaviour_mut().kamilata
     }
 
@@ -230,7 +230,7 @@ enum ClientCommand {
     Search {
         query: Query,
         config: SearchConfig,
-        sender: OneshotSender<OngoingSearchController<FILTER_SIZE, DocumentIndex<FILTER_SIZE>>>,
+        sender: OneshotSender<OngoingSearchController<FILTER_SIZE, DocumentIndex>>,
     },
     GetExternalAddrs {
         sender: OneshotSender<Vec<Multiaddr>>,
@@ -258,7 +258,7 @@ impl NodeController {
         self.peer_id
     }
 
-    pub async fn search(&self, query: Query) -> OngoingSearchController<FILTER_SIZE, DocumentIndex<FILTER_SIZE>> {
+    pub async fn search(&self, query: Query) -> OngoingSearchController<FILTER_SIZE, DocumentIndex> {
         let (sender, receiver) = oneshot_channel();
         let _ = self.sender.send(ClientCommand::Search {
             query,

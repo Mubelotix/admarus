@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) async fn local_search<const N: usize>((query, index): (ApiSearchQuery, DocumentIndex<N>)) -> Result<impl warp::Reply, Infallible> {
+pub(super) async fn local_search((query, index): (ApiSearchQuery, DocumentIndex)) -> Result<impl warp::Reply, Infallible> {
     let query = match Query::parse(&query.q) {
         Ok(query) => query,
         Err(e) => {

@@ -73,7 +73,7 @@ impl SearchPark {
     }
 }
 
-pub async fn serve_api<const N: usize>(config: Arc<Args>, index: DocumentIndex<N>, search_park: Arc<SearchPark>, kamilata: NodeController) {
+pub async fn serve_api(config: Arc<Args>, index: DocumentIndex, search_park: Arc<SearchPark>, kamilata: NodeController) {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
 
     let local_search = warp::get()

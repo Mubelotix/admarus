@@ -1,6 +1,6 @@
 use crate::prelude::*;
 
-pub async fn update_census_task<const N: usize>(node: NodeController, index: DocumentIndex<N>, keypair: Keypair, config: Arc<Args>) {
+pub async fn update_census_task(node: NodeController, index: DocumentIndex, keypair: Keypair, config: Arc<Args>) {
     if !config.census_enabled {
         return;
     }
