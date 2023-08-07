@@ -156,7 +156,7 @@ impl DocumentIndex {
     }
 
     pub async fn add_document(&self, cid: &String, doc: DocumentInspectionReport) {
-        self.inner.write().await.add_document(cid, doc);
+        self.inner.write().await.add_document(cid, doc).await;
     }
 
     pub async fn add_ancestor(&self, cid: &String, name: String, folder_cid: &String) {

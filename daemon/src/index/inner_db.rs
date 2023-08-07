@@ -110,7 +110,7 @@ impl DocumentIndexInner {
         self.cids.len() - self.folders.len()
     }
 
-    pub fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
+    pub async fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
         if self.cids.contains_right(cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
@@ -120,6 +120,7 @@ impl DocumentIndexInner {
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
         self.cids.insert(lcid, cid.to_owned());
+        self.index_db.put_cid(lcid, cid.clone()).await;
         self.folders.remove(&lcid);
 
         // Index by words

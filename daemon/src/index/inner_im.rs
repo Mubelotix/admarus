@@ -69,7 +69,7 @@ impl DocumentIndexInner {
         self.filter_needs_update = false;
     }
 
-    pub fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
+    pub async fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
         if self.cids.contains_right(cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
