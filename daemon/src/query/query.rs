@@ -13,6 +13,10 @@ impl Query {
         self.root.positive_terms()
     }
 
+    pub fn terms(&self) -> Vec<&String> {
+        self.root.terms()
+    }
+
     pub fn weighted_terms(&self) -> Vec<(String, f64)> {
         self.root.clone_only_words().map(|r| r.weighted_terms(1.0)).unwrap_or_default()
     }
@@ -72,6 +76,15 @@ impl QueryComp {
             QueryComp::Filter { .. } => Vec::new(),
             QueryComp::Not(_) => Vec::new(),
             QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.positive_terms()).collect::<Vec<_>>(),
+        }
+    }
+
+    pub fn terms(&self) -> Vec<&String> {
+        match self {
+            QueryComp::Word(word) => vec![word],
+            QueryComp::Filter { .. } => Vec::new(),
+            QueryComp::Not(comp) => comp.terms(),
+            QueryComp::NAmong { among, .. } => among.iter().flat_map(|c| c.terms()).collect::<Vec<_>>(),
         }
     }
 
