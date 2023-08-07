@@ -27,18 +27,10 @@ impl DbController {
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 
-    async fn index_get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> {
-        self.index_get_batch(vec![key]).await.map(|mut v| v.pop().unwrap().1)
-    }
-
     async fn index_put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> {
         let (sender, receiver) = oneshot_channel();
         self.sender.send(DbCommand::IndexPutBatch{items, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
-    }
-
-    async fn index_put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> {
-        self.index_put_batch(vec![(key, value)]).await
     }
 }
 
@@ -46,9 +38,7 @@ impl DbController {
 /// A [DbController] that is restricted to index-related commands
 pub struct DbIndexController(DbController);
 impl DbIndexController {
-    pub async fn get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> { self.0.index_get(key).await }
     pub async fn get_batch(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> { self.0.index_get_batch(keys).await }
-    pub async fn put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> { self.0.index_put(key, value).await }
     pub async fn put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> { self.0.index_put_batch(items).await }
 }
 impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
