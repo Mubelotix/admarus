@@ -5,7 +5,7 @@ use crate::prelude::*;
 const REFRESH_PINNED_INTERVAL: u64 = 120;
 
 #[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
-type DatabaseController = ();
+type DbIndexController = ();
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct LocalCid(pub u32);
@@ -38,11 +38,11 @@ struct DocumentIndexInner<const N: usize> {
     index: HashMap<String, HashMap<LocalCid, f32>>,
     filters: HashMap<(String, String), Vec<LocalCid>>,
     
-    db: Option<DbController>,
+    db: Option<DbIndexController>,
 }
 
 impl<const N: usize> DocumentIndexInner<N> {
-    pub fn new(config: Arc<Args>, db: Option<DbController>) -> DocumentIndexInner<N> {
+    pub fn new(config: Arc<Args>, db: Option<DbIndexController>) -> DocumentIndexInner<N> {
         DocumentIndexInner {
             config,
             filter: Filter::new(),
@@ -241,7 +241,7 @@ pub struct DocumentIndex<const N: usize> {
 
 #[allow(dead_code)]
 impl <const N: usize> DocumentIndex<N> {
-    pub fn new(config: Arc<Args>, db: Option<DbController>) -> DocumentIndex<N> {
+    pub fn new(config: Arc<Args>, db: Option<DbIndexController>) -> DocumentIndex<N> {
         DocumentIndex {
             inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config), db))),
             config,

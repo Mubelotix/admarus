@@ -41,8 +41,8 @@ async fn main() {
 
     let index = match (&config.database_path, cfg!(any(feature = "database-lmdb", feature = "database-mdbx"))) {
         (Some(database_path), true) => {
-            let db = open_database(&database_path);
-            DocumentIndex::<125000>::new(Arc::clone(&config), Some(db))
+            let db = open_database(database_path);
+            DocumentIndex::<125000>::new(Arc::clone(&config), Some(db.into()))
         },
         (Some(_), false) => panic!("This program was not compiled with database support. Please recompile with the `database-lmdb` or `database-mdbx` feature enabled. See https://github.com/Mubelotix/admarus/wiki/Installation"),
         (None, _) => DocumentIndex::<125000>::new(Arc::clone(&config), None),
