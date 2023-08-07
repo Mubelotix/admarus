@@ -20,17 +20,17 @@ pub(super) struct DocumentIndexInner {
 
 impl DocumentIndexInner {
     pub fn new(config: Arc<Args>) -> DocumentIndexInner {
-        let db = open_database(&config.database_path);
+        let (db, cid_counter, cids) = open_database(&config.database_path);
         let index_db = DbIndexController::from(db);
 
         DocumentIndexInner {
             config,
             filter: Filter::new(),
             
-            cid_counter: 0,
+            cid_counter,
             ancestors: HashMap::new(),
             folders: HashSet::new(),
-            cids: BiHashMap::new(),
+            cids,
 
             loaded_index: HashSet::new(),
             changed_index: HashSet::new(),
