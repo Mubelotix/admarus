@@ -84,15 +84,9 @@ fn index_put(key: &str, value: HashMap<LocalCid, f32>, env: &Env, index: &HeedDa
 fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, mut receiver: Receiver<DbCommand>) {
     loop {
         // Receive command
-        let command = match block_on(receiver.recv()) {
-            Some(command) => {
-                trace!("Received database command: {command:?}");
-                command
-            },
-            None => {
-                warn!("Database command channel closed, stopping database thread");
-                break;
-            },
+        let Some(command) = block_on(receiver.recv()) else {
+            warn!("Database command channel closed, stopping database thread");
+            break;
         };
         
         // TODO: ensure db is empty

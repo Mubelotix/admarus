@@ -70,9 +70,14 @@ impl DocumentIndexInner {
 
     // TODO: optimize
     pub(super) async fn sweep(&mut self) {
+        let start = Instant::now();
         let to_unload = self.in_memory_index.keys().filter(|word| !self.in_use_index.contains_key(*word)).cloned().collect::<Vec<_>>();
+        let count = to_unload.len();
         for word in to_unload {
             self.unload_index(word).await;
+        }
+        if count > 0 {
+            trace!("Sweeped {count} words from index in {}us", start.elapsed().as_micros());
         }
     }
 
