@@ -40,6 +40,7 @@ impl DbIndexController {
     pub async fn get(&self, key: String) -> Result<HashMap<LocalCid, f32>, DbError> { self.0.index_get(key).await }
     pub async fn put(&self, key: String, index: HashMap<LocalCid, f32>) -> Result<(), DbError> { self.0.index_put(key, index).await }
 }
+impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
 
 enum DbCommand {
     IndexGet { key: String, sender: OneshotSender<Result<HashMap<LocalCid, f32>, HeedError>> },
