@@ -3,7 +3,9 @@
 pub(self) use bimap::BiHashMap;
 pub(self) use std::hash::{Hash, Hasher};
 pub(self) use crate::prelude::*;
-pub(self) const REFRESH_PINNED_INTERVAL: u64 = 120;
+
+pub(self) const REFRESH_INTERVAL: u64 = 100;
+pub(self) const SWEEP_INTERVAL: u64 = 30;
 
 mod index;
 mod inner_common;
