@@ -52,6 +52,7 @@ pub struct Args {
 
     /// Path to the database.
     /// Admarus does not require using a database, which is fine under 10000 documents.
-    #[arg(long)]
-    pub database_path: Option<String>
+    #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "admarus.mdb"))]
+    #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+    pub database_path: String,
 }
