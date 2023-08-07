@@ -39,14 +39,7 @@ async fn main() {
         warn!("The webui doesn't currently support custom api addresses, so you probably don't want to change this.")
     }
 
-    let index = match (&config.database_path, cfg!(any(feature = "database-lmdb", feature = "database-mdbx"))) {
-        (Some(database_path), true) => {
-            let db = open_database(database_path);
-            DocumentIndex::new(Arc::clone(&config), Some(db.into()))
-        },
-        (Some(_), false) => panic!("This program was not compiled with database support. Please recompile with the `database-lmdb` or `database-mdbx` feature enabled. See https://github.com/Mubelotix/admarus/wiki/Installation"),
-        (None, _) => DocumentIndex::new(Arc::clone(&config), None),
-    };
+    let index = DocumentIndex::new(Arc::clone(&config));
 
     let (node, keypair) = Node::init(Arc::clone(&config), index.clone()).await;
     let node = node.run();
