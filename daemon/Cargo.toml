@@ -32,6 +32,5 @@ heed = { git="https://github.com/meilisearch/heed", tag="v0.12.7", default-featu
 
 [features]
 default = []
-database = ["database-lmdb"]
 database-lmdb = ["heed/lmdb"]
 database-mdbx = ["heed/mdbx"]
