@@ -67,17 +67,35 @@ impl DocumentIndexInner {
             // TODO handle error
         }
     }
+    async fn unload_index_batch(&mut self, words: Vec<String>) {
+        let mut items = Vec::new();
+        for word in words {
+            if !self.loaded_index.contains(&word) {
+                self.load_index(word.clone()).await; // TODO optimie
+            }
+            if self.in_use_index.get(&word).unwrap_or(&0) > &0 {
+                continue;
+            }
+            let data = match self.in_memory_index.remove(&word) {
+                Some(data) => data,
+                None => return, // Was unloaded in the meantime
+            };
+            items.push((word, data));
+        }
+        if let Err(e) = self.index_db.put_batch(items).await {
+            error!("Failed to unload index for words: {e:?}");
+            // TODO handle error
+        }
+    }
 
     // TODO: optimize
     pub(super) async fn sweep(&mut self) {
         let start = Instant::now();
         let to_unload = self.in_memory_index.keys().filter(|word| !self.in_use_index.contains_key(*word)).cloned().collect::<Vec<_>>();
         let count = to_unload.len();
-        for word in to_unload {
-            self.unload_index(word).await;
-        }
+        self.unload_index_batch(to_unload).await;
         if count > 0 {
-            trace!("Sweeped {count} words from index in {}us", start.elapsed().as_micros());
+            trace!("Sweeped {count} words from index in {}ms", start.elapsed().as_millis());
         }
     }
 
