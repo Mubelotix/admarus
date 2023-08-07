@@ -1,6 +1,9 @@
 use crate::prelude::*;
-use heed::{Database as HeedDatabase, Error as HeedError, Env, EnvOpenOptions, types::*};
+use heed::{Database as HeedDatabase, Error as HeedError, Env, EnvOpenOptions, types::*, zerocopy::U32};
 use futures::executor::block_on;
+use heed::byteorder::LE;
+
+type LEU32 = U32<LE>;
 
 #[derive(Debug)]
 pub enum DbError {
@@ -21,15 +24,27 @@ pub struct DbController {
 }
 
 impl DbController {
-    async fn index_get_batch(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> {
+    async fn index_get(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> {
         let (sender, receiver) = oneshot_channel();
-        self.sender.send(DbCommand::IndexGetBatch{keys, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        self.sender.send(DbCommand::IndexGet{keys, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 
-    async fn index_put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> {
+    async fn index_put(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> {
         let (sender, receiver) = oneshot_channel();
-        self.sender.send(DbCommand::IndexPutBatch{items, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        self.sender.send(DbCommand::IndexPut{items, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
+    }
+
+    async fn cids_get(&self, keys: Vec<LocalCid>) -> Result<Vec<Option<String>>, DbError> {
+        let (sender, receiver) = oneshot_channel();
+        self.sender.send(DbCommand::CidsGet{keys, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
+    }
+
+    async fn cids_put(&self, items: Vec<(LocalCid, String)>) -> Result<(), DbError> {
+        let (sender, receiver) = oneshot_channel();
+        self.sender.send(DbCommand::CidsPut{items, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 }
@@ -38,26 +53,33 @@ impl DbController {
 /// A [DbController] that is restricted to index-related commands
 pub struct DbIndexController(DbController);
 impl DbIndexController {
-    pub async fn get_batch(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> { self.0.index_get_batch(keys).await }
-    pub async fn put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> { self.0.index_put_batch(items).await }
+    pub async fn get(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> { self.0.index_get(keys).await }
+    pub async fn put(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> { self.0.index_put(items).await }
+    pub async fn get_cids(&self, keys: Vec<LocalCid>) -> Result<Vec<Option<String>>, DbError> { self.0.cids_get(keys).await }
+    pub async fn put_cids(&self, items: Vec<(LocalCid, String)>) -> Result<(), DbError> { self.0.cids_put(items).await }
+
 }
 impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
 
 enum DbCommand {
-    IndexGetBatch { keys: Vec<String>, sender: OneshotSender<Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError>> },
-    IndexPutBatch { items: Vec<(String, HashMap<LocalCid, f32>)>, sender: OneshotSender<Result<(), HeedError>> },
+    IndexGet { keys: Vec<String>, sender: OneshotSender<Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError>> },
+    IndexPut { items: Vec<(String, HashMap<LocalCid, f32>)>, sender: OneshotSender<Result<(), HeedError>> },
+    CidsGet { keys: Vec<LocalCid>, sender: OneshotSender<Result<Vec<Option<String>>, HeedError>> },
+    CidsPut { items: Vec<(LocalCid, String)>, sender: OneshotSender<Result<(), HeedError>> },
 }
 
 impl std::fmt::Debug for DbCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DbCommand::IndexGetBatch { keys, .. } => f.debug_struct("IndexGetBatch").field("keys", &format!("{:?} entries", keys.len())).finish_non_exhaustive(),
-            DbCommand::IndexPutBatch { items, .. } => f.debug_struct("IndexWriteAll").field("index", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
+            DbCommand::IndexGet { keys, .. } => f.debug_struct("IndexGetBatch").field("keys", &format!("{:?} entries", keys.len())).finish_non_exhaustive(),
+            DbCommand::IndexPut { items, .. } => f.debug_struct("IndexWriteAll").field("index", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
+            DbCommand::CidsGet { keys, .. } => f.debug_struct("CidsGetBatch").field("keys", &format!("{:?} entries", keys.len())).finish_non_exhaustive(),
+            DbCommand::CidsPut { items, .. } => f.debug_struct("CidsPutBatch").field("items", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
         }
     }
 }
 
-fn index_get_batch(keys: Vec<String>, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError> {
+fn index_get(keys: Vec<String>, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError> {
     let rotxn = env.read_txn()?;
     let mut items = Vec::with_capacity(keys.len());
     for key in keys {
@@ -73,7 +95,7 @@ fn index_get_batch(keys: Vec<String>, env: &Env, index: &HeedDatabase<Str, ByteS
     Ok(items)
 }
 
-fn index_put_batch(items: &[(String, HashMap<LocalCid, f32>)], env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<(), HeedError> {
+fn index_put(items: &[(String, HashMap<LocalCid, f32>)], env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<(), HeedError> {
     let mut wtxn = env.write_txn()?;
     for (key, value) in items {
         let mut data = Vec::with_capacity(value.len() * 8);
@@ -87,7 +109,26 @@ fn index_put_batch(items: &[(String, HashMap<LocalCid, f32>)], env: &Env, index:
     Ok(())
 }
 
-fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, mut receiver: Receiver<DbCommand>) {
+fn cids_get(keys: Vec<LocalCid>, env: &Env, cids: &HeedDatabase<OwnedType<LEU32>, Str>) -> Result<Vec<Option<String>>, HeedError> {
+    let rotxn = env.read_txn()?;
+    let mut items = Vec::with_capacity(keys.len());
+    for key in keys {
+        let value = cids.get(&rotxn, &LEU32::new(key.0))?.map(|s| s.to_owned());
+        items.push(value);
+    }
+    Ok(items)
+}
+
+fn cids_put(items: &[(LocalCid, String)], env: &Env, cids: &HeedDatabase<OwnedType<LEU32>, Str>) -> Result<(), HeedError> {
+    let mut wtxn = env.write_txn()?;
+    for (key, value) in items {
+        cids.put(&mut wtxn, &LEU32::new(key.0), value)?;
+    }
+    wtxn.commit()?;
+    Ok(())
+}
+
+fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, cids: HeedDatabase<OwnedType<LEU32>, Str>, mut receiver: Receiver<DbCommand>) {
     loop {
         // Receive command
         let Some(command) = block_on(receiver.recv()) else {
@@ -99,16 +140,26 @@ fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, mut receiver: Rec
 
         // Execute command
         match command {
-            DbCommand::IndexGetBatch { keys, sender } => {
-                let result = index_get_batch(keys, &env, &index);
+            DbCommand::IndexGet { keys, sender } => {
+                let result = index_get(keys, &env, &index);
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send index database read result: {e:?}") }
             },
-            DbCommand::IndexPutBatch { items, sender } => {
-                let result = index_put_batch(&items, &env, &index);
+            DbCommand::IndexPut { items, sender } => {
+                let result = index_put(&items, &env, &index);
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send index database write result: {e:?}") }
-            }
+            },
+            DbCommand::CidsGet { keys, sender } => {
+                let result = cids_get(keys, &env, &cids);
+                let r = sender.send(result);
+                if let Err(e) = r { error!("Failed to send cids database read result: {e:?}") }
+            },
+            DbCommand::CidsPut { items, sender } => {
+                let result = cids_put(&items, &env, &cids);
+                let r = sender.send(result);
+                if let Err(e) = r { error!("Failed to send cids database write result: {e:?}") }
+            },
         }
     }
 }
@@ -125,13 +176,14 @@ pub fn open_database(database_path: &str) -> DbController {
         .open(database_path)
         .expect("Failed to open database");
 
-    let mut wtxn = env.write_txn().expect("Failed to open write transaction for index database creation");
+    let mut wtxn = env.write_txn().expect("Failed to open write transaction for database creation");
     let index = env.create_database(&mut wtxn, Some("index")).expect("Failed to create index database");
-    wtxn.commit().expect("Failed to commit write transaction for index database creation");
+    let cids = env.create_database(&mut wtxn, Some("cids")).expect("Failed to create cids database");
+    wtxn.commit().expect("Failed to commit write transaction for database creation");
 
     let (sender, receiver) = channel(200);
     
-    std::thread::spawn(move || run_database(env, index, receiver));
+    std::thread::spawn(move || run_database(env, index, cids, receiver));
 
     DbController {
         sender,
