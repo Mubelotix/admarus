@@ -29,7 +29,7 @@ fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
     // Get words
     let body_selector = Selector::parse("body").expect("Invalid body selector");
     let body_el = document.select(&body_selector).next();
-            
+
     fn list_words(el: ElementRef, words: &mut Vec<String>) {
         if ["script", "style"].contains(&el.value().name()) {
             return;
@@ -74,6 +74,8 @@ fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
 #[allow(clippy::question_mark)]
 fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     let document = Html::parse_document(raw);
+    let body_selector = Selector::parse("body").expect("Invalid body selector");
+    let body_el = document.select(&body_selector).next();
 
     // Get lang
     let html_selector = Selector::parse("html").expect("Invalid html selector");
@@ -164,6 +166,35 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
         return None;
     }
 
+    // Retrieve images and videos
+    fn list_media(el: ElementRef, media: &mut Vec<StructuredData>) {
+        'init: {match el.value().name() {
+            "img" => {
+                let Some(src) = el.value().attr("src").map(|s| s.to_string()) else {break 'init};
+                let mut new_media = schemas::types::ImageObject::new();
+                new_media.media_object.set_content_url(SchemaUrl::from(src));
+                if let Some(alt) = el.value().attr("alt") {
+                    new_media.media_object.creative_work.thing.set_description(SchemaText::from(alt));
+                }
+                media.push(StructuredData::ImageObject(new_media));
+            },
+            "video" | "picture" => {
+                // TODO
+            },
+            _ => (),
+        }}
+        for child in el.children() {
+            if let scraper::node::Node::Element(_) = child.value() {
+                let child_ref = ElementRef::wrap(child).expect("Child isn't an element");
+                list_media(child_ref, media)
+            }
+        }
+    }
+    let mut media = Vec::new();
+    if let Some(body_el) = body_el {
+        list_media(body_el, &mut media);
+    }
+
     // Count words
     #[allow(clippy::too_many_arguments)]
     fn count_words(
@@ -239,7 +270,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
         description,
         extract,
 
-        structured_data: Vec::new(),
+        structured_data: media,
 
         term_counts,
         word_count,
