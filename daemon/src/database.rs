@@ -21,15 +21,15 @@ pub struct DbController {
 }
 
 impl DbController {
-    async fn index_get(&self, key: String) -> Result<HashMap<LocalCid, f32>, DbError> {
+    async fn index_get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> {
         let (sender, receiver) = oneshot_channel();
         self.sender.send(DbCommand::IndexGet{key, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 
-    async fn index_put(&self, key: String, index: HashMap<LocalCid, f32>) -> Result<(), DbError> {
+    async fn index_put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> {
         let (sender, receiver) = oneshot_channel();
-        self.sender.send(DbCommand::IndexWrite{key, value: index, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        self.sender.send(DbCommand::IndexWrite{key, value, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 }
@@ -38,13 +38,13 @@ impl DbController {
 /// A [DbController] that is restricted to index-related commands
 pub struct DbIndexController(DbController);
 impl DbIndexController {
-    pub async fn get(&self, key: String) -> Result<HashMap<LocalCid, f32>, DbError> { self.0.index_get(key).await }
-    pub async fn put(&self, key: String, index: HashMap<LocalCid, f32>) -> Result<(), DbError> { self.0.index_put(key, index).await }
+    pub async fn get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> { self.0.index_get(key).await }
+    pub async fn put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> { self.0.index_put(key, value).await }
 }
 impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
 
 enum DbCommand {
-    IndexGet { key: String, sender: OneshotSender<Result<HashMap<LocalCid, f32>, HeedError>> },
+    IndexGet { key: String, sender: OneshotSender<Result<Vec<(LocalCid, f32)>, HeedError>> },
     IndexWrite { key: String, value: HashMap<LocalCid, f32>, sender: OneshotSender<Result<(), HeedError>> },
 }
 
@@ -57,14 +57,14 @@ impl std::fmt::Debug for DbCommand {
     }
 }
 
-fn index_get(key: &str, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<HashMap<LocalCid, f32>, HeedError> {
+fn index_get(key: &str, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<Vec<(LocalCid, f32)>, HeedError> {
     let rotxn = env.read_txn()?;
     let data = index.get(&rotxn, key)?.unwrap_or_default();
-    let mut value: HashMap<LocalCid, f32> = HashMap::new();
+    let mut value = Vec::with_capacity(data.len() / 8);
     for chunk in data.chunks_exact(8) {
         let lcid: u32 = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
         let score: f32 = f32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]);
-        value.insert(LocalCid(lcid), score);
+        value.push((LocalCid(lcid), score));
     }
     Ok(value)
 }
