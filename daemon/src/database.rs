@@ -21,10 +21,14 @@ pub struct DbController {
 }
 
 impl DbController {
-    async fn index_get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> {
+    async fn index_get_batch(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> {
         let (sender, receiver) = oneshot_channel();
-        self.sender.send(DbCommand::IndexGet{key, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        self.sender.send(DbCommand::IndexGetBatch{keys, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
+    }
+
+    async fn index_get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> {
+        self.index_get_batch(vec![key]).await.map(|mut v| v.pop().unwrap().1)
     }
 
     async fn index_put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> {
@@ -43,35 +47,40 @@ impl DbController {
 pub struct DbIndexController(DbController);
 impl DbIndexController {
     pub async fn get(&self, key: String) -> Result<Vec<(LocalCid, f32)>, DbError> { self.0.index_get(key).await }
+    pub async fn get_batch(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> { self.0.index_get_batch(keys).await }
     pub async fn put(&self, key: String, value: HashMap<LocalCid, f32>) -> Result<(), DbError> { self.0.index_put(key, value).await }
     pub async fn put_batch(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> { self.0.index_put_batch(items).await }
 }
 impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
 
 enum DbCommand {
-    IndexGet { key: String, sender: OneshotSender<Result<Vec<(LocalCid, f32)>, HeedError>> },
+    IndexGetBatch { keys: Vec<String>, sender: OneshotSender<Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError>> },
     IndexPutBatch { items: Vec<(String, HashMap<LocalCid, f32>)>, sender: OneshotSender<Result<(), HeedError>> },
 }
 
 impl std::fmt::Debug for DbCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DbCommand::IndexGet { key, .. } => f.debug_struct("IndexGet").field("key", key).finish_non_exhaustive(),
+            DbCommand::IndexGetBatch { keys, .. } => f.debug_struct("IndexGetBatch").field("keys", &format!("{:?} entries", keys.len())).finish_non_exhaustive(),
             DbCommand::IndexPutBatch { items, .. } => f.debug_struct("IndexWriteAll").field("index", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
         }
     }
 }
 
-fn index_get(key: &str, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<Vec<(LocalCid, f32)>, HeedError> {
+fn index_get_batch(keys: Vec<String>, env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError> {
     let rotxn = env.read_txn()?;
-    let data = index.get(&rotxn, key)?.unwrap_or_default();
-    let mut value = Vec::with_capacity(data.len() / 8);
-    for chunk in data.chunks_exact(8) {
-        let lcid: u32 = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
-        let score: f32 = f32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]);
-        value.push((LocalCid(lcid), score));
+    let mut items = Vec::with_capacity(keys.len());
+    for key in keys {
+        let data = index.get(&rotxn, &key)?.unwrap_or_default();
+        let mut value = Vec::with_capacity(data.len() / 8);
+        for chunk in data.chunks_exact(8) {
+            let lcid: u32 = u32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]);
+            let score: f32 = f32::from_le_bytes([chunk[4], chunk[5], chunk[6], chunk[7]]);
+            value.push((LocalCid(lcid), score));
+        }
+        items.push((key, value));
     }
-    Ok(value)
+    Ok(items)
 }
 
 fn index_put_batch(items: &[(String, HashMap<LocalCid, f32>)], env: &Env, index: &HeedDatabase<Str, ByteSlice>) -> Result<(), HeedError> {
@@ -100,8 +109,8 @@ fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, mut receiver: Rec
 
         // Execute command
         match command {
-            DbCommand::IndexGet { key, sender } => {
-                let result = index_get(&key, &env, &index);
+            DbCommand::IndexGetBatch { keys, sender } => {
+                let result = index_get_batch(keys, &env, &index);
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send index database read result: {e:?}") }
             },

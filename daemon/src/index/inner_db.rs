@@ -51,6 +51,13 @@ impl DocumentIndexInner {
         self.loaded_index.insert(word.clone());
         self.in_memory_index.entry(word).or_default().extend(new_data.into_iter().filter(|(lcid, _)| self.cids.contains_left(lcid)));
     }
+    async fn load_index_batch(&mut self, words: Vec<String>) {
+        let new_data = self.index_db.get_batch(words.into_iter().collect()).await.unwrap_or_default();
+        for (word, data) in new_data {
+            self.loaded_index.insert(word.clone());
+            self.in_memory_index.entry(word).or_default().extend(data.into_iter().filter(|(lcid, _)| self.cids.contains_left(lcid)));
+        }
+    }
     async fn unload_index(&mut self, word: String) {
         if !self.loaded_index.contains(&word) {
             self.load_index(word.clone()).await;
@@ -67,15 +74,14 @@ impl DocumentIndexInner {
             // TODO handle error
         }
     }
-    async fn unload_index_batch(&mut self, words: Vec<String>) {
+    async fn unload_index_batch(&mut self, mut words: Vec<String>) {
+        words.retain(|word| self.in_use_index.get(word).unwrap_or(&0) == &0);
+
+        let to_load = words.iter().filter(|word| !self.loaded_index.contains(*word)).cloned().collect::<Vec<_>>();
+        self.load_index_batch(to_load).await;
+
         let mut items = Vec::new();
         for word in words {
-            if !self.loaded_index.contains(&word) {
-                self.load_index(word.clone()).await; // TODO optimie
-            }
-            if self.in_use_index.get(&word).unwrap_or(&0) > &0 {
-                continue;
-            }
             let data = match self.in_memory_index.remove(&word) {
                 Some(data) => data,
                 None => return, // Was unloaded in the meantime
