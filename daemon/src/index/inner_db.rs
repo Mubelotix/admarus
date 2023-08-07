@@ -40,38 +40,11 @@ impl DocumentIndexInner {
     }
 
     // TODO: optimize
-    async fn load_index(&mut self, word: String) {
-        let new_data = match self.index_db.get(word.clone()).await {
-            Ok(data) => data,
-            Err(e) => {
-                error!("Failed to load index for word {word}: {e:?}");
-                return;
-            }
-        };
-        self.loaded_index.insert(word.clone());
-        self.in_memory_index.entry(word).or_default().extend(new_data.into_iter().filter(|(lcid, _)| self.cids.contains_left(lcid)));
-    }
     async fn load_index_batch(&mut self, words: Vec<String>) {
         let new_data = self.index_db.get_batch(words.into_iter().collect()).await.unwrap_or_default();
         for (word, data) in new_data {
             self.loaded_index.insert(word.clone());
             self.in_memory_index.entry(word).or_default().extend(data.into_iter().filter(|(lcid, _)| self.cids.contains_left(lcid)));
-        }
-    }
-    async fn unload_index(&mut self, word: String) {
-        if !self.loaded_index.contains(&word) {
-            self.load_index(word.clone()).await;
-        }
-        if self.in_use_index.get(&word).unwrap_or(&0) > &0 {
-            return;
-        }
-        let data = match self.in_memory_index.remove(&word) {
-            Some(data) => data,
-            None => return, // Was unloaded in the meantime
-        };
-        if let Err(e) = self.index_db.put(word.clone(), data).await {
-            error!("Failed to unload index for word {word}: {e:?}");
-            // TODO handle error
         }
     }
     async fn unload_index_batch(&mut self, mut words: Vec<String>) {
@@ -161,19 +134,18 @@ impl DocumentIndexInner {
     }
 
     pub async fn search(&mut self, query: Arc<Query>) -> ResultStream<DocumentResult> {
-        for term in query.terms() {
-            *self.in_use_index.entry(term.to_owned()).or_default() += 1;
-            self.load_index(term.clone()).await;
-        }
+        let mut terms = query.terms();
+        terms.sort();
+        terms.dedup();
+        terms.iter().for_each(|t| *self.in_use_index.entry((*t).to_owned()).or_default() += 1);
+        self.load_index_batch(terms.iter().map(|t| (*t).to_owned()).collect()).await;
         
         let matching_docs = match query.match_score(&self.filter) > 0 {
             true => query.matching_docs(&self.in_memory_index, &HashMap::new()), // TODO
             false => Vec::new(),
         };
 
-        for term in query.terms() {
-            *self.in_use_index.entry(term.to_owned()).or_default() -= 1;
-        }
+        terms.iter().for_each(|t| *self.in_use_index.entry((*t).to_owned()).or_default() -= 1);
 
         let futures = matching_docs
             .into_iter()
