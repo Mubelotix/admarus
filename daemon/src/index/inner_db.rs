@@ -62,7 +62,10 @@ impl DocumentIndexInner {
             Some(data) => data,
             None => return, // Was unloaded in the meantime
         };
-        self.index_db.put(word, data).await;
+        if let Err(e) = self.index_db.put(word.clone(), data).await {
+            error!("Failed to unload index for word {word}: {e:?}");
+            // TODO handle error
+        }
     }
 
     pub fn folders(&self) -> HashMap<String, usize> {
