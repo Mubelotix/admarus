@@ -119,17 +119,18 @@ impl RankedResults {
         // List ungrouped results
         let mut ungrouped = HashSet::new();
         'grouping: for (cid, result) in self.results.iter().filter(|(cid,_)| !self.grouping_results.contains(*cid)) {
-            let Some(path) = result.paths.first() else {continue};
-            let mut path = path.as_slice();
-            loop {
-                if path.is_empty() {
-                    break;
-                }
-                path = &path[..path.len()-1];
-                if let Some((_, cids)) = groups.get_mut(path) {
-                    cids.push(cid);
-                    continue 'grouping;
-                }
+            if let Some(path) = result.paths.first() {
+                let mut path = path.as_slice();
+                loop {
+                    if path.is_empty() {
+                        break;
+                    }
+                    path = &path[..path.len()-1];
+                    if let Some((_, cids)) = groups.get_mut(path) {
+                        cids.push(cid);
+                        continue 'grouping;
+                    }
+                }    
             }
             ungrouped.insert(cid);
         }
