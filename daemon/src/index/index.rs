@@ -32,12 +32,23 @@ impl DocumentIndex {
     }
 
     pub async fn refresh(&self) {
-        let mut already_explored = HashSet::new();
+        let mut to_list = Vec::new();
+        let mut to_load = HashSet::new();
+        let mut to_load_unprioritized = HashSet::new();
+        let mut listed = HashSet::new();
+        let mut loaded = HashSet::new();
+
+        fn normalize_cid(cid: impl AsRef<str>) -> Option<String> {
+            let cid = Cid::try_from(cid.as_ref()).ok()?;
+            let cid = cid.into_v1().ok()?;
+            Some(cid.to_string())
+        }
+
         let mut last_printed_error = None;
         let ipfs_rpc = &self.config.ipfs_rpc;
         loop {
             // List pinned elements
-            let mut pinned = match list_pinned(&self.config.ipfs_rpc).await {
+            let pinned = match list_pinned(&self.config.ipfs_rpc).await {
                 Ok(pinned) => pinned,
                 Err(e) => {
                     let e_string = e.to_string();
@@ -50,94 +61,57 @@ impl DocumentIndex {
                 }
             };
             last_printed_error = None;
-            pinned.retain(|cid| already_explored.insert(cid.clone()));
-            if pinned.is_empty() {
-                sleep(Duration::from_secs(REFRESH_INTERVAL)).await;
-                continue;
-            }
-            debug!("{} new pinned elements", pinned.len());
-            let start = Instant::now();
+            to_list.extend(pinned.iter().filter_map(normalize_cid).filter(|cid| !listed.contains(cid)));
 
-            // Explore directories and fetch prioritized documents
-            let mut listed_folders: HashSet<String> = self.folders().await.keys().cloned().collect();
-            let mut fetched_documents: HashSet<String> = self.documents().await;
-            let mut unprioritized_documents: HashMap<String, (String, String)> = HashMap::new();
-            let mut prev_document_count = fetched_documents.len();
-            while let Some(parent_cid) = pinned.pop() {
-                // FIXME: top level files are ignored later
-                if !listed_folders.insert(parent_cid.clone()) {
-                    continue;
-                }
-                
-                // Get content
-                let new_links = match ls(ipfs_rpc, parent_cid.clone()).await {
+            // Explore directories
+            let start = Instant::now();
+            if !to_list.is_empty() {debug!("{} elements to list", to_list.len())}
+            while let Some(cid) = to_list.pop() {
+                if listed.insert(cid.clone()) {continue}
+                let new_links = match ls(ipfs_rpc, cid.clone()).await {
                     Ok(new_links) => new_links,
                     Err(e) => {
                         warn!("Error listing potential directory: {e:?}");
                         continue;
                     },
                 };
-
-                // Handle content
                 for (child_cid, child_name, child_is_folder) in new_links {
-                    let Ok(child_cid) = Cid::try_from(child_cid.as_str()) else {continue};
-                    let Ok(child_cid) = child_cid.into_v1() else {continue};
-                    let child_cid = child_cid.to_string();
-                    if fetched_documents.contains(&child_cid) { continue }
-
+                    let child_cid = normalize_cid(child_cid).unwrap();
                     if child_is_folder {
-                        if !listed_folders.contains(&child_cid) {
-                            pinned.push(child_cid.clone());
+                        self.add_ancestor(&child_cid, child_name, &cid).await;
+                        if !listed.contains(&child_cid) {
+                            to_list.push(child_cid);
                         }
-                        self.add_ancestor(&child_cid, child_name, &parent_cid).await;
-                    } else if child_name.ends_with(".html") {
-                        let document = match fetch_document(ipfs_rpc, &child_cid).await {
-                            Ok(document) => Some(document),
-                            Err(e) => {
-                                warn!("Error while fetching document: {e:?}");
-                                None
-                            },
-                        };
-                        fetched_documents.insert(child_cid.clone());
-                        if fetched_documents.len() % 500 == 0 {
-                            debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
+                    } else if !loaded.contains(&child_cid) {
+                        if child_name.ends_with(".html") {
+                            to_load.insert((child_cid, child_name, cid.clone()));
+                        } else if self.config.crawl_unprioritized {
+                            to_load_unprioritized.insert((child_cid, child_name, cid.clone()));
                         }
-                        if let Some(document) = document {
-                            if let Some(inspected) = inspect_document(document) {
-                                self.add_document(&child_cid, inspected).await;
-                                self.add_ancestor(&child_cid, child_name, &parent_cid).await;
-                            }
-                        }
-                    } else {
-                        unprioritized_documents.insert(child_cid.clone(), (parent_cid.clone(), child_name));
                     }
                 }
-            }
-            let mut document_count = self.document_count().await;
-            if prev_document_count != document_count {
-                debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
-                prev_document_count = document_count;
+                to_list.sort();
+                to_list.dedup();
             }
 
-            // Fetch remaining documents (low priority)
-            if self.config.crawl_unprioritized {
-                trace!("Fetching {} unprioritized documents", unprioritized_documents.len());
-                for (cid, (parent_cid, child_name)) in unprioritized_documents {
-                    if fetched_documents.insert(cid.clone()) { continue }
-                    let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
-                    let Some(inspected) = inspect_document(document) else {continue};
-                    self.add_document(&cid, inspected).await;
-                    self.add_ancestor(&cid, child_name, &parent_cid).await;
-                    if fetched_documents.len() % 500 == 0 {
-                        debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
-                    }
-                }
-                document_count = self.document_count().await;
-                if prev_document_count != document_count {
-                    debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
-                }
-            } else {
-                trace!("Skipping {} unprioritized documents", unprioritized_documents.len());
+            // Load documents
+            if !to_load.is_empty() {debug!("{} documents to load ({:.02?}s)", to_load.len(), start.elapsed().as_secs_f32())}
+            for (cid, name, parent_cid) in to_load.drain() {
+                if loaded.insert(cid.clone()) {continue}
+                let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
+                let Some(inspected) = inspect_document(document) else {continue};
+                self.add_document(&cid, inspected).await;
+                self.add_ancestor(&cid, name, &parent_cid).await;
+            }
+
+            // Load unprioritized documents
+            if !to_load_unprioritized.is_empty() {debug!("{} unprioritized documents to load ({:.02?}s)", to_load_unprioritized.len(), start.elapsed().as_secs_f32())};
+            for (cid, name, parent_cid) in to_load_unprioritized.drain() {
+                if  loaded.insert(cid.clone()) {continue}
+                let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
+                let Some(inspected) = inspect_document(document) else {continue};
+                self.add_document(&cid, inspected).await;
+                self.add_ancestor(&cid, name, &parent_cid).await;
             }
             
             self.update_filter().await;
