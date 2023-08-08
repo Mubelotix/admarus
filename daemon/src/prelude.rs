@@ -20,7 +20,7 @@ pub use log::{info, warn, error, debug, trace};
 pub use kamilata::{prelude::*, db::TooManyLeechers, behaviour::KamilataEvent, store::{ResultStream, ResultStreamBuilderFut}};
 pub use serde::{Serialize, Deserialize};
 pub use async_trait::async_trait;
-pub use schemas::{traits::Schema, types::{Text as SchemaText, URL as SchemaUrl, Types as StructuredData}};
+//pub use schemas::{traits::Schema, types::{Text as SchemaText, URL as SchemaUrl, Types as StructuredData}};
 pub use std::{
     time::{SystemTime, Duration, Instant, UNIX_EPOCH},
     collections::{HashMap, HashSet}, sync::Arc, pin::Pin, future::Future, cmp::Ordering, iter::zip, net::SocketAddr, str::FromStr, io::Error as IoError,

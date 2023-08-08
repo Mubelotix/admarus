@@ -171,7 +171,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     }
 
     // Retrieve images and videos
-    fn list_media(el: ElementRef, media: &mut Vec<StructuredData>) {
+    /*fn list_media(el: ElementRef, media: &mut Vec<StructuredData>) {
         'init: {match el.value().name() {
             "img" => {
                 let Some(src) = el.value().attr("src").map(|s| s.to_string()) else {break 'init};
@@ -197,7 +197,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     let mut media = Vec::new();
     if let Some(body_el) = body_el {
         list_media(body_el, &mut media);
-    }
+    }*/
 
     // Count words
     #[allow(clippy::too_many_arguments)]
@@ -274,7 +274,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
         description,
         extract,
 
-        structured_data: media,
+        structured_data: Vec::new(),
 
         term_counts,
         word_count,
