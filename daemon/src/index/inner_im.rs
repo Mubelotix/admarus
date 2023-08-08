@@ -58,7 +58,7 @@ impl DocumentIndexInner {
         self.cids.len() - self.folders.len()
     }
 
-    pub fn update_filter(&mut self) {
+    pub async fn update_filter(&mut self) {
         if !self.filter_needs_update {
             return;
         }

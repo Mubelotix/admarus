@@ -175,7 +175,7 @@ impl DocumentIndex {
     }
 
     pub async fn update_filter(&self) {
-        self.inner.write().await.update_filter();
+        self.inner.write().await.update_filter().await;
     }
 }
 

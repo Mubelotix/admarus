@@ -173,12 +173,19 @@ impl DocumentIndexInner {
             true => query.matching_docs(&self.in_memory_index, &HashMap::new()), // TODO
             false => Vec::new(),
         };
+        debug!("{} match", matching_docs.len());
 
         terms.iter().for_each(|t| *self.in_use_index.entry((*t).to_owned()).or_default() -= 1);
 
         let futures = matching_docs
             .into_iter()
-            .filter_map(|lcid| self.cids.get_by_left(&lcid))
+            .filter_map(|lcid| {
+                let cid = self.cids.get_by_left(&lcid);
+                if cid.is_none() {
+                    warn!("Found cid that is missing from cids field: {lcid:?}");
+                }
+                cid
+            })
             .map(|cid| (cid, self.build_path(cid).unwrap_or_default()))
             .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid.to_owned(), paths, Arc::clone(&self.config)))
             .collect();
