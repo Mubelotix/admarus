@@ -32,9 +32,6 @@ impl DocumentIndex {
     }
 
     pub async fn refresh(&self) {
-        let mut to_list = Vec::new();
-        let mut to_load = HashMap::new();
-        let mut to_load_unprioritized = HashSet::new();
         let mut listed = HashSet::new();
         let mut loaded = self.documents().await;
 
@@ -48,6 +45,10 @@ impl DocumentIndex {
         let ipfs_rpc = &self.config.ipfs_rpc;
         let mut previous_load = -1.0;
         loop {
+            let mut to_list = Vec::new();
+            let mut to_load = HashMap::new();
+            let mut to_load_unprioritized = HashSet::new();
+
             // List pinned elements
             let pinned = match list_pinned(&self.config.ipfs_rpc).await {
                 Ok(pinned) => pinned,
