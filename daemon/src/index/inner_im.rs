@@ -16,7 +16,7 @@ pub(super) struct DocumentIndexInner {
 }
 
 impl DocumentIndexInner {
-    pub fn new(config: Arc<Args>) -> DocumentIndexInner {
+    pub async fn new(config: Arc<Args>) -> DocumentIndexInner {
         DocumentIndexInner {
             config,
             filter: Filter::new(),

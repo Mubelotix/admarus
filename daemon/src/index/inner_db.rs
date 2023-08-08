@@ -2,7 +2,9 @@ use super::*;
 
 pub(super) struct DocumentIndexInner {
     config: Arc<Args>,
+
     pub(super) filter: Filter<FILTER_SIZE>,
+    filter_needs_update: bool,
 
     pub(super) cid_counter: u32,
     pub(super) ancestors: HashMap<LocalCid, HashMap<LocalCid, String>>,
@@ -19,13 +21,15 @@ pub(super) struct DocumentIndexInner {
 }
 
 impl DocumentIndexInner {
-    pub fn new(config: Arc<Args>) -> DocumentIndexInner {
+    pub async fn new(config: Arc<Args>) -> DocumentIndexInner {
         let (db, cid_counter, cids) = open_database(&config.database_path);
         let index_db = DbIndexController::from(db);
 
-        DocumentIndexInner {
+        let mut index = DocumentIndexInner {
             config,
+
             filter: Filter::new(),
+            filter_needs_update: !cids.is_empty(),
             
             cid_counter,
             ancestors: HashMap::new(),
@@ -38,7 +42,9 @@ impl DocumentIndexInner {
             in_memory_index: HashMap::new(),
 
             index_db,
-        }
+        };
+        index.update_filter().await;
+        index
     }
 
     // TODO: optimize
@@ -120,7 +126,8 @@ impl DocumentIndexInner {
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
         self.cids.insert(lcid, cid.to_owned());
-        self.index_db.put_cid(lcid, cid.clone()).await;
+        let r = self.index_db.put_cid(lcid, cid.clone()).await;
+        if let Err(e) = r { error!("Failed to store cid in database: {e:?}") }
         self.folders.remove(&lcid);
 
         // Index by words
@@ -139,8 +146,20 @@ impl DocumentIndexInner {
         }*/
     }
 
-    pub fn update_filter(&mut self) {
-        warn!("Unimplemented function: update_filter");
+    pub async fn update_filter(&mut self) {
+        if !self.filter_needs_update {
+            return;
+        }
+        let start = Instant::now();
+        self.filter = match self.index_db.compute_filter().await {
+            Ok(filter) => filter,
+            Err(e) => {
+                error!("Failed to compute filter: {e:?}");
+                return;
+            },
+        };
+        self.filter_needs_update = false;
+        trace!("Filter recomputed in {}ms", start.elapsed().as_millis());
     }
 
     pub async fn search(&mut self, query: Arc<Query>) -> ResultStream<DocumentResult> {

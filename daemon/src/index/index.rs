@@ -8,9 +8,9 @@ pub struct DocumentIndex {
 
 #[allow(dead_code)]
 impl DocumentIndex {
-    pub fn new(config: Arc<Args>) -> DocumentIndex {
+    pub async fn new(config: Arc<Args>) -> DocumentIndex {
         DocumentIndex {
-            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config)))),
+            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config)).await)),
             config,
         }
     }
