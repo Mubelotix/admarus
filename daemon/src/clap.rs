@@ -54,6 +54,11 @@ pub struct Args {
     #[arg(long, default_value = "50")]
     pub leechers: usize,
 
+    /// Whether to also crawl unprioritized documents
+    /// Prioritized documents are documents named with a supported extension
+    #[arg(long, default_value = "false", action = Set)]
+    pub crawl_unprioritized: bool,
+
     /// Path to the database.
     /// Admarus does not require using a database, which is fine under 10000 documents.
     #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "admarus.mdb"))]
@@ -61,7 +66,7 @@ pub struct Args {
     pub database_path: String,
 
     /// Map size for the database (in bytes)
-    #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "102_400_000"))]
+    #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "102400000"))]
     #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
     pub database_map_size: usize,
 

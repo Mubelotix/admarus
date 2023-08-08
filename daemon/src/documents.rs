@@ -23,6 +23,10 @@ pub fn generate_result(raw: Vec<u8>, cid: String, query: &Query, paths: Vec<Vec<
 }
 
 fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
+    if !raw.starts_with("<!DOCTYPE html>") && !raw.starts_with("<!doctype html>") {
+        return None;
+    }
+    
     let document = Html::parse_document(raw);
     let mut filters = HashMap::new();
 
