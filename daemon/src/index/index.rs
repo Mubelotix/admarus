@@ -61,7 +61,7 @@ impl DocumentIndex {
             // Explore directories and fetch prioritized documents
             let mut listed_folders: HashSet<String> = self.folders().await.keys().cloned().collect();
             let mut fetched_documents: HashSet<String> = self.documents().await;
-            let mut unprioritized_documents: HashSet<String> = HashSet::new();
+            let mut unprioritized_documents: HashMap<String, (String, String)> = HashMap::new();
             let mut prev_document_count = fetched_documents.len();
             while let Some(parent_cid) = pinned.pop() {
                 // FIXME: top level files are ignored later
@@ -83,13 +83,14 @@ impl DocumentIndex {
                     let Ok(child_cid) = Cid::try_from(child_cid.as_str()) else {continue};
                     let Ok(child_cid) = child_cid.into_v1() else {continue};
                     let child_cid = child_cid.to_string();
+                    if fetched_documents.contains(&child_cid) { continue }
 
                     if child_is_folder {
                         if !listed_folders.contains(&child_cid) {
                             pinned.push(child_cid.clone());
                         }
                         self.add_ancestor(&child_cid, child_name, &parent_cid).await;
-                    } else if !fetched_documents.contains(&child_cid) && child_name.ends_with(".html") {
+                    } else if child_name.ends_with(".html") {
                         let document = match fetch_document(ipfs_rpc, &child_cid).await {
                             Ok(document) => Some(document),
                             Err(e) => {
@@ -108,7 +109,7 @@ impl DocumentIndex {
                             }
                         }
                     } else {
-                        unprioritized_documents.insert(child_cid.clone());
+                        unprioritized_documents.insert(child_cid.clone(), (parent_cid.clone(), child_name));
                     }
                 }
             }
@@ -119,22 +120,25 @@ impl DocumentIndex {
             }
 
             // Fetch remaining documents (low priority)
-            trace!("Fetching {} unprioritized documents", unprioritized_documents.len());
-            /*for cid in unprioritized_documents {
-                let document = match fetch_document(ipfs_rpc, &cid).await {
-                    Ok(Some(document)) => document,
-                    Ok(None) => continue,
-                    Err(e) => {
-                        warn!("Error while fetching document: {e:?}");
-                        continue;
-                    },
-                };
-                self.add_document(cid.clone(), document).await;
+            if self.config.crawl_unprioritized {
+                trace!("Fetching {} unprioritized documents", unprioritized_documents.len());
+                for (cid, (parent_cid, child_name)) in unprioritized_documents {
+                    if fetched_documents.insert(cid.clone()) { continue }
+                    let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
+                    let Some(inspected) = inspect_document(document) else {continue};
+                    self.add_document(&cid, inspected).await;
+                    self.add_ancestor(&cid, child_name, &parent_cid).await;
+                    if fetched_documents.len() % 500 == 0 {
+                        debug!("{} documents yet ({} fetched) ({:02}s)", fetched_documents.len(), self.document_count().await, start.elapsed().as_secs_f32());
+                    }
+                }
+                document_count = self.document_count().await;
+                if prev_document_count != document_count {
+                    debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
+                }
+            } else {
+                trace!("Skipping {} unprioritized documents", unprioritized_documents.len());
             }
-            document_count = self.document_count().await;
-            if prev_document_count != document_count {
-                debug!("{} documents (+{} in {:02}s)", document_count, document_count - prev_document_count, start.elapsed().as_secs_f32());
-            }*/
             
             self.update_filter().await;
             debug!("Filter filled at {:.04}% ({:02}s)", self.get_filter().await.load()*100.0, start.elapsed().as_secs_f32());
