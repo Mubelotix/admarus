@@ -190,7 +190,6 @@ impl DocumentIndexInner {
             true => query.matching_docs(&self.in_memory_index, &HashMap::new()), // TODO
             false => Vec::new(),
         };
-        debug!("{} match", matching_docs.len());
 
         terms.iter().for_each(|t| *self.in_use_index.entry((*t).to_owned()).or_default() -= 1);
 
