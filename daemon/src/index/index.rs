@@ -36,7 +36,7 @@ impl DocumentIndex {
         let mut to_load = HashMap::new();
         let mut to_load_unprioritized = HashSet::new();
         let mut listed = HashSet::new();
-        let mut loaded = HashSet::new();
+        let mut loaded = self.documents().await;
 
         fn normalize_cid(cid: impl AsRef<str>) -> Option<String> {
             let cid = Cid::try_from(cid.as_ref()).ok()?;
