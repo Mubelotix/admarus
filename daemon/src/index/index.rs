@@ -33,7 +33,7 @@ impl DocumentIndex {
 
     pub async fn refresh(&self) {
         let mut to_list = Vec::new();
-        let mut to_load = HashSet::new();
+        let mut to_load = HashMap::new();
         let mut to_load_unprioritized = HashSet::new();
         let mut listed = HashSet::new();
         let mut loaded = HashSet::new();
@@ -46,7 +46,7 @@ impl DocumentIndex {
 
         let mut last_printed_error = None;
         let ipfs_rpc = &self.config.ipfs_rpc;
-        let mut previous_load = 0.0;
+        let mut previous_load = -1.0;
         loop {
             // List pinned elements
             let pinned = match list_pinned(&self.config.ipfs_rpc).await {
@@ -66,9 +66,10 @@ impl DocumentIndex {
 
             // Explore directories
             let start = Instant::now();
+            let mut i = 0;
             if !to_list.is_empty() {debug!("{} elements to list", to_list.len())}
             while let Some(cid) = to_list.pop() {
-                if listed.insert(cid.clone()) {continue}
+                if !listed.insert(cid.clone()) {continue}
                 let new_links = match ls(ipfs_rpc, cid.clone()).await {
                     Ok(new_links) => new_links,
                     Err(e) => {
@@ -85,7 +86,7 @@ impl DocumentIndex {
                         }
                     } else if !loaded.contains(&child_cid) {
                         if child_name.ends_with(".html") {
-                            to_load.insert((child_cid, child_name, cid.clone()));
+                            to_load.insert(child_cid, (child_name, cid.clone()));
                         } else if self.config.crawl_unprioritized {
                             to_load_unprioritized.insert((child_cid, child_name, cid.clone()));
                         }
@@ -93,26 +94,40 @@ impl DocumentIndex {
                 }
                 to_list.sort();
                 to_list.dedup();
+                i += 1;
+                if i % 500 == 0 {
+                    debug!("Still listing pinned files ({i} in {:.02})", start.elapsed().as_secs_f32());
+                }
             }
 
             // Load documents
+            i = 0;
             if !to_load.is_empty() {debug!("{} documents to load ({:.02?}s)", to_load.len(), start.elapsed().as_secs_f32())}
-            for (cid, name, parent_cid) in to_load.drain() {
-                if loaded.insert(cid.clone()) {continue}
+            for (cid, (name, parent_cid)) in to_load.drain() {
+                if !loaded.insert(cid.clone()) {continue}
                 let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
                 let Some(inspected) = inspect_document(document) else {continue};
                 self.add_document(&cid, inspected).await;
                 self.add_ancestor(&cid, name, &parent_cid).await;
+                i += 1;
+                if i % 500 == 0 {
+                    debug!("Still loading files ({i} in {:.02})", start.elapsed().as_secs_f32());
+                }
             }
 
             // Load unprioritized documents
+            i = 0;
             if !to_load_unprioritized.is_empty() {debug!("{} unprioritized documents to load ({:.02?}s)", to_load_unprioritized.len(), start.elapsed().as_secs_f32())};
             for (cid, name, parent_cid) in to_load_unprioritized.drain() {
-                if  loaded.insert(cid.clone()) {continue}
+                if !loaded.insert(cid.clone()) {continue}
                 let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
                 let Some(inspected) = inspect_document(document) else {continue};
                 self.add_document(&cid, inspected).await;
                 self.add_ancestor(&cid, name, &parent_cid).await;
+                i += 1;
+                if i % 500 == 0 {
+                    debug!("Still loading files ({i} in {:.02})", start.elapsed().as_secs_f32());
+                }
             }
             
             self.update_filter().await;
