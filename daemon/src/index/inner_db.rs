@@ -10,6 +10,7 @@ pub(super) struct DocumentIndexInner {
     pub(super) ancestors: HashMap<LocalCid, HashMap<LocalCid, String>>,
     pub(super) folders: HashSet<LocalCid>,
     pub(super) cids: BiHashMap<LocalCid, String>,
+    cids_to_store: Vec<LocalCid>,
 
     loaded_index: HashSet<String>,
     changed_index: HashSet<String>,
@@ -35,6 +36,7 @@ impl DocumentIndexInner {
             ancestors: HashMap::new(),
             folders: HashSet::new(),
             cids,
+            cids_to_store: Vec::new(),
 
             loaded_index: HashSet::new(),
             changed_index: HashSet::new(),
@@ -55,9 +57,7 @@ impl DocumentIndexInner {
             self.in_memory_index.entry(word).or_default().extend(data.into_iter().filter(|(lcid, _)| self.cids.contains_left(lcid)));
         }
     }
-    async fn unload_index_batch(&mut self, mut words: Vec<String>) {
-        words.retain(|word| self.in_use_index.get(word).unwrap_or(&0) == &0);
-
+    async fn unload_index_batch(&mut self, words: Vec<String>) {
         // Load entries that changed and still need to be loaded
         let to_load = words.iter()
             .filter(|word| self.changed_index.contains(*word) && !self.loaded_index.contains(*word))
@@ -70,7 +70,16 @@ impl DocumentIndexInner {
             if !self.changed_index.contains(&word) {
                 continue;
             }
-            let Some(data) = self.in_memory_index.remove(&word) else { continue };
+            let data = match self.in_use_index.get(&word).copied().unwrap_or(0) > 0 {
+                true => match self.in_memory_index.get(&word) {
+                    Some(data) => data.clone(),
+                    None => continue,
+                },
+                false => match self.in_memory_index.remove(&word) {
+                    Some(data) => data,
+                    None => continue,
+                }
+            };
             self.changed_index.remove(&word);
             self.loaded_index.remove(&word);
             self.in_use_index.remove(&word);
@@ -90,6 +99,15 @@ impl DocumentIndexInner {
         self.unload_index_batch(to_unload).await;
         if count > 0 {
             trace!("Sweeped {count} words from index in {}ms", start.elapsed().as_millis());
+        }
+
+        let cids = std::mem::take(&mut self.cids_to_store).into_iter().filter_map(|lcid| self.cids.get_by_left(&lcid).map(|cid| (lcid, cid.to_owned()))).collect::<Vec<_>>();
+        let count = cids.len();
+        if let Err(e) = self.index_db.put_cids(cids).await {
+            error!("Failed to store cids: {e:?}")
+        }
+        if count > 0 {
+            trace!("Stored {count} cids in database");
         }
     }
 
@@ -116,7 +134,7 @@ impl DocumentIndexInner {
         self.cids.len() - self.folders.len()
     }
 
-    pub async fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
+    pub fn add_document(&mut self, cid: &String, doc: DocumentInspectionReport) {
         if self.cids.contains_right(cid) {
             warn!("Tried to add already indexed document: {cid}");
             return;
@@ -126,8 +144,7 @@ impl DocumentIndexInner {
         let lcid = LocalCid(self.cid_counter);
         self.cid_counter += 1;
         self.cids.insert(lcid, cid.to_owned());
-        let r = self.index_db.put_cid(lcid, cid.clone()).await;
-        if let Err(e) = r { error!("Failed to store cid in database: {e:?}") }
+        self.cids_to_store.push(lcid);
         self.folders.remove(&lcid);
 
         // Index by words

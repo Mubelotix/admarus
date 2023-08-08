@@ -37,9 +37,9 @@ impl DbController {
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 
-    async fn put_cid(&self, lcid: LocalCid, cid: String) -> Result<(), DbError> {
+    async fn put_cids(&self, items: Vec<(LocalCid, String)>) -> Result<(), DbError> {
         let (sender, receiver) = oneshot_channel();
-        self.sender.send(DbCommand::PutCid{lcid, cid, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
+        self.sender.send(DbCommand::PutCids{items, sender}).await.map_err(|_| DbError::CommandChannelUnavailable)?;
         Ok(receiver.await.map_err(|_| DbError::UnresponsiveDatabase)??)
     }
 
@@ -56,7 +56,7 @@ pub struct DbIndexController(DbController);
 impl DbIndexController {
     pub async fn get(&self, keys: Vec<String>) -> Result<Vec<(String, Vec<(LocalCid, f32)>)>, DbError> { self.0.index_get(keys).await }
     pub async fn put(&self, items: Vec<(String, HashMap<LocalCid, f32>)>) -> Result<(), DbError> { self.0.index_put(items).await }
-    pub async fn put_cid(&self, lcid: LocalCid, cid: String) -> Result<(), DbError> { self.0.put_cid(lcid, cid).await }
+    pub async fn put_cids(&self, items: Vec<(LocalCid, String)>) -> Result<(), DbError> { self.0.put_cids(items).await }
     pub async fn compute_filter(&self) -> Result<Filter<FILTER_SIZE>, DbError> { self.0.compute_filter().await }
 }
 impl From<DbController> for DbIndexController { fn from(controller: DbController) -> Self { DbIndexController(controller) } }
@@ -64,16 +64,16 @@ impl From<DbController> for DbIndexController { fn from(controller: DbController
 enum DbCommand {
     IndexGet { keys: Vec<String>, sender: OneshotSender<Result<Vec<(String, Vec<(LocalCid, f32)>)>, HeedError>> },
     IndexPut { items: Vec<(String, HashMap<LocalCid, f32>)>, sender: OneshotSender<Result<(), HeedError>> },
-    PutCid { lcid: LocalCid, cid: String, sender: OneshotSender<Result<(), HeedError>> },
+    PutCids { items: Vec<(LocalCid, String)>, sender: OneshotSender<Result<(), HeedError>> },
     ComputeFilter { sender: OneshotSender<Result<Filter<FILTER_SIZE>, HeedError>> },
 }
 
 impl std::fmt::Debug for DbCommand {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            DbCommand::IndexGet { keys, .. } => f.debug_struct("IndexGetBatch").field("keys", &format!("{:?} entries", keys.len())).finish_non_exhaustive(),
-            DbCommand::IndexPut { items, .. } => f.debug_struct("IndexWriteAll").field("index", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
-            DbCommand::PutCid { lcid, cid, .. } => f.debug_struct("PutCid").field("lcid", lcid).field("cid", cid).finish_non_exhaustive(),
+            DbCommand::IndexGet { keys, .. } => f.debug_struct("IndexGet").field("keys", &format!("{:?} entries", keys.len())).finish_non_exhaustive(),
+            DbCommand::IndexPut { items, .. } => f.debug_struct("IndexPut").field("index", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
+            DbCommand::PutCids { items, .. } => f.debug_struct("PutCids").field("cids", &format!("{:?} entries", items.len())).finish_non_exhaustive(),
             DbCommand::ComputeFilter { .. } => f.debug_struct("ComputeFilter").finish_non_exhaustive(),
         }
     }
@@ -109,9 +109,11 @@ fn index_put(items: &[(String, HashMap<LocalCid, f32>)], env: &Env, index: &Heed
     Ok(())
 }
 
-fn put_cid(lcid: LocalCid, cid: String, env: &Env, cids: &HeedDatabase<OwnedType<LEU32>, Str>) -> Result<(), HeedError> {
+fn put_cids(items: Vec<(LocalCid, String)>, env: &Env, cids: &HeedDatabase<OwnedType<LEU32>, Str>) -> Result<(), HeedError> {
     let mut wtxn = env.write_txn()?;
-    cids.put(&mut wtxn, &LEU32::new(lcid.0), &cid)?;
+    for (lcid, cid) in items {
+        cids.put(&mut wtxn, &LEU32::new(lcid.0), &cid)?;
+    }
     wtxn.commit()?;
     Ok(())
 }
@@ -148,8 +150,8 @@ fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, cids: HeedDatabas
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send index database write result: {e:?}") }
             },
-            DbCommand::PutCid { lcid, cid, sender } => {
-                let result = put_cid(lcid, cid, &env, &cids);
+            DbCommand::PutCids { items, sender } => {
+                let result = put_cids(items, &env, &cids);
                 let r = sender.send(result);
                 if let Err(e) = r { error!("Failed to send cids database write result: {e:?}") }
             },
