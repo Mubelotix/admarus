@@ -71,7 +71,7 @@ impl Component for GroupedResultsComp {
 
         // Favicons
         let icon_sizes_iter = favicon_iter().map(|desc| desc.sizes.to_owned());
-        let icon_srcset_iter = favicon_iter().map(|desc| desc.format_srcset(ctx.props().results.first().unwrap().0.paths.first().unwrap(), conn_status));
+        let icon_srcset_iter = favicon_iter().map(|desc| desc.format_srcset(ctx.props().results.first().unwrap().0.paths.first(), conn_status));
         let icon_type_iter = favicon_iter().map(|desc| desc.mime_type.to_owned());
 
         // Scores
