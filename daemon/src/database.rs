@@ -196,7 +196,9 @@ pub fn open_database(database_path: &str) -> (DbController, u32, BiHashMap<Local
         cids.insert(LocalCid(lcid), cid.to_owned());
     }
     drop(rotxn);
-    debug!("{} documents retrieved from disk in {}ms", cids.len(), start.elapsed().as_millis());
+    if !cids.is_empty() {
+        debug!("{} documents retrieved from disk in {}ms", cids.len(), start.elapsed().as_millis());
+    }
 
     let (sender, receiver) = channel(200);    
     std::thread::spawn(move || run_database(env, index, cid_db, receiver));
