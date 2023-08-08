@@ -46,6 +46,7 @@ impl DocumentIndex {
 
         let mut last_printed_error = None;
         let ipfs_rpc = &self.config.ipfs_rpc;
+        let mut previous_load = 0.0;
         loop {
             // List pinned elements
             let pinned = match list_pinned(&self.config.ipfs_rpc).await {
@@ -115,8 +116,11 @@ impl DocumentIndex {
             }
             
             self.update_filter().await;
-            debug!("Filter filled at {:.04}% ({:02}s)", self.get_filter().await.load()*100.0, start.elapsed().as_secs_f32());
-
+            let load = self.get_filter().await.load()*100.0;
+            if load != previous_load {
+                previous_load = load;
+                debug!("Filter filled at {load:.04}% ({:02}s)", start.elapsed().as_secs_f32());
+            }
             sleep(Duration::from_secs(REFRESH_INTERVAL)).await;
         }
     }
