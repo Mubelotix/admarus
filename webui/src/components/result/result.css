@@ -77,3 +77,10 @@
 .expand-result-children:hover {
     border: 2px solid #ccc;
 }
+
+@media all and (max-width: 800px) {
+    .result {
+        width: 100%;
+        overflow: auto;
+    }
+}
