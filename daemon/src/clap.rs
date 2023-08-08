@@ -34,6 +34,10 @@ pub struct Args {
     #[arg(long, default_value_t = String::from("127.0.0.1:5002"))]
     pub api_addr: String,
 
+    /// Origins allowed to access the API
+    #[arg(long, default_values_t = [String::from("https://admarus.net"), String::from("http://localhost:8083"), String::from("http://admarus.net.ipns.localhost:8080")])]
+    pub api_cors: Vec<String>,
+
     /// Domain names to keep pinned
     #[arg(long)]
     pub dns_pins: Vec<String>,

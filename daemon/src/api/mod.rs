@@ -116,11 +116,12 @@ pub async fn serve_api(config: Arc<Args>, index: DocumentIndex, search_park: Arc
         .and(warp::path("version"))
         .and_then(version);
 
-    let cors = warp::cors()
-        .allow_origin("https://admarus.net")
-        .allow_origin("http://localhost:8083")
+    let mut cors = warp::cors()
         .allow_headers(vec!["content-type"])
         .allow_methods(vec!["GET", "POST", "DELETE"]);
+    for origin in &config.api_cors {
+        cors = cors.allow_origin(origin.as_str());
+    }
 
     let routes = warp::any().and(
         hello_world
