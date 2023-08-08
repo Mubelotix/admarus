@@ -26,14 +26,12 @@ fn format_path_for_gateway(mut path: &[String], conn_status: &ConnectionStatus) 
 }
 
 impl FaviconDescriptor {
-    pub fn format_srcset(&self, doc_path: &[String], conn_status: &ConnectionStatus) -> Option<String> {
+    pub fn format_srcset(&self, doc_path: Option<&Vec<String>>, conn_status: &ConnectionStatus) -> Option<String> {
         if self.href.starts_with("http://") || self.href.starts_with("https://") || self.href.starts_with("ipfs://") || self.href.starts_with("ipns://") {
             return Some(self.href.to_owned());
         }
         
-        let tmp = self.process_relative_srcset(doc_path).and_then(|path| format_path_for_gateway(&path, conn_status));
-        log!("{doc_path:?} -> {} -> {tmp:?}", self.href);
-        tmp
+        doc_path.and_then(|doc_path| self.process_relative_srcset(doc_path).and_then(|path| format_path_for_gateway(&path, conn_status)))
     }
 
     fn process_relative_srcset(&self, mut doc_path: &[String]) -> Option<Vec<String>> {
