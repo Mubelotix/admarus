@@ -59,4 +59,14 @@ pub struct Args {
     #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "admarus.mdb"))]
     #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
     pub database_path: String,
+
+    /// Map size for the database (in bytes)
+    #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "102_400_000"))]
+    #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+    pub database_map_size: usize,
+
+    /// Max readers for the database
+    #[cfg_attr(any(feature = "database-lmdb", feature = "database-mdbx"), arg(long, default_value = "200"))]
+    #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+    pub database_max_readers: u32,
 }

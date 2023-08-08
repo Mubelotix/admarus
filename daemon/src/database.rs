@@ -164,16 +164,16 @@ fn run_database(env: Env, index: HeedDatabase<Str, ByteSlice>, cids: HeedDatabas
     }
 }
 
-pub fn open_database(database_path: &str) -> (DbController, u32, BiHashMap<LocalCid, String>) {
-    trace!("Opening database at {database_path}");
+pub fn open_database(config: Arc<Args>) -> (DbController, u32, BiHashMap<LocalCid, String>) {
+    trace!("Opening database at {}", config.database_path);
 
     // Open env
-    std::fs::create_dir_all(database_path).expect("Failed to create directories to database");
+    std::fs::create_dir_all(&config.database_path).expect("Failed to create directories to database");
     let env = EnvOpenOptions::new()
-        .map_size(25_000 * 4096) // ~100MB
+        .map_size(config.database_map_size)
         .max_dbs(15)
-        .max_readers(200) // TODO check those default values
-        .open(database_path)
+        .max_readers(config.database_max_readers)
+        .open(&config.database_path)
         .expect("Failed to open database");
 
     // Create databases

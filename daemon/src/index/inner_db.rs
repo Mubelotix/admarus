@@ -23,7 +23,7 @@ pub(super) struct DocumentIndexInner {
 
 impl DocumentIndexInner {
     pub async fn new(config: Arc<Args>) -> DocumentIndexInner {
-        let (db, cid_counter, cids) = open_database(&config.database_path);
+        let (db, cid_counter, cids) = open_database(Arc::clone(&config));
         let index_db = DbIndexController::from(db);
 
         let mut index = DocumentIndexInner {
