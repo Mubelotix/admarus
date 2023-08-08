@@ -39,7 +39,7 @@ async fn main() {
         warn!("The webui doesn't currently support custom api addresses, so you probably don't want to change this.")
     }
 
-    let index = DocumentIndex::new(Arc::clone(&config));
+    let index = DocumentIndex::new(Arc::clone(&config)).await;
 
     let (node, keypair) = Node::init(Arc::clone(&config), index.clone()).await;
     let node = node.run();
