@@ -87,12 +87,8 @@ impl Db {
         let mut prev_folders_1h = HashMap::new();
         let mut prev_peer_documents_1h = HashMap::new();
 
-
         // Start by using the data that's in Db before it expires
         let now = now_ts();
-        let first_drain_24h = self.drain_history.read().await.iter().position(|ts| *ts > now - 2*86400);
-        let first_drain = first_drain_24h.map(|i| i - 1);
-        let drain_len = self.drain_history.read().await.len();
         let current_records = self.records.read().await.clone();
         count_records(
             current_records, now, &mut peers_24h, &mut peers_1h, &mut prev_peers_24h, &mut prev_peers_1h,
@@ -101,6 +97,9 @@ impl Db {
         );
 
         // Finish by reading the data that's on disk
+        let first_drain_24h = self.drain_history.read().await.iter().position(|ts| *ts > now - 2*86400);
+        let first_drain = first_drain_24h.map(|i| i - 1);
+        let drain_len = self.drain_history.read().await.len();
         if let Some(first_drain) = first_drain {
             for i in first_drain..drain_len {
                 let records = match tokio::fs::read_to_string(format!("data_{i}.json")).await {
