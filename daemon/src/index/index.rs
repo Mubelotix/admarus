@@ -91,6 +91,8 @@ impl DocumentIndex {
                         } else if self.config.crawl_unprioritized {
                             to_load_unprioritized.insert((child_cid, child_name, cid.clone()));
                         }
+                    } else {
+                        self.add_ancestor(&child_cid, child_name, &cid).await;
                     }
                 }
                 to_list.sort();
