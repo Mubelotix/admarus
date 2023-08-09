@@ -107,17 +107,21 @@ h1~p {
 
 /* Github link */
 
-#github-link {
+#header-link {
     display: flex;
     align-items: center;
     color: black;
     text-decoration: none;
-    font-weight: bold;
     padding: 0 .7rem;
 }
 
-#github-link>img {
+#header-link>img {
     width: 1.5rem;
     height: 1.5rem;
     margin-right: .2rem;
+    margin-top: -.1rem;
+}
+
+.bold {
+    font-weight: bold;
 }

@@ -2,7 +2,10 @@
     <section>
         <div id="above-bar">
             <div id="header">
-                <a id="github-link" href="https://github.com/Mubelotix/Admarus"><img src="assets/github.svg"/>Admarus</a>
+                <a id="header-link" class="bold" href="https://github.com/Mubelotix/Admarus"><img src="assets/github.svg"/>Admarus</a>
+                <a id="header-link" href="https://blog.admarus.net"><img src="assets/blog.svg"/>Blog</a>
+                <a id="header-link" href="https://github.com/Mubelotix/admarus/wiki"><img src="assets/wiki.svg"/>Wiki</a>
+                <div class="grower-separator"></div>
                 <comp name="ConnectionStatusComp" conn_status={{conn_status}} onchange={{onchange_conn_status}} />
                 <button id="settings-button" onclick={{onclick_settings}}><img src="assets/settings.svg"/></button>
             </div>
