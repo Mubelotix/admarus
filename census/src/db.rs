@@ -32,15 +32,20 @@ impl Db {
         let ip_tainted = !ips.insert(ip.clone());
         drop(ips);
 
-        let mut records = self.records.write().await;
-        let previous_len = records.len();
-        records.retain(|r| r.r.peer_id != record.peer_id);
-        let is_new = previous_len == records.len();
-
         #[cfg(feature = "ip_filter")]
-        if is_new && ip_tainted {
+        if ip_tainted {
             eprintln!("Ignoring spam from {ip}");
             return;
+        }
+
+        let mut records = self.records.write().await;
+
+        let last_ts = records.iter().rfind(|r| r.r.peer_id == record.peer_id).map(|r| r.ts);
+        if let Some(last_ts) = last_ts {
+            if last_ts > now_ts() - 3*60 {
+                eprintln!("Ignoring record from {} (already have a record from {} seconds ago)", record.peer_id, now_ts() - last_ts);
+                return;
+            }
         }
 
         if records.len() >= 55000 {
