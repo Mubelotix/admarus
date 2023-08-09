@@ -1,3 +1,6 @@
 /target
 word-lists/src/word_lists.rs
 daemon/admarus.mdb
+/admarus-blog
+/admarus.wiki
+/scripts
