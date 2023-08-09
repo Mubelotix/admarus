@@ -15,7 +15,9 @@ source_rustup_functions() {
         return 1
     fi
 
-    rust_script=$(echo "$rust_script" | head -n -1)
+    total_lines=$(echo "$rust_script" | wc -l)
+    total_lines=$((total_lines - 1))
+    rust_script=$(echo "$rust_script" | head -n $total_lines)
     eval "$rust_script"
 }
 
