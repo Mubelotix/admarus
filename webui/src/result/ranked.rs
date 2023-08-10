@@ -138,8 +138,7 @@ impl RankedResults {
         // Disband small groups
         'disbanding: for grouping_result in &self.grouping_results {
             let Some(path) = self.get_index_path(grouping_result) else {continue};
-
-            let (parent, children) = groups.get(&path).unwrap();
+            let Some((parent, children)) = groups.get(&path) else {continue};
             if children.len() <= 3 { // TODO: make this configurable
                 let Some(mut path) = self.get_index_path(parent) else {continue}; 
                 let (parent, children) = groups.remove(&path).unwrap();
