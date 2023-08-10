@@ -97,8 +97,19 @@ impl DocumentResult {
         Score::from(length_score)
     }
 
-    pub fn has_ipns(&self) -> bool {
-        self.paths.iter().any(|p| p.first().map(|f| f.contains('.')).unwrap_or(false))
+    pub fn ipns_score(&self) -> Score {
+        let score = self.paths.iter()
+            .filter_map(|path| {
+                let first = path.first()?;
+                let points = first.matches('.').count();
+                if !(1..=10).contains(&points) {
+                    return Some(0);
+                }
+                Some(10 + 1 - points)
+            })
+            .max()
+            .unwrap_or(0);
+        Score::from(score as f64 / 10.0)
     }
 
     pub fn lang_score(&self, requested_lang: Lang) -> Score {
@@ -130,6 +141,8 @@ impl DocumentResult {
         Score::from(score)
     }
 }
+
+pub static ZERO_SCORE: Score = Score { val: 0.0 };
 
 #[derive(Clone, Copy)]
 pub struct Score {

@@ -10,6 +10,7 @@ pub struct RankedResults {
     tf_ranking: Vec<(String, Score)>,
     variety_scores: HashMap<String, Score>,
     length_scores: HashMap<String, Score>,
+    ipns_scores: HashMap<String, Score>,
     lang_scores: HashMap<String, Score>,
 
     providers: HashMap<String, HashSet<String>>,
@@ -26,6 +27,7 @@ impl RankedResults {
             tf_ranking: Vec::new(),
             variety_scores: HashMap::new(),
             length_scores: HashMap::new(),
+            ipns_scores: HashMap::new(),
             lang_scores: HashMap::new(),
             providers: HashMap::new(),
             malicious_providers: HashSet::new(),
@@ -59,6 +61,8 @@ impl RankedResults {
 
         self.length_scores.insert(res.cid.clone(), res.length_score());
 
+        self.ipns_scores.insert(res.cid.clone(), res.ipns_score());
+
         self.lang_scores.insert(res.cid.clone(), res.lang_score(Lang::English));
 
         if res.is_grouping_result(query) {
@@ -71,14 +75,13 @@ impl RankedResults {
     fn get_scores(&self, cid: &String, tf_score: Score) -> Option<Scores> {
         let max_provider_count = self.providers.values().map(|v| v.len()).max().unwrap_or(0) as f64;
 
-        let Some(result) = self.results.get(cid) else {return None};
         let Some(providers) = self.providers.get(cid) else {return None};
 
-        let Some(variety_score) = self.variety_scores.get(cid) else {return None};
-        let Some(length_score) = self.length_scores.get(cid) else {return None};
-        let Some(lang_score) = self.lang_scores.get(cid) else {return None};
+        let variety_score = self.variety_scores.get(cid).unwrap_or(&ZERO_SCORE);
+        let length_score = self.length_scores.get(cid).unwrap_or(&ZERO_SCORE);
+        let lang_score = self.lang_scores.get(cid).unwrap_or(&ZERO_SCORE);
         let popularity_score = Score::from(providers.len() as f64 / max_provider_count);
-        let ipns_score = Score::from(result.has_ipns() as usize as f64);
+        let ipns_score = self.ipns_scores.get(cid).unwrap_or(&ZERO_SCORE);
         let verified_score = Score::from(self.verified.contains(cid) as usize as f64);
 
         Some(Scores {
@@ -87,7 +90,7 @@ impl RankedResults {
             length_score: *length_score,
             lang_score: *lang_score,
             popularity_score,
-            ipns_score,
+            ipns_score: *ipns_score,
             verified_score,
         })
     }
@@ -203,6 +206,7 @@ impl RankedResults {
     }
 
     pub fn malicious_result(&mut self, cid: String) {
+        // TODO remove scores
         self.results.remove(&cid);
         self.grouping_results.remove(&cid);
         let malicious_providers = self.providers.remove(&cid).unwrap_or_default();
