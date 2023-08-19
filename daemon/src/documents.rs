@@ -171,16 +171,16 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     }
 
     // Retrieve images and videos
-    /*fn list_media(el: ElementRef, media: &mut Vec<StructuredData>) {
+    fn list_media(el: ElementRef, media: &mut Vec<SchemaObject>) {
         'init: {match el.value().name() {
             "img" => {
                 let Some(src) = el.value().attr("src").map(|s| s.to_string()) else {break 'init};
-                let mut new_media = schemas::types::ImageObject::new();
-                new_media.media_object.set_content_url(SchemaUrl::from(src));
+                let mut new_media = schemas::classes::ImageObject::new();
+                new_media.set_content_url(ContentUrlProp::Url(src));
                 if let Some(alt) = el.value().attr("alt") {
-                    new_media.media_object.creative_work.thing.set_description(SchemaText::from(alt));
+                    new_media.set_description(DescriptionProp::Text(alt.to_owned()));
                 }
-                media.push(StructuredData::ImageObject(new_media));
+                media.push(new_media.into());
             },
             "video" | "picture" => {
                 // TODO
@@ -197,7 +197,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
     let mut media = Vec::new();
     if let Some(body_el) = body_el {
         list_media(body_el, &mut media);
-    }*/
+    }
 
     // Count words
     #[allow(clippy::too_many_arguments)]
@@ -274,7 +274,7 @@ fn generate_result_html(raw: &str, query: &Query) -> Option<DocumentResult> {
         description,
         extract,
 
-        structured_data: Vec::new(),
+        structured_data: media,
 
         term_counts,
         word_count,

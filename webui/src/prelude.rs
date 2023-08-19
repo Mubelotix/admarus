@@ -11,5 +11,6 @@ pub use yew_template::template_html;
 pub use web_sys::{window as old_window, *};
 pub use serde::{Serialize, Deserialize, de::DeserializeOwned};
 pub use word_lists::HackTraitSortedContains;
+pub use schemas::{traits::Schema, types::Types as StructuredData, value::{SchemaObject, SchemaValue}, properties::*, classes::*};
 
 pub type AppLink = Scope<App>;
