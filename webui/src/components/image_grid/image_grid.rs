@@ -28,32 +28,10 @@ impl ImageGrid {
 
         width / self.row_width
     }
-
-    fn row_loads(&self) -> Vec<f32> {
-        self.rows.iter().map(|cids| {
-            let mut width = 0.0;
-
-            for cid in cids {
-                if let Some((w, h)) = self.sizes.get(cid) {
-                    width += *w as f32 * (self.row_height / *h as f32);
-                }
-                width += 5.0;
-            }
-            if width > 0.0 {
-                width -= 5.0;
-            }
-
-            width / self.row_width
-        }).collect()
-    }
-
-    fn display_row_loads(&self) {
-        let loads = self.row_loads();
-        log!("{:?}", loads);
-    }
 }
 
 pub enum ImageGridMessage {
+    StartLoading(String),
     ImageLoaded(String, u32, u32),
 }
 
@@ -62,27 +40,18 @@ impl Component for ImageGrid {
     type Properties = ImageGridProps;
 
     fn create(ctx: &Context<Self>) -> Self {
-        let mut elements = HashMap::new();
-        let mut loading = HashSet::new();
-
-        for (i, image) in ctx.props().images.iter().enumerate() {
-            let id = image.to_owned();
-            elements.insert(image.to_owned(), html! {
-                <div class="image-grid-container">
-                    <img
-                        src={image.to_owned()}
-                        onload={ctx.link().callback(move |e: web_sys::Event| {
-                            let img = e.target().unwrap().dyn_into::<web_sys::HtmlImageElement>().unwrap();
-                            ImageGridMessage::ImageLoaded(id.clone(), img.natural_width(), img.natural_height())
-                        })} />
-                </div>
-            });
-            loading.insert(image.to_owned());
-        }
+        let images = Rc::clone(&ctx.props().images);
+        let link = ctx.link().clone();
+        spawn_local(async move {
+            for id in images.iter() {
+                link.send_message(ImageGridMessage::StartLoading(id.to_owned()));
+                sleep(Duration::from_millis(100)).await;
+            }
+        });
 
         ImageGrid {
-            elements,
-            loading,
+            elements: HashMap::new(),
+            loading: HashSet::new(),
             rows: Vec::new(),
             sizes: HashMap::new(),
             row_width: 424.0,
@@ -92,6 +61,21 @@ impl Component for ImageGrid {
 
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
+            ImageGridMessage::StartLoading(id) => {
+                let id2 = id.clone();
+                self.elements.insert(id.to_owned(), html! {
+                    <div class="image-grid-container">
+                        <img
+                            src={id.to_owned()}
+                            onload={ctx.link().callback(move |e: web_sys::Event| {
+                                let img = e.target().unwrap().dyn_into::<web_sys::HtmlImageElement>().unwrap();
+                                ImageGridMessage::ImageLoaded(id2.clone(), img.natural_width(), img.natural_height())
+                            })} />
+                    </div>
+                });
+                self.loading.insert(id);
+                true
+            }
             ImageGridMessage::ImageLoaded(id, width, height) => {
                 if !self.loading.remove(&id) {
                     return false;
@@ -112,7 +96,6 @@ impl Component for ImageGrid {
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
         let mut rows = Vec::new();
-        self.display_row_loads();
 
         for row in &self.rows {
             rows.push(html! {
