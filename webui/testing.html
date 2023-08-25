@@ -14,38 +14,130 @@
     <link rel="stylesheet" href="src/components/result/result.css" />
 </head>
 <body>
-    <main id="search-page">
-        <section>
-            <div id="above-bar">
-                <div id="header">
-                    <a id="header-link" class="bold" href="https://github.com/Mubelotix/Admarus"><img src="assets/github.svg"/>Admarus</a>
-                    <a id="header-link" href="https://blog.admarus.net"><img src="assets/blog.svg"/>Blog</a>
-                    <a id="header-link" href="https://github.com/Mubelotix/admarus/wiki"><img src="assets/wiki.svg"/>Wiki</a>
-                    <div class="grower-separator"></div>
-                    <div id="connection-status">
-                        <div>daemons</div>
-                        <div id="connection-status-indicator" class="spinner"></div>
-                    </div>
-                    <button id="settings-button"><img src="assets/settings.svg"/></button>
+    <main id="results-page">
+        <div id="results-header">
+            <div id="first-header-row">
+                <h1 onclick={{onclick_home}}>Admarus</h1>
+                <img src="assets/logo.png" onclick={{onclick_home}} />
+                <div id="search-bar">
+                    <input value={{value}} oninput={{oninput}} type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
+                    <button onclick={{onclick_search}}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+                    </button>
                 </div>
                 <div class="grower-separator"></div>
-                <img id="logo" src="assets/logo.png"/>
-                <h1>Admarus</h1>
-                <p>The Peer-to-Peer Search Engine</p>
+                <button id="settings-button" onclick={{onclick_settings}}><svg xmlns="http://www.w3.org/2000/svg" width="1.5rem" height="1.5rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-settings"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button>
             </div>
-            <div id="search-bar">
-                <input type="text" id="search-bar-input" placeholder="Search the decentralized web"/>
-                <button>
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-search"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                </button>
-            </div>            
-            <div id="below-bar">
-                <div id="buttons">
-                    <a href="https://github.com/Mubelotix/admarus/wiki/getting-started">Join the network</a>
-                    <button>I'm feeling lucky</button>
+            <div id="result-selectors">
+                <div class={{all_selector_class}} onclick={{onclick_select_all}}>
+                    <img src="assets/globe.svg"/>
+                    <span>All</span>
+                </div>
+                <div class={{documents_selector_class}} onclick={{onclick_select_documents}}>
+                    <img src="assets/document.svg"/>
+                    <span>Documents</span>
+                </div>
+                <div class={{images_selector_class}} onclick={{onclick_select_images}}>
+                    <img src="assets/image.svg"/>
+                    <span>Images</span>
+                </div>
+                <div class={{videos_selector_class}} onclick={{onclick_select_videos}}>
+                    <img src="assets/video.svg"/>
+                    <div>Videos</div>
                 </div>
             </div>
-        </section>
+        </div>
+        <div id="result-list">
+            <p id="result-counter" opt>{{opt_result_counter}}</p>
+            <div class="result">
+                <div class="result-path">
+                    <picture>
+                        <source iter srcset={{icon_srcset_iter}} type={{icon_type_iter}} sizes={{icon_sizes_iter}} />
+                        <img src="assets/globe.svg" alt="Website Icon" />
+                    </picture>
+                    <div>{{addr_first}}</div>
+                </div>
+                <a href="{{href_first}}"><h3>{{title_first}}</h3></a>
+                <div class="result-path"></div>
+                <p>{{desc_first}}</p>
+            </div>
+            <div iter class="result child-result">
+                <a href="{{href_iter}}"><h3>{{title_iter}}</h3></a>
+                <p>{{desc_iter}}</p>
+            </div>
+            <div iter class="result child-result">
+                <a href="{{href_iter}}"><h3>{{title_iter}}</h3></a>
+                <p>{{desc_iter}}</p>
+            </div>
+            <div iter class="result child-result">
+                <a href="{{href_iter}}"><h3>{{title_iter}}</h3></a>
+                <p>{{desc_iter}}</p>
+            </div>
+            <button present-if=!{{all_displayed}} class="expand-result-children" onclick={{onclick_more}}>View more results from {{root_id}}</button>
+
+            <div class="result">
+                <div class="images-preview-result">
+                    <div class="images-preview-header">
+                        <img src="assets/image.svg"/>
+                        <h3>Images for {{query}}</h3>
+                    </div>
+                    <div class="images-preview-row">
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/300?random=1"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/300?random=2"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/100?random=3"/></div>
+                    </div>
+                    <div class="images-preview-row">
+                        <div class="image-preview-container"><img src="https://picsum.photos/250/300?random=4"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/300?random=5"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/350?random=1"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/300?random=6"/></div>
+                    </div>
+                    <div class="images-preview-row">
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/310?random=8"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/300?random=9"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/150?random=10"/></div>
+                        <div class="image-preview-container"><img src="https://picsum.photos/200/300?random=60"/></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="result">
+                <div class="result-path">
+                    <picture>
+                        <source iter srcset={{icon_srcset_iter}} type={{icon_type_iter}} sizes={{icon_sizes_iter}} />
+                        <img src="assets/globe.svg" alt="Website Icon" />
+                    </picture>
+                    <div>{{addr_first}}</div>
+                </div>
+                <a href="{{href_first}}"><h3>{{title_first}}</h3></a>
+                <div class="result-path"></div>
+                <p>{{desc_first}}</p>
+            </div>
+            <div class="result">
+                <div class="result-path">
+                    <picture>
+                        <source iter srcset={{icon_srcset_iter}} type={{icon_type_iter}} sizes={{icon_sizes_iter}} />
+                        <img src="assets/globe.svg" alt="Website Icon" />
+                    </picture>
+                    <div>{{addr_first}}</div>
+                </div>
+                <a href="{{href_first}}"><h3>{{title_first}}</h3></a>
+                <div class="result-path"></div>
+                <p>{{desc_first}}</p>
+            </div>
+            <div class="result">
+                <div class="result-path">
+                    <picture>
+                        <source iter srcset={{icon_srcset_iter}} type={{icon_type_iter}} sizes={{icon_sizes_iter}} />
+                        <img src="assets/globe.svg" alt="Website Icon" />
+                    </picture>
+                    <div>{{addr_first}}</div>
+                </div>
+                <a href="{{href_first}}"><h3>{{title_first}}</h3></a>
+                <div class="result-path"></div>
+                <p>{{desc_first}}</p>
+            </div>
+        </div>
     </main>    
     <script>
         // https://css-tricks.com/the-trick-to-viewport-units-on-mobile/
