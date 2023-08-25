@@ -21,4 +21,6 @@ features = [
     "Window",
     "Crypto",
     "HtmlImageElement",
+    "DomRect",
+    "Element",
 ]

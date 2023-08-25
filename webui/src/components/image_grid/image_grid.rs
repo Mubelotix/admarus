@@ -52,10 +52,10 @@ impl Component for ImageGrid {
         ImageGrid {
             elements: HashMap::new(),
             loading: HashSet::new(),
-            rows: Vec::new(),
+            rows: vec![Vec::new()],
             sizes: HashMap::new(),
-            row_width: 424.0,
-            row_height: 171.0
+            row_width: std::f32::NAN,
+            row_height: std::f32::NAN,
         }
     }
 
@@ -91,6 +91,15 @@ impl Component for ImageGrid {
                 self.rows.push(vec![id]);
                 true
             }
+        }
+    }
+
+    fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
+        if first_render {
+            let el = window().unwrap().document().unwrap().get_elements_by_class_name("image-grid-row").item(0).unwrap();
+            let rect = el.get_bounding_client_rect();
+            self.row_width = rect.width() as f32;
+            self.row_height = rect.height() as f32;
         }
     }
 

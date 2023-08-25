@@ -2,7 +2,10 @@
 .image-grid-result {
     display: flex;
     flex-direction: column;
-    height: 45vh;
+}
+
+.image-grid-result>.image-grid-row {
+    height: 8rem;
 }
 
 .image-grid-row {
