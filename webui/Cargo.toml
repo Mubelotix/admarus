@@ -20,4 +20,5 @@ features = [
     "console",
     "Window",
     "Crypto",
+    "HtmlImageElement",
 ]

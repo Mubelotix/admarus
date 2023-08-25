@@ -22,7 +22,7 @@ impl ImageGrid {
 
             for cid in cids {
                 if let Some((w, h)) = self.sizes.get(cid) {
-                    width += *w as f32 * (*h as f32 / self.row_height);
+                    width += *w as f32 * (self.row_height / *h as f32);
                 }
                 width += 5.0;
             }
@@ -40,8 +40,12 @@ impl ImageGrid {
     }
 }
 
+pub enum ImageGridMessage {
+    ImageLoaded(String, u32, u32),
+}
+
 impl Component for ImageGrid {
-    type Message = ();
+    type Message = ImageGridMessage;
     type Properties = ImageGridProps;
 
     fn create(ctx: &Context<Self>) -> Self {
@@ -50,7 +54,17 @@ impl Component for ImageGrid {
         let mut sizes = HashMap::new();
 
         for (i, image) in ctx.props().images.iter().enumerate() {
-            elements.insert(image.to_owned(), html! { <div class="image-grid-container"><img src={image.to_owned()} /></div> });
+            let id = image.to_owned();
+            elements.insert(image.to_owned(), html! {
+                <div class="image-grid-container">
+                    <img
+                        src={image.to_owned()}
+                        onload={ctx.link().callback(move |e: web_sys::Event| {
+                            let img = e.target().unwrap().dyn_into::<web_sys::HtmlImageElement>().unwrap();
+                            ImageGridMessage::ImageLoaded(id.clone(), img.natural_width(), img.natural_height())
+                        })} />
+                </div>
+            });
             rows[i / 5].push(image.to_owned());
         }
 
@@ -60,6 +74,15 @@ impl Component for ImageGrid {
             sizes,
             row_width: 424.0,
             row_height: 171.0
+        }
+    }
+
+    fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
+        match msg {
+            ImageGridMessage::ImageLoaded(id, width, height) => {
+                self.sizes.insert(id, (width, height));
+                true
+            }
         }
     }
 
