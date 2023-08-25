@@ -19,6 +19,8 @@ mod search_bar;
 mod connection_status;
 #[path = "components/result/result.rs"]
 mod result_comp;
+#[path = "components/image_grid/image_grid.rs"]
+mod image_grid;
 
 mod query;
 

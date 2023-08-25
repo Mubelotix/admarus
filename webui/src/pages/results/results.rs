@@ -147,6 +147,7 @@ impl Component for ResultsPage {
 
         // General
         let query_string = ctx.props().query.to_string();
+        let query_string2 = query_string.clone();
         let onsearch = ctx.props().app_link.callback(move |query| AppMsg::ChangePage(Page::Results(Rc::new(query))));
         let onclick_home = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Home));
         let onclick_settings = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::Settings));
@@ -207,6 +208,12 @@ impl Component for ResultsPage {
             },
             None => html!(),
         };
+
+        let mut images = Vec::new();
+        for i in 0..10 {
+            images.push(format!("https://picsum.photos/200/300?random={i}"));
+        }
+        let images = Rc::new(images);
 
         template_html!(
             "pages/results/results.html",

@@ -1,6 +1,6 @@
 pub use crate::{
     app::*, search::*, settings::*, util::*, results::*, result::*, api_bodies::*, api::*, lang::*,
-    search_bar::*, lucky::*, query::*, connection_status::*, result_comp::*, *
+    search_bar::*, lucky::*, query::*, connection_status::*, result_comp::*, image_grid::*, *
 };
 pub use js_sys::{Array, Function, Promise, Reflect::*};
 pub use std::{time::Duration, rc::Rc, cmp::Ordering, collections::{HashMap, HashSet}, ops::Deref};

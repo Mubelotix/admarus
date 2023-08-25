@@ -48,6 +48,15 @@
                 <li>Contribute to the network by adding your own content!</li>
             </ul>
         </div>
+        <div class="result">
+            <div class="image-grid-result">
+                <div class="image-grid-header">
+                    <img src="assets/image.svg"/>
+                    <h3>Images for {{query_string2}}</h3>
+                </div>
+                <comp name="ImageGrid" images={{images}} />
+            </div>
+        </div>
         {{result_components}}
     </div>
     <div present-if=!{{all_or_documents_selected}} id="result-list">
