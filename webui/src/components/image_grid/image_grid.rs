@@ -7,15 +7,28 @@ pub struct ImageGridProps {
 
 pub struct ImageGrid {
     elements: HashMap<String, Html>,
+    loading: HashSet<String>,
     rows: Vec<Vec<String>>,
     sizes: HashMap<String, (u32, u32)>,
     row_width: f32,
     row_height: f32,
 }
 
-
-
 impl ImageGrid {
+    fn potential_load(&self, i: usize, img_width: u32, img_height: u32) -> f32 {
+        let mut width = 0.0;
+
+        for cid in &self.rows[i] {
+            if let Some((w, h)) = self.sizes.get(cid) {
+                width += *w as f32 * (self.row_height / *h as f32);
+            }
+            width += 5.0;
+        }
+        width += img_width as f32 * (self.row_height / img_height as f32);
+
+        width / self.row_width
+    }
+
     fn row_loads(&self) -> Vec<f32> {
         self.rows.iter().map(|cids| {
             let mut width = 0.0;
@@ -50,8 +63,7 @@ impl Component for ImageGrid {
 
     fn create(ctx: &Context<Self>) -> Self {
         let mut elements = HashMap::new();
-        let mut rows = vec![Vec::new(); ctx.props().images.len() / 5];
-        let mut sizes = HashMap::new();
+        let mut loading = HashSet::new();
 
         for (i, image) in ctx.props().images.iter().enumerate() {
             let id = image.to_owned();
@@ -65,13 +77,14 @@ impl Component for ImageGrid {
                         })} />
                 </div>
             });
-            rows[i / 5].push(image.to_owned());
+            loading.insert(image.to_owned());
         }
 
         ImageGrid {
             elements,
-            rows,
-            sizes,
+            loading,
+            rows: Vec::new(),
+            sizes: HashMap::new(),
             row_width: 424.0,
             row_height: 171.0
         }
@@ -80,7 +93,18 @@ impl Component for ImageGrid {
     fn update(&mut self, ctx: &Context<Self>, msg: Self::Message) -> bool {
         match msg {
             ImageGridMessage::ImageLoaded(id, width, height) => {
-                self.sizes.insert(id, (width, height));
+                if !self.loading.remove(&id) {
+                    return false;
+                }
+                self.sizes.insert(id.clone(), (width, height));
+                for i in 0..self.rows.len() {
+                    let load = self.potential_load(i, width, height);
+                    if load <= 1.1 {
+                        self.rows[i].push(id);
+                        return true;
+                    }
+                }
+                self.rows.push(vec![id]);
                 true
             }
         }
@@ -97,6 +121,11 @@ impl Component for ImageGrid {
                 </div>
             });
         }
+        rows.push(html! {
+            <div class="image-grid-loading">
+                {self.loading.iter().filter_map(|cid| self.elements.get(cid)).cloned().collect::<Html>()}
+            </div>
+        });
 
         rows.into_iter().collect()
     }

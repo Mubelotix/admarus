@@ -57,3 +57,7 @@
     min-width: 100%;
     object-fit: cover;
 }
+
+.image-grid-loading {
+    display: none;
+}
