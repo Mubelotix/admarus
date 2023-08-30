@@ -64,3 +64,7 @@
 .image-grid-loading {
     display: none;
 }
+
+.image-grid-row-incomplete > .image-grid-container {
+    flex-grow: 0;
+}

@@ -15,6 +15,22 @@ pub struct ImageGrid {
 }
 
 impl ImageGrid {
+    fn load(&self, i: usize) -> f32 {
+        let mut width = 0.0;
+
+        for cid in &self.rows[i] {
+            if let Some((w, h)) = self.sizes.get(cid) {
+                width += *w as f32 * (self.row_height / *h as f32);
+            }
+            width += 5.0;
+        }
+        if width >= 5.0 {
+            width -= 5.0;
+        }
+
+        width / self.row_width
+    }
+
     fn potential_load(&self, i: usize, img_width: u32, img_height: u32) -> f32 {
         let mut width = 0.0;
 
@@ -106,9 +122,14 @@ impl Component for ImageGrid {
     fn view(&self, _ctx: &Context<Self>) -> Html {
         let mut rows = Vec::new();
 
-        for row in &self.rows {
+        for (i, row) in self.rows.iter().enumerate() {
+            let classes = if i == self.rows.len() - 1 && self.load(i) < 0.75 {
+                "image-grid-row image-grid-row-incomplete"
+            } else {
+                "image-grid-row"
+            };
             rows.push(html! {
-                <div class="image-grid-row">
+                <div class={classes}>
                     {row.iter().filter_map(|cid| self.elements.get(cid)).cloned().collect::<Html>()}
                 </div>
             });
