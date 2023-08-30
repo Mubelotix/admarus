@@ -12,6 +12,7 @@ pub struct ImageGrid {
     sizes: HashMap<String, (u32, u32)>,
     row_width: f32,
     row_height: f32,
+    _onresize: Closure<dyn FnMut(web_sys::Event)>,
 }
 
 impl ImageGrid {
@@ -44,11 +45,24 @@ impl ImageGrid {
 
         width / self.row_width
     }
+
+    fn insert(&mut self, id: String) {
+        let Some((width, height)) = self.sizes.get(&id).copied() else {return};
+        for i in 0..self.rows.len() {
+            let load = self.potential_load(i, width, height);
+            if load <= 1.1 {
+                self.rows[i].push(id);
+                return;
+            }
+        }
+        self.rows.push(vec![id]);
+    }
 }
 
 pub enum ImageGridMessage {
     StartLoading(String),
     ImageLoaded(String, u32, u32),
+    Resize,
 }
 
 impl Component for ImageGrid {
@@ -65,6 +79,12 @@ impl Component for ImageGrid {
             }
         });
 
+        let link = ctx.link().clone();
+        let onresize = Closure::wrap(Box::new(move |_: web_sys::Event| {
+            link.send_message(ImageGridMessage::Resize);
+        }) as Box<dyn FnMut(_)>);
+        wndw().add_event_listener_with_callback("resize", onresize.as_ref().unchecked_ref()).unwrap();
+
         ImageGrid {
             elements: HashMap::new(),
             loading: HashSet::new(),
@@ -72,6 +92,7 @@ impl Component for ImageGrid {
             sizes: HashMap::new(),
             row_width: std::f32::NAN,
             row_height: std::f32::NAN,
+            _onresize: onresize,
         }
     }
 
@@ -97,25 +118,31 @@ impl Component for ImageGrid {
                     return false;
                 }
                 self.sizes.insert(id.clone(), (width, height));
-                for i in 0..self.rows.len() {
-                    let load = self.potential_load(i, width, height);
-                    if load <= 1.1 {
-                        self.rows[i].push(id);
-                        return true;
+                self.insert(id);
+                true
+            }
+            ImageGridMessage::Resize => {
+                let el = window().unwrap().document().unwrap().get_elements_by_class_name("image-grid-row").item(0).unwrap();
+                let rect = el.get_bounding_client_rect();
+                let old_width = self.row_width;
+                self.row_width = rect.width() as f32;
+                self.row_height = rect.height() as f32;
+
+                if old_width != self.row_width {
+                    self.rows.clear();
+                    for id in ctx.props().images.iter() {
+                        self.insert(id.to_owned());
                     }
                 }
-                self.rows.push(vec![id]);
+                
                 true
             }
         }
     }
 
-    fn rendered(&mut self, _ctx: &Context<Self>, first_render: bool) {
+    fn rendered(&mut self, ctx: &Context<Self>, first_render: bool) {
         if first_render {
-            let el = window().unwrap().document().unwrap().get_elements_by_class_name("image-grid-row").item(0).unwrap();
-            let rect = el.get_bounding_client_rect();
-            self.row_width = rect.width() as f32;
-            self.row_height = rect.height() as f32;
+            ctx.link().send_message(ImageGridMessage::Resize);
         }
     }
 
