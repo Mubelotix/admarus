@@ -1,8 +1,10 @@
 #connection-status {
     padding: 0 .7rem;
     font-size: .9rem;
+    flex-grow: 1;
     display: flex;
     flex-direction: row;
+    justify-content: flex-end;
     align-items: center;
 }
 
@@ -44,7 +46,7 @@
 }
 
 .checkmark {
-    width: 100%;
+    min-width: 100%;
     height: 100%;
     border-radius: 50%;
     display: block;
