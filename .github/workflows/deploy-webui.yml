@@ -1,4 +1,4 @@
-name: Auto-deploy
+name: Auto-deploy web UI
 
 on:
   push:
