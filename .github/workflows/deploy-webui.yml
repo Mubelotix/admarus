@@ -1,0 +1,36 @@
+name: Auto-deploy
+
+on:
+  push:
+    branches:
+      - master
+    paths:
+      - 'webui/**'
+  
+jobs:
+  launch_commands:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Repository
+      uses: actions/checkout@v4
+
+    #- name: Install cURL
+    #  run: sudo apt-get update && sudo apt-get install -y curl
+
+    - name: Login to Semaphore
+      env:
+        ANSIBLE_PASSWORD: ${{ secrets.ANSIBLE_PASSWORD }}
+      run: |
+        response=$(curl -X POST -d "{\"auth\": \"ci\", \"password\": \"$ANSIBLE_PASSWORD\"}" -c cookies.txt -w "%{http_code}" -o /dev/null https://semaphore.mubelotix.xyz/api/auth/login)
+        if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
+          echo "Login to Semaphore failed with status code $response"
+          exit 1
+        fi
+    - name: Launch Task on Semaphore
+      run: |
+        response=$(curl -X POST -b cookies.txt -d '{"template_id": 39}' -w "%{http_code}" -o /dev/null https://semaphore.mubelotix.xyz/api/project/3/tasks)
+        if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
+          echo "Launching Task on Semaphore failed with status code $response"
+          exit 1
+        fi
