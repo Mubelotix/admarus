@@ -14,17 +14,17 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 tokio = { version = "1.29", features = ["full"] }
 async-trait = "0.1"
-scraper = "0.17"
+scraper = "0.19"
 warp = {version="0.3", default-features = false}
-reqwest = {version="0.11", features=["multipart"], default-features = false}
+reqwest = {version="0.12", features=["multipart"], default-features = false}
 futures = "0.3"
 rand = "0.8"
 log = "0.4"
-env_logger = "0.10"
+env_logger = "0.11"
 clap = {version="4.3", features = ["derive"]}
 sha2 = "0.10"
 sha2-derive = "0.1"
-faster-pest = "0.1"
+faster-pest = "0.2.0-alpha.1"
 word-lists = {path="../word-lists"}
 bimap = "0.6"
 #schemas = { path="../../schemas", features=["serde"] }
