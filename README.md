@@ -14,7 +14,7 @@
 Admarus unlocks the full potential of IPFS by making it searchable. It is an open, decentralized network of peers indexing their IPFS documents. Admarus relies on no central authority, and is censorship-resistant by design.
 
 <p align="center">
-    <a href="https://www.youtube.com/watch?v=AKGpNKwBrOY"><img src="https://admarus.net/demo.gif#2" alt="Demo GIF of searching on Admarus."/></a>
+    <a href="https://www.youtube.com/watch?v=AKGpNKwBrOY"><img src="https://raw.githubusercontent.com/Mubelotix/admarus/master/.github/assets/demo.gif" alt="Demo GIF of searching on Admarus."/></a>
 </p>
 
 🔥 [**Try the gateway-based demo!**](https://admarus.net/) 🔥
