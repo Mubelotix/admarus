@@ -5,7 +5,7 @@ mod search;
 mod request_maker;
 mod search_request;
 
-pub(self) use crate::prelude::*;
+use crate::prelude::*;
 pub(crate) use filter_seeder::*;
 pub(crate) use request_handler::*;
 pub(crate) use filter_leecher::*;

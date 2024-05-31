@@ -7,8 +7,8 @@ edition = "2021"
 
 [dependencies]
 tokio = "1.29"
-libp2p = "0.52"
-libp2p-identify = "0.43"
+libp2p = "0.53"
+libp2p-identify = "0.44"
 serde = "1.0"
 serde_json = "1.0"
 futures = "0.3"

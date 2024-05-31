@@ -11,17 +11,6 @@ pub enum BehaviorToHandlerEvent {
 #[derive(Debug)]
 pub enum HandlerToBehaviorEvent {}
 
-#[derive(Debug)]
-pub enum HandlerError {}
-
-impl std::fmt::Display for HandlerError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "DiscoveryHandlerError")
-    }
-}
-
-impl std::error::Error for HandlerError {}
-
 pub struct Handler {
     remote_peer_id: PeerId,
     config: Arc<Config>,
@@ -49,7 +38,7 @@ impl Handler {
 impl ConnectionHandler for Handler {
     type FromBehaviour = BehaviorToHandlerEvent;
     type ToBehaviour = HandlerToBehaviorEvent;
-    type Error = HandlerError;
+    //type Error = HandlerError;
     type InboundProtocol = ArcConfig;
     type OutboundProtocol = ArcConfig;
     type InboundOpenInfo = ();
@@ -59,8 +48,8 @@ impl ConnectionHandler for Handler {
         SubstreamProtocol::new((&self.config).into(), ())
     }
 
-    fn connection_keep_alive(&self) -> KeepAlive {
-        KeepAlive::Yes
+    fn connection_keep_alive(&self) -> bool {
+        true
     }
 
     fn on_behaviour_event(&mut self, event: BehaviorToHandlerEvent) {
@@ -92,11 +81,11 @@ impl ConnectionHandler for Handler {
                 let e = e.error;
                 error!("ListenUpgradeError: {e:?}");
             },
-            ConnectionEvent::AddressChange(_) | ConnectionEvent::LocalProtocolsChange(_) | ConnectionEvent::RemoteProtocolsChange(_) => (),
+            _ => (),
         }
     }
 
-    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, (Request, RequestReplier), HandlerToBehaviorEvent, HandlerError>> {
+    fn poll(&mut self, cx: &mut Context<'_>) -> Poll<ConnectionHandlerEvent<ArcConfig, (Request, RequestReplier), HandlerToBehaviorEvent>> {
         if let Some(pending_info) = self.pending_requests.pop() {
             return Poll::Ready(ConnectionHandlerEvent::OutboundSubstreamRequest {
                 protocol: SubstreamProtocol::new((&self.config).into(), pending_info),
@@ -107,7 +96,7 @@ impl ConnectionHandler for Handler {
         if let Some(server_task) = self.server_tasks.first_mut() {
             match server_task.as_mut().poll(cx) {
                 Poll::Ready(result) => {
-                    self.server_tasks.remove(0);
+                    drop(self.server_tasks.remove(0));
                     debug!("Server task finished: {result:?}");
                 },
                 Poll::Pending => (),
@@ -118,7 +107,7 @@ impl ConnectionHandler for Handler {
         if let Some(client_task) = self.client_tasks.first_mut() {
             match client_task.as_mut().poll(cx) {
                 Poll::Ready(()) => {
-                    self.client_tasks.remove(0);
+                    drop(self.client_tasks.remove(0));
                     debug!("Client task finished");
                 },
                 Poll::Pending => (),

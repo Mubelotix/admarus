@@ -31,7 +31,7 @@ pub use tokio::{
     net::TcpStream as TokioTcpStream
 };
 pub use libp2p::{
-    swarm::{dial_opts::DialOpts, Swarm, SwarmBuilder, SwarmEvent, NetworkBehaviour},
+    swarm::{dial_opts::DialOpts, Swarm, SwarmEvent, NetworkBehaviour}, SwarmBuilder,
     core::upgrade, PeerId, Multiaddr, multiaddr::Protocol, tcp, Transport, yamux::Config as YamuxConfig, noise
 };
 pub use libp2p_identity::Keypair;

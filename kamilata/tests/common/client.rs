@@ -1,6 +1,6 @@
 
 use futures::future;
-use libp2p::{identity::{self, Keypair}, core::transport::MemoryTransport, PeerId, Transport, Swarm, Multiaddr, swarm::{SwarmEvent, SwarmBuilder}};
+use libp2p::{identity::{self, Keypair}, core::transport::MemoryTransport, PeerId, Transport, Swarm, Multiaddr, swarm::SwarmEvent, SwarmBuilder};
 
 use tokio::sync::{
     mpsc::*,
@@ -113,7 +113,13 @@ impl Client {
         // can be observed.
         let behaviour = KamilataBehaviour::new_with_config(local_peer_id, config);
     
-        let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, local_peer_id).build();
+        let mut swarm = SwarmBuilder::with_existing_identity(local_key.clone())
+            .with_tokio()
+            .with_other_transport(|_| transport)
+            .expect("Failed to build swarm with transport")
+            .with_behaviour(|_| behaviour)
+            .expect("Failed to build swarm with behaviour")
+            .build();
     
         // Tell the swarm to listen on all interfaces and a random, OS-assigned port.
         let mut addr: Option<Multiaddr> = None;

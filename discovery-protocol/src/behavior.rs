@@ -112,7 +112,7 @@ impl NetworkBehaviour for Behaviour {
     type ConnectionHandler = Handler;
     type ToSwarm = Event;
 
-    fn on_swarm_event(&mut self, event: FromSwarm<Self::ConnectionHandler>) {
+    fn on_swarm_event(&mut self, event: FromSwarm) {
         match event {
             FromSwarm::ConnectionEstablished(info) => {
                 let db = Arc::clone(&self.db);
@@ -156,7 +156,7 @@ impl NetworkBehaviour for Behaviour {
         Ok(Handler::new(remote_peer_id, Arc::clone(&self.config), Arc::clone(&self.db)))
     }
 
-    fn poll(&mut self, _cx: &mut Context<'_>, _params: &mut impl PollParameters) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
+    fn poll(&mut self, _cx: &mut Context<'_>) -> Poll<ToSwarm<Self::ToSwarm, THandlerInEvent<Self>>> {
         if let Some((peer_id, event)) = self.events_to_dispatch.pop() {
             return Poll::Ready(ToSwarm::NotifyHandler { peer_id, handler: NotifyHandler::Any, event });
         }

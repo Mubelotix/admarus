@@ -12,17 +12,13 @@ pub(crate) use crate::{
     behaviour::*, control::*, counter::*, db::*, handler::*, handler_proto::*, packets::*, tasks::*,
 };
 pub(crate) use either::Either;
-pub(crate) use futures::{
-    future::BoxFuture,
-    prelude::*,
-    FutureExt,
-};
+pub(crate) use futures::{future::BoxFuture, prelude::*, FutureExt};
 pub(crate) use libp2p::{
     core::{upgrade::DeniedUpgrade, ConnectedPoint, Endpoint, UpgradeInfo},
     swarm::{
         derive_prelude::FromSwarm, handler::ConnectionEvent, ConnectionDenied, ConnectionHandler,
-        ConnectionHandlerEvent, ConnectionId, KeepAlive, Stream, NetworkBehaviour,
-        PollParameters, SubstreamProtocol, THandler, THandlerOutEvent, ToSwarm,
+        ConnectionHandlerEvent, ConnectionId, NetworkBehaviour, Stream, SubstreamProtocol,
+        THandler, THandlerOutEvent, ToSwarm,
     },
     InboundUpgrade, Multiaddr, OutboundUpgrade, PeerId,
 };
@@ -37,11 +33,11 @@ pub(crate) use std::{
     time::{Duration, Instant},
 };
 pub(crate) use tokio::{
+    spawn,
     sync::{
         mpsc::*,
         oneshot::{channel as oneshot_channel, Sender as OneshotSender},
         RwLock,
     },
     time::{sleep, timeout},
-    spawn
 };

@@ -72,18 +72,18 @@ impl Node {
             identify,
             discovery,
         };
-        
-        let tcp_transport = tcp::tokio::Transport::new(tcp::Config::new());
-
-        let transport = tcp_transport
-            .upgrade(upgrade::Version::V1Lazy)
-            .authenticate(
-                noise::Config::new(&keypair).expect("Signing libp2p-noise static DH keypair failed."),
+                
+        let mut swarm = SwarmBuilder::with_existing_identity(keypair.clone())
+            .with_tokio()
+            .with_tcp(
+                Default::default(),
+                (libp2p_tls::Config::new, libp2p_noise::Config::new),
+                libp2p_yamux::Config::default,
             )
-            .multiplex(YamuxConfig::default())
-            .boxed();
-        
-        let mut swarm = SwarmBuilder::with_tokio_executor(transport, behaviour, peer_id).build();
+            .expect("Failed to build swarm with transport")
+            .with_behaviour(|_| behaviour)
+            .expect("Failed to build swarm with behaviour")
+            .build();
         for listen_addr in &config.listen_addrs {
             let Ok(parsed_addr) = listen_addr.parse::<Multiaddr>() else {
                 error!("Invalid address: {listen_addr}");
@@ -165,7 +165,7 @@ impl Node {
                                 self.sw.on_identify(&peer_id, info).await;
                             },
                             IdentifyEvent::Sent { peer_id } => trace!("Sent identify info to {peer_id}"),
-                            IdentifyEvent::Pushed { peer_id } => trace!("Pushed identify info to {peer_id}"),
+                            IdentifyEvent::Pushed { peer_id, info } => trace!("Pushed identify info {info:?} to {peer_id}"),
                             IdentifyEvent::Error { peer_id, error } => debug!("Identify error with {peer_id}: {error}"),
                         },
                         // Kamilata events
@@ -218,6 +218,7 @@ impl Node {
                         SwarmEvent::Dialing { peer_id, connection_id } => debug!("Dialing {peer_id:?} ({connection_id:?})"),
                         SwarmEvent::IncomingConnection { connection_id, local_addr, send_back_addr } => trace!("Incoming connection from {send_back_addr} (local addr: {local_addr}, connection id: {connection_id:?})"),
                         SwarmEvent::IncomingConnectionError { connection_id, local_addr, send_back_addr, error } => trace!("Incoming connection error from {send_back_addr} (local addr: {local_addr}, connection id: {connection_id:?}, error: {error})"),
+                        other => trace!("Unknown swarm event: {other:?}"),
                     },
                 }
             }

@@ -20,7 +20,6 @@ mod database;
 
 use crate::prelude::*;
 
-
 #[tokio::main]
 async fn main() {
     env_logger::init();

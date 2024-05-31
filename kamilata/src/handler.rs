@@ -47,6 +47,7 @@ pub struct KamilataHandler<const N: usize, S: Store<N>> {
     remote_peer_id: PeerId,
     db: Arc<Db<N, S>>,
     config: Arc<KamilataConfig>,
+    keep_alive: bool,
 
     rt_handle: tokio::runtime::Handle,
     
@@ -67,6 +68,7 @@ impl<const N: usize, S: Store<N>> KamilataHandler<N, S> {
             remote_peer_id,
             db,
             config,
+            keep_alive: true,
             rt_handle: tokio::runtime::Handle::current(),
             task_counter: Counter::new(3),
             tasks: HashMap::new(),
@@ -78,7 +80,6 @@ impl<const N: usize, S: Store<N>> KamilataHandler<N, S> {
 impl<const N: usize, S: Store<N>> ConnectionHandler for KamilataHandler<N, S> {
     type FromBehaviour = BehaviorToHandlerEvent<N, S>;
     type ToBehaviour = HandlerToBehaviorEvent;
-    type Error = ioError;
     type InboundProtocol = Either<ArcConfig, DeniedUpgrade>;
     type OutboundProtocol = ArcConfig;
     type InboundOpenInfo = ();
@@ -130,11 +131,10 @@ impl<const N: usize, S: Store<N>> ConnectionHandler for KamilataHandler<N, S> {
         };
     }
 
-    fn connection_keep_alive(&self) -> KeepAlive {
-        KeepAlive::Yes
+    fn connection_keep_alive(&self) -> bool {
+        self.keep_alive
     }
 
-    #[warn(implied_bounds_entailment)]
     fn on_connection_event(
         &mut self,
         event: ConnectionEvent<
@@ -173,7 +173,7 @@ impl<const N: usize, S: Store<N>> ConnectionHandler for KamilataHandler<N, S> {
                 let error = i.error;
                 warn!("{} Failed to establish outbound channel with {}: {error:?}. A {} task has been discarded.", self.our_peer_id, self.remote_peer_id, pending_task.name);
             },
-            ConnectionEvent::ListenUpgradeError(_) | ConnectionEvent::AddressChange(_) | ConnectionEvent::LocalProtocolsChange(_) | ConnectionEvent::RemoteProtocolsChange(_) => (),
+            _ => (),
         }
     }
 
@@ -185,7 +185,6 @@ impl<const N: usize, S: Store<N>> ConnectionHandler for KamilataHandler<N, S> {
             Self::OutboundProtocol,
             Self::OutboundOpenInfo,
             Self::ToBehaviour,
-            Self::Error,
         >,
     > {
         // It seems this method gets called in a context where the tokio runtime does not exist.
@@ -241,9 +240,7 @@ impl<const N: usize, S: Store<N>> ConnectionHandler for KamilataHandler<N, S> {
                             HandlerTaskOutput::Disconnect(disconnect_packet) => {
                                 debug!("{} Disconnected peer {}", self.our_peer_id, self.remote_peer_id);
                                 // TODO: send packet
-                                return Poll::Ready(ConnectionHandlerEvent::Close(
-                                    ioError::new(std::io::ErrorKind::Other, disconnect_packet.reason), // TODO error handling
-                                ));
+                                self.keep_alive = false;
                             },
                             HandlerTaskOutput::None | HandlerTaskOutput::Many(_) => unreachable!(),
                         }

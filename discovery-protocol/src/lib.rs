@@ -8,7 +8,7 @@ pub(crate) use futures::{
 pub(crate) use libp2p::{
     swarm::{
         handler::ConnectionEvent, ConnectionHandler, ConnectionHandlerEvent, ConnectionId,
-        FromSwarm, KeepAlive, NetworkBehaviour, PollParameters, SubstreamProtocol, THandlerInEvent,
+        FromSwarm, NetworkBehaviour, SubstreamProtocol, THandlerInEvent,
         THandlerOutEvent, ToSwarm, NotifyHandler, Stream,
     },
     core::UpgradeInfo, InboundUpgrade, Multiaddr, OutboundUpgrade, PeerId,
@@ -20,6 +20,7 @@ pub(crate) use std::{
     sync::Arc,
     task::{Context, Poll},
     io::Error as IoError,
+    mem::drop
 };
 pub(crate) use tokio::sync::{RwLock, oneshot::{Sender as OneshotSender, channel as oneshot_channel}};
 

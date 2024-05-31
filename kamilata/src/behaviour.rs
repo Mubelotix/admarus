@@ -184,7 +184,7 @@ impl<const N: usize, S: Store<N>> NetworkBehaviour for KamilataBehaviour<N, S> {
     type ConnectionHandler = KamilataHandler<N, S>;
     type ToSwarm = KamilataEvent;
 
-    fn on_swarm_event(&mut self, event: FromSwarm<Self::ConnectionHandler>) {
+    fn on_swarm_event(&mut self, event: FromSwarm) {
         match event {
             FromSwarm::ConnectionEstablished(info) => {
                 self.connections.entry(info.peer_id).and_modify(|count| *count += 1).or_insert(1);
@@ -257,8 +257,7 @@ impl<const N: usize, S: Store<N>> NetworkBehaviour for KamilataBehaviour<N, S> {
 
     fn poll(
         &mut self,
-        cx: &mut Context<'_>,
-        _params: &mut impl PollParameters,
+        cx: &mut Context<'_>
     ) -> Poll<ToSwarm<Self::ToSwarm, libp2p::swarm::THandlerInEvent<Self>>> {
         // Message handlers first
         if let Some((peer_id, event)) = self.handler_event_queue.pop() {
