@@ -4,13 +4,15 @@ use warp::{Filter, http::Response};
 use std::{convert::Infallible, net::SocketAddr};
 
 mod bodies;
+mod indexing_status;
 mod local_search;
 mod search;
 mod results;
 mod version;
 use {
-    local_search::*,
     bodies::*,
+    indexing_status::*,
+    local_search::*,
     search::*,
     results::*,
     version::*,
@@ -60,6 +62,7 @@ impl SearchPark {
         id
     }
 
+    #[allow(clippy::map_clone)]
     pub async fn get_query(self: Arc<Self>, id: usize) -> Option<Arc<Query>> {
         let searches = self.searches.read().await;
         searches.get(&id).map(|s| Arc::clone(&s.query))
@@ -75,6 +78,12 @@ impl SearchPark {
 
 pub async fn serve_api(config: Arc<Args>, index: DocumentIndex, search_park: Arc<SearchPark>, kamilata: NodeController) {
     let hello_world = warp::path::end().map(|| "Hello, World at root!");
+
+    let index2 = index.clone();
+    let indexing_status = warp::get()
+        .and(warp::path("indexing-status"))
+        .map(move || index2.clone())
+        .and_then(indexing_status);
 
     let local_search = warp::get()
         .and(warp::path("local-search"))
@@ -125,6 +134,7 @@ pub async fn serve_api(config: Arc<Args>, index: DocumentIndex, search_park: Arc
 
     let routes = warp::any().and(
         hello_world
+            .or(indexing_status)
             .or(local_search)
             .or(search)
             .or(results)
