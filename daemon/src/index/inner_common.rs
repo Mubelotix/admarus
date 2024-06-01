@@ -1,17 +1,19 @@
 use super::*;
 
 impl DocumentIndexInner {
-    pub fn add_ancestor(&mut self, cid: &String, name: String, folder_cid: &String) {
+    pub fn add_ancestor(&mut self, cid: &String, name: String, is_folder: bool, folder_cid: &String) {
         let lcid = match self.cids.get_by_right(cid) {
             Some(lcid) => lcid.to_owned(),
             None => {
                 let lcid = LocalCid(self.cid_counter);
                 self.cid_counter += 1;
                 self.cids.insert(lcid, cid.clone());
-                self.folders.insert(lcid);
                 lcid
             }
         };
+        if is_folder {
+            self.folders.insert(lcid);
+        }
 
         let ancestor_lcid = match self.cids.get_by_right(folder_cid) {
             Some(lcid) => lcid.to_owned(),
