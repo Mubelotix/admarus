@@ -9,6 +9,7 @@ on:
       - 'word-lists/**'
       - 'kamilata/**'
       - 'discovery-protocol/**'
+      - '.github/workflows/publish-docker.yml'
 
 env:
   REGISTRY: ghcr.io
