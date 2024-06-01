@@ -18,7 +18,7 @@ RUN cp target/x86_64-unknown-linux-musl/release/admarusd /usr/local/bin/admarusd
     rm -rf admarus
 
 # Final stage
-FROM frolvlad/alpine-glibc:latest
+FROM alpine:latest
 
 COPY --from=build /usr/local/bin/admarusd /usr/local/bin/admarusd
 
