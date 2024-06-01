@@ -51,7 +51,7 @@ impl DocumentIndexInner {
                         continue;
                     }
                     let mut new_path = current_path.clone();
-                    new_path.0 = ancestor.to_owned();
+                    ancestor.clone_into(&mut new_path.0);
                     new_path.1.insert(0, name.to_owned());
                     current_paths.push(new_path);
                 }

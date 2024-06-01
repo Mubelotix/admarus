@@ -1,11 +1,11 @@
 
 
-pub(self) use bimap::BiHashMap;
-pub(self) use std::hash::{Hash, Hasher};
-pub(self) use crate::prelude::*;
+use bimap::BiHashMap;
+use std::hash::{Hash, Hasher};
+use crate::prelude::*;
 
-pub(self) const REFRESH_INTERVAL: u64 = 100;
-pub(self) const SWEEP_INTERVAL: u64 = 30;
+const REFRESH_INTERVAL: u64 = 100;
+const SWEEP_INTERVAL: u64 = 30;
 
 mod index;
 mod inner_common;
@@ -19,7 +19,7 @@ pub(self) use inner_db::*;
 #[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
 mod inner_im;
 #[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
-pub(self) use inner_im::*;
+use inner_im::*;
 
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]

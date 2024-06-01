@@ -4,3 +4,4 @@ daemon/admarus.mdb
 /admarus-blog
 /admarus.wiki
 /scripts
+*.mdb
