@@ -9,6 +9,7 @@ on:
       - 'word-lists/**'
       - 'kamilata/**'
       - 'discovery-protocol/**'
+      - 'Dockerfile'
       - '.github/workflows/publish-docker.yml'
 
 env:
