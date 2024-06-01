@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - master
+    paths:
+      - 'daemon/**'
+      - 'word-lists/**'
+      - 'kamilata/**'
+      - 'discovery-protocol/**'
 
 env:
   REGISTRY: ghcr.io
