@@ -39,7 +39,6 @@ async fn main() {
     }
 
     let index = DocumentIndex::new(Arc::clone(&config)).await;
-
     let (node, keypair) = Node::init(Arc::clone(&config), index.clone()).await;
     let node = node.run();
     
