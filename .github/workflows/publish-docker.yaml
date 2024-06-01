@@ -23,6 +23,7 @@ jobs:
 
 
     steps:
+      - uses: actions/checkout@v3
       - uses: actions/cache@v2
         with:
           path: |
@@ -32,9 +33,6 @@ jobs:
             ~/.cargo/git/db/
             target/
           key: ${{ runner.os }}-cargo-${{ hashFiles('**/publish-docker.yml') }}
-
-      - name: Checkout repository
-        uses: actions/checkout@v3
 
       - name: Build with cargo
         run: cargo build --release
