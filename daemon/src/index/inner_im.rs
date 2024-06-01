@@ -33,6 +33,7 @@ impl DocumentIndexInner {
         }
     }   
     
+    #[allow(dead_code)]
     pub(super) async fn sweep(&mut self) {}
 
     pub fn documents(&self) -> HashSet<String> {
