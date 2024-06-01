@@ -81,7 +81,7 @@ impl DocumentIndex {
                 for (child_cid, child_name, child_is_folder) in new_links {
                     let child_cid = normalize_cid(child_cid).unwrap();
                     if child_is_folder {
-                        self.add_ancestor(&child_cid, child_name, &cid).await;
+                        self.add_ancestor(&child_cid, child_name, child_is_folder, &cid).await;
                         if !listed.contains(&child_cid) {
                             to_list.push(child_cid);
                         }
@@ -108,7 +108,7 @@ impl DocumentIndex {
                 let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
                 let Some(inspected) = inspect_document(document) else {continue};
                 self.add_document(&cid, inspected).await;
-                self.add_ancestor(&cid, name, &parent_cid).await;
+                self.add_ancestor(&cid, name, false, &parent_cid).await;
                 i += 1;
                 if i % 500 == 0 {
                     debug!("Still loading files ({i} in {:.02})", start.elapsed().as_secs_f32());
@@ -138,15 +138,8 @@ impl DocumentIndex {
         self.inner.write().await.add_document(cid, doc);
     }
 
-    pub async fn add_ancestor(&self, cid: &String, name: String, folder_cid: &String) {
-        self.inner.write().await.add_ancestor(cid, name, folder_cid);
-    }
-
-    pub async fn add_ancestors(&self, ancestors: Vec<(&String, String, &String)>) {
-        let mut inner = self.inner.write().await;
-        for (cid, name, folder_cid) in ancestors {
-            inner.add_ancestor(cid, name, folder_cid);
-        }
+    pub async fn add_ancestor(&self, cid: &String, name: String, is_folder: bool, folder_cid: &String) {
+        self.inner.write().await.add_ancestor(cid, name, is_folder, folder_cid);
     }
 
     pub async fn build_path(&self, cid: &String) -> Option<Vec<Vec<String>>> {
