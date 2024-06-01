@@ -28,15 +28,10 @@ pub async fn update_census_task(node: NodeController, index: DocumentIndex, keyp
             continue;
         }
 
-        let mut folders = index.folders().await.into_iter().map(|(cid, count)| (cid, count as u64)).collect::<Vec<_>>();
-        if folders.len() > 500 {
-            folders.sort_by(|(_, a), (_, b)| b.cmp(a));
-            folders.truncate(500);
-        }
         let record = Record {
             peer_id: keypair.public().to_peer_id().to_string(),
             addrs: external_addrs.clone(),
-            folders,
+            folders: Vec::new(), // TODO: Remove folders from census record
         };
 
         match submit_census_record(&config.census_rpc, record, keypair.clone()).await {

@@ -143,10 +143,6 @@ impl DocumentIndex {
         }
     }
 
-    pub async fn folders(&self) -> HashMap<String, usize> {
-        self.inner.read().await.folders()
-    }
-
     pub async fn documents(&self) -> HashSet<String> {
         self.inner.read().await.documents()
     }
