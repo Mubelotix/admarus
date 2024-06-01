@@ -35,17 +35,6 @@ impl DocumentIndexInner {
     
     pub(super) async fn sweep(&mut self) {}
 
-    pub fn folders(&self) -> HashMap<String, usize> {
-        let mut folders = HashMap::new();
-        for lcid in self.cids.left_values() {
-            let Some(ancestor_lcid) = self.ancestors.get(lcid).and_then(|a| a.keys().next()) else {continue}; // TODO: files not in folder
-            let Some(ancestor_cid) = self.cids.get_by_left(ancestor_lcid) else {continue};
-            *folders.entry(ancestor_cid.to_owned()).or_default() += 1;
-        }
-        
-        folders
-    }
-
     pub fn documents(&self) -> HashSet<String> {
         self.cids
             .iter()
