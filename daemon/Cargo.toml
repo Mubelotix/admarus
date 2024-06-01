@@ -1,5 +1,6 @@
 [package]
 name = "admarusd"
+authors = ["Mubelotix <mubelotix@gmail.com>"]
 version = "0.1.0"
 edition = "2021"
 
