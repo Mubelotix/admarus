@@ -33,6 +33,9 @@ jobs:
 
       - name: Install musl target
         run: rustup target add x86_64-unknown-linux-musl
+
+      - name: Install musl-tools
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
       
       - name: Build with cargo
         run: cargo build --release --target=x86_64-unknown-linux-musl --package admarusd
