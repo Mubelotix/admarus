@@ -71,7 +71,7 @@ We have a [publicly-editable wiki](https://github.com/Mubelotix/admarus/wiki) fo
 
 ## 👨‍💻 About
 
-Admarus is developped by [Mubelotix](https://github.com/Mubelotix), a 20yo french cypherpunk.
+Admarus is developped by [Mubelotix](https://github.com/Mubelotix), a french cypherpunk.
 Feel free to [get in touch](mailto:mubelotix@gmail.com) if you have any question or suggestion.
 I'm available to help people run nodes to make the network grow.
 
