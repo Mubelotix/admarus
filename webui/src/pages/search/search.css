@@ -64,12 +64,12 @@ h1~p {
 #below-bar {
     justify-content: flex-start;
     align-items: center;
-    padding-top: 2rem;
 }
 
 #buttons {
     display: flex;
     flex-direction: row;
+    padding-top: 2rem;
 }
 
 #buttons>* {

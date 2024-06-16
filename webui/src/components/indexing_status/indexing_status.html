@@ -1,16 +1,22 @@
 <div id="indexing-status">
     <virtual present-if={{exploring}}>
-        <div id="indexing-status-message">Your daemon is exploring your folders ({{progress_value}} / {{progress_max}}).</div>
-        <progress id="indexing-status-progress" value={{progress_value}} max={{progress_max}}></progress>
+        <p id="indexing-status-message">Your daemon is discovering files ({{progress_value}} / {{progress_max}}).</p>
+        <div id="indexing-status-progress">
+            <div id="indexing-status-inner" style="width: calc(100% * {{progress_value}} / {{progress_max}});"></div>
+        </div>
     </virtual>
 
     <virtual present-if={{indexing}}>
-        <div id="indexing-status-message">Your daemon is indexing your files ({{progress_value}} / {{progress_max}}).</div>
-        <progress id="indexing-status-progress" value={{progress_value}} max={{progress_max}}></progress>
+        <p id="indexing-status-message">Your daemon is indexing files ({{progress_value}} / {{progress_max}}).</p>
+        <div id="indexing-status-progress">
+            <div id="indexing-status-inner" style="width: calc(100% * {{progress_value}} / {{progress_max}});"></div>
+        </div>
     </virtual>
 
     <virtual present-if={{building_filter}}>
-        <div id="indexing-status-message">Your daemon is compiling its index.</div>
-        <progress id="indexing-status-progress" max={{progress_max}}></progress>
+        <p id="indexing-status-message">Your daemon is compiling its index.</p>
+        <div id="indexing-status-progress">
+            <div id="indexing-status-inner" style="width: 100%;"></div>
+        </div>
     </virtual>
 </div>
