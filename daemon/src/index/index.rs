@@ -101,6 +101,7 @@ impl DocumentIndex {
             }
 
             // Load documents
+            to_load_unprioritized.retain(|cid, _| !to_load.contains_key(cid));
             if !to_load.is_empty() {debug!("{} documents to load ({:.02?}s)", to_load.len(), start.elapsed().as_secs_f32())}
             let (to_load_len, to_load_unprioritized_len) = (to_load.len(), to_load_unprioritized.len());
             for (i, (cid, (name, parent_cid))) in to_load.drain().chain(to_load_unprioritized.drain()).enumerate() {
@@ -108,7 +109,7 @@ impl DocumentIndex {
                 let remaining_unprioritized = std::cmp::min(to_load_unprioritized_len, to_load_len + to_load_unprioritized_len - i);
                 self.set_status(listed.len(), to_list.len(), loaded.len(), remaining_to_load, remaining_unprioritized).await;
 
-                if !loaded.insert(cid.clone()) {continue}
+                loaded.insert(cid.clone());
                 let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
                 let Some(inspected) = inspect_document(document) else {continue};
                 self.add_document(&cid, inspected).await;
@@ -116,7 +117,10 @@ impl DocumentIndex {
             }
             
             // Update filter
+            self.set_status(listed.len(), 0, loaded.len(), 0, 0).await;
+            self.set_status_updating_filter(true).await;
             self.update_filter().await;
+            self.set_status_updating_filter(false).await;
             let load = self.get_filter().await.load()*100.0;
             if load != previous_load {
                 previous_load = load;
@@ -165,9 +169,7 @@ impl DocumentIndex {
     }
 
     pub async fn update_filter(&self) {
-        self.set_status_updating_filter(true).await;
         self.inner.write().await.update_filter().await;
-        self.set_status_updating_filter(false).await;
     }
 }
 

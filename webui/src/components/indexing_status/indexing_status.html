@@ -1,0 +1,16 @@
+<div id="indexing-status">
+    <virtual present-if={{exploring}}>
+        <div id="indexing-status-message">Your daemon is exploring your folders ({{progress_value}} / {{progress_max}}).</div>
+        <progress id="indexing-status-progress" value={{progress_value}} max={{progress_max}}></progress>
+    </virtual>
+
+    <virtual present-if={{indexing}}>
+        <div id="indexing-status-message">Your daemon is indexing your files ({{progress_value}} / {{progress_max}}).</div>
+        <progress id="indexing-status-progress" value={{progress_value}} max={{progress_max}}></progress>
+    </virtual>
+
+    <virtual present-if={{building_filter}}>
+        <div id="indexing-status-message">Your daemon is compiling its index.</div>
+        <progress id="indexing-status-progress" max={{progress_max}}></progress>
+    </virtual>
+</div>

@@ -1,8 +1,8 @@
 pub use crate::{
     app::*, search::*, settings::*, util::*, results::*, result::*, api_bodies::*, api::*, lang::*,
-    search_bar::*, lucky::*, query::*, connection_status::*, result_comp::*, *
+    search_bar::*, lucky::*, query::*, connection_status::*, indexing_status::*, result_comp::*, *
 };
-pub use js_sys::{Array, Function, Promise, Reflect::*};
+pub use js_sys::{Array, Function, Promise, Reflect};
 pub use std::{time::Duration, rc::Rc, cmp::Ordering, collections::{HashMap, HashSet}, ops::Deref};
 pub use wasm_bindgen::{prelude::Closure, JsCast, JsValue};
 pub use wasm_bindgen_futures::{spawn_local, JsFuture};

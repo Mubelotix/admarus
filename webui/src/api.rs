@@ -13,14 +13,13 @@ pub enum ApiError {
 
 impl ApiError {
     pub fn to_format_parts(&self) -> (&'static str, Vec<String>, String) {
-        let (title, recommandations, details) = match self {
+        let (title, recommandations) = match self {
             ApiError::InputJson(e) => (
                 "Failed to craft request",
                 vec![
                     String::from("Open an issue on GitHub"),
                     String::from("Try again"),
-                ],
-                format!("InputJson: {e}")
+                ]
             ),
             ApiError::OutputJson(e) => (
                 "Failed to read results",
@@ -29,8 +28,7 @@ impl ApiError {
                     String::from("Make sure the daemon address is correct"),
                     String::from("Open an issue on GitHub"),
                     String::from("Try again"),
-                ],
-                format!("OutputJson: {e}")
+                ]
             ),
             ApiError::Fetch(e) => (
                 "Failed to send query",
@@ -39,8 +37,7 @@ impl ApiError {
                     String::from("Make sure the daemon address is correct"),
                     String::from("Make sure CORS is properly configured"),
                     String::from("Try again"),
-                ],
-                format!("Fetch: {}", e.clone().dyn_into::<js_sys::Error>().unwrap().message())
+                ]
             ),
             ApiError::NotText(e) => (
                 "Invalid response",
@@ -48,8 +45,7 @@ impl ApiError {
                     String::from("Make sure the daemon address is correct"),
                     String::from("Open an issue on GitHub"),
                     String::from("Try again"),
-                ],
-                format!("NotText: {}", e.clone().dyn_into::<js_sys::Error>().unwrap().message())
+                ]
             ),
             ApiError::BadRequest(e) => (
                 "Failed to communicate with daemon",
@@ -58,8 +54,7 @@ impl ApiError {
                     String::from("Make sure the daemon address is correct"),
                     String::from("Open an issue on GitHub"),
                     String::from("Try again"),
-                ],
-                format!("BadRequest: {e}")
+                ]
             ),
             ApiError::Server(e) => (
                 "Daemon is having issues",
@@ -67,19 +62,31 @@ impl ApiError {
                     String::from("Make sure the daemon is up to date"),
                     String::from("Open an issue on GitHub"),
                     String::from("Try again"),
-                ],
-                format!("Server: {e}")
+                ]
             ),
             ApiError::Unknown(e) => (
                 "Unknown error",
                 vec![
                     String::from("Make sure the daemon address is correct"),
                     String::from("Try again"),
-                ],
-                format!("Unknown: {e}")
+                ]
             ),
         };
-        (title, recommandations, details)
+        (title, recommandations, self.to_string())
+    }
+}
+
+impl std::fmt::Display for ApiError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ApiError::InputJson(e) => write!(f, "InputJson: {}", e),
+            ApiError::OutputJson(e) => write!(f, "OutputJson: {}", e),
+            ApiError::Fetch(e) => write!(f, "Fetch: {}", e.clone().dyn_into::<js_sys::Error>().unwrap().message()),
+            ApiError::NotText(e) => write!(f, "NotText: {}", e.clone().dyn_into::<js_sys::Error>().unwrap().message()),
+            ApiError::BadRequest(e) => write!(f, "BadRequest: {}", e),
+            ApiError::Server(e) => write!(f, "Server: {}", e),
+            ApiError::Unknown(e) => write!(f, "Unknown: {}", e),
+        }
     }
 }
 
@@ -89,7 +96,7 @@ impl From<serde_json::Error> for ApiError {
     }
 }
 
-async fn get<T: DeserializeOwned>(url: impl AsRef<str>) -> Result<T, ApiError> {
+pub async fn get<T: DeserializeOwned>(url: impl AsRef<str>) -> Result<T, ApiError> {
     api_custom_method(url, "GET", ()).await
 }
 
