@@ -13,6 +13,7 @@ pub async fn manage_dns_pins(config: Arc<Args>) {
         dns_pins_interval = 60*3;
     }
 
+    // TODO: Make use of named pins for DNS pins
     // Find old pins and look for the previous DNS pins
     let old_pins = match list_pinned(&config.ipfs_rpc).await {
         Ok(pins) => pins,
