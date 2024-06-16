@@ -56,7 +56,18 @@ As we parallelize the process by querying multiple peers concurrently, search wi
 
 ## 📚 Guides and Documentation
 
-See [the wiki](https://github.com/Mubelotix/admarus/wiki) for guides and documentation.
+We have a [publicly-editable wiki](https://github.com/Mubelotix/admarus/wiki) for guides and documentation.
+
+* [Getting Started](https://github.com/Mubelotix/admarus/wiki)
+* [Building](https://github.com/Mubelotix/admarus/wiki/building-from-source)
+* [Installing](https://github.com/Mubelotix/admarus/wiki/installation)
+* [Searching](https://github.com/Mubelotix/admarus/wiki/searching)
+  - [Basics](https://github.com/Mubelotix/admarus/wiki/searching#basics)
+  - [Operators](https://github.com/Mubelotix/admarus/wiki/searching#operators)
+  - [Filters](https://github.com/Mubelotix/admarus/wiki/searching#filters)
+* [Indexing](https://github.com/Mubelotix/admarus/wiki/indexing)
+  - [Pages](https://github.com/Mubelotix/admarus/wiki/indexing#pages)
+  - [Websites](https://github.com/Mubelotix/admarus/wiki/indexing#complete-websites)
 
 ## 👨‍💻 About
 
