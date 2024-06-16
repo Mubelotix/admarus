@@ -1,0 +1,22 @@
+<div id="indexing-status">
+    <virtual present-if={{exploring}}>
+        <p id="indexing-status-message">Your daemon is discovering files ({{progress_value}} / {{progress_max}}).</p>
+        <div id="indexing-status-progress">
+            <div id="indexing-status-inner" style="width: calc(100% * {{progress_value}} / {{progress_max}});"></div>
+        </div>
+    </virtual>
+
+    <virtual present-if={{indexing}}>
+        <p id="indexing-status-message">Your daemon is indexing files ({{progress_value}} / {{progress_max}}).</p>
+        <div id="indexing-status-progress">
+            <div id="indexing-status-inner" style="width: calc(100% * {{progress_value}} / {{progress_max}});"></div>
+        </div>
+    </virtual>
+
+    <virtual present-if={{building_filter}}>
+        <p id="indexing-status-message">Your daemon is compiling its index.</p>
+        <div id="indexing-status-progress">
+            <div id="indexing-status-inner" style="width: 100%;"></div>
+        </div>
+    </virtual>
+</div>

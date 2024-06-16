@@ -8,8 +8,10 @@ const REFRESH_INTERVAL: u64 = 100;
 const SWEEP_INTERVAL: u64 = 30;
 
 mod index;
+mod status;
 mod inner_common;
 pub use index::*;
+pub use status::*;
 
 #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
 mod inner_db;

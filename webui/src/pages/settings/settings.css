@@ -1,13 +1,13 @@
+#settings-page {
+    height: 100vh;
+    height: 100dvh;
+    background-color: #f5f5f5;
+}
+
 #settings-button {
     all: unset;
     padding: 0.5rem;
     width: 1.5rem;
     height: 1.5rem;
     cursor: pointer;
-}
-
-#settings-page {
-    background-color: #f5f5f5;
-    min-height: 100vh;
-    min-height: calc(var(--vh, 1vh) * 100 - 0.01px);
 }

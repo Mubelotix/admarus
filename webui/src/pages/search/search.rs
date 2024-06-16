@@ -30,6 +30,7 @@ impl Component for SearchPage {
         let onclick_lucky = ctx.props().app_link.callback(|_| AppMsg::ChangePage(Page::lucky(None)));
         let conn_status = Rc::clone(&ctx.props().conn_status);
         let onchange_conn_status = ctx.props().onchange_conn_status.clone();
+        let rpc_addr = conn_status.admarus_addr();
 
         template_html!(
             "pages/search/search.html",

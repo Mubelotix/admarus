@@ -33,7 +33,7 @@ impl<COMP: Component> HackTraitAnimation<COMP> for Scope<COMP> {
         let document = unsafe {
             web_sys::window().unwrap_unchecked().document().unwrap_unchecked()
         };
-        let start_view_transition = get(&document, &"startViewTransition".into()).unwrap();
+        let start_view_transition = Reflect::get(&document, &"startViewTransition".into()).unwrap();
         let start_view_transition = match start_view_transition.dyn_ref::<Function>() {
             Some(f) => f.clone(),
             None => {
@@ -47,7 +47,7 @@ impl<COMP: Component> HackTraitAnimation<COMP> for Scope<COMP> {
         }) as Box<dyn FnMut(_)>);
         let args = Array::new_with_length(1);
         args.set(0, callback.as_ref().clone());
-        apply(&start_view_transition, &document, &args).unwrap();
+        Reflect::apply(&start_view_transition, &document, &args).unwrap();
 
         if !LEAK_MEMORY {
             spawn_local(async move {
