@@ -9,7 +9,7 @@ body {
 
 section {
     height: 100vh;
-    height: calc(var(--vh, 1vh) * 100 - 0.01px);
+    height: 100dvh;
     display: flex;
     flex-direction: column;
     align-items: center;
