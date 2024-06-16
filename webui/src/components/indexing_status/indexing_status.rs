@@ -28,7 +28,6 @@ impl Component for IndexingStatusComp {
         spawn_local(async move {
             loop {
                 if link2.get_component().is_none() {
-                    log!("IndexingStatusComp: Component dropped, stopping loop");
                     break;
                 }
 
