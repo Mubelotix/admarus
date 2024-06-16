@@ -1,4 +1,5 @@
 #![allow(clippy::module_inception)]
+#![allow(clippy::map_clone)] /* This lint doesn't make the difference between Arc clones and regular clones */
 #![recursion_limit = "256"]
 
 mod result;

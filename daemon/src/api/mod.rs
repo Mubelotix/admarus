@@ -62,7 +62,6 @@ impl SearchPark {
         id
     }
 
-    #[allow(clippy::map_clone)]
     pub async fn get_query(self: Arc<Self>, id: usize) -> Option<Arc<Query>> {
         let searches = self.searches.read().await;
         searches.get(&id).map(|s| Arc::clone(&s.query))
