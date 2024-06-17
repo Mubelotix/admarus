@@ -1,3 +1,5 @@
+use std::cell::RefCell;
+
 use crate::prelude::*;
 
 mod ty;
@@ -7,6 +9,7 @@ pub use api::*;
 
 pub struct IndexingStatusComp {
     status: Option<IndexingStatus>,
+    stop_polling: Rc<RefCell<bool>>,
 }
 
 #[derive(PartialEq, Properties)]
@@ -23,11 +26,14 @@ impl Component for IndexingStatusComp {
     type Properties = IndexingStatusProps;
 
     fn create(ctx: &Context<Self>) -> Self {
+        let stop_polling = Rc::new(RefCell::new(false));
+
         let link2 = ctx.link().clone();
         let rpc_addr2 = ctx.props().rpc_addr.clone();
+        let stop_polling2 = Rc::clone(&stop_polling);
         spawn_local(async move {
             loop {
-                if link2.get_component().is_none() {
+                if *stop_polling2.borrow() {
                     break;
                 }
 
@@ -50,6 +56,7 @@ impl Component for IndexingStatusComp {
 
         Self {
             status: None,
+            stop_polling,
         }
     }
 
@@ -60,6 +67,12 @@ impl Component for IndexingStatusComp {
                 true
             }
         }
+    }
+
+    fn changed(&mut self, ctx: &Context<Self>, _old_props: &Self::Properties) -> bool {
+        self.stop_polling.replace(true);
+        *self = Component::create(ctx);
+        true
     }
 
     fn view(&self, _ctx: &Context<Self>) -> Html {
