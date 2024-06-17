@@ -25,4 +25,4 @@ COPY --from=build /usr/local/bin/admarusd /usr/local/bin/admarusd
 EXPOSE 4002
 EXPOSE 5002
 
-CMD ["/usr/local/bin/admarusd"]
+ENTRYPOINT ["/usr/local/bin/admarusd"]
