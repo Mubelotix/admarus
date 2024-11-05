@@ -1,19 +1,48 @@
 use super::*;
 
+use tantivy::aggregation::agg_req::Aggregations;
+use tantivy::aggregation::agg_result::AggregationResults;
+use tantivy::aggregation::AggregationCollector;
+use tantivy::query::AllQuery;
+use tantivy::schema::{self, Field, IndexRecordOption, Schema, TextFieldIndexing, TextOptions, FAST, STORED, STRING, TEXT};
+use tantivy::{doc, DocId, Index, IndexReader, IndexWriter, Opstamp, TantivyDocument, TantivyError};
+use tokio::sync::RwLockReadGuard;
+
+fn build_schema() -> (Schema, Field, Field, Field) {
+    let STRING_NOT_INDEXED = TextOptions::default();
+
+    let mut schema_builder = Schema::builder();
+    let cid_field = schema_builder.add_text_field("cid", STRING_NOT_INDEXED | STORED);
+    // schema_builder.add_text_field("titles", TEXT | STORED);
+    let desc_field = schema_builder.add_text_field("description", TEXT | STORED);
+    let content_field = schema_builder.add_text_field("content", TEXT);
+    // schema_builder.add_json_field("structured_data", TEXT | STORED);
+
+    (schema_builder.build(), cid_field, desc_field, content_field)
+}
+
 #[derive(Clone)]
 pub struct DocumentIndex {
     config: Arc<Args>,
+    index: Index,
     status: Arc<RwLock<IndexingStatus>>,
     inner: Arc<RwLock<DocumentIndexInner>>,
+    writer: Arc<RwLock<IndexWriter>>
 }
 
 #[allow(dead_code)]
 impl DocumentIndex {
     pub async fn new(config: Arc<Args>) -> DocumentIndex {
+        let (schema, cid_field, desc_field, content_field) = build_schema();
+        let index = Index::create_in_ram(schema);
+        let index_writer: IndexWriter = index.writer(50_000_000).expect("Couldn't build index writer"); // TODO: add a config option for index memory budget
+
         DocumentIndex {
-            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config)).await)),
+            inner: Arc::new(RwLock::new(DocumentIndexInner::new(Arc::clone(&config), cid_field, desc_field, content_field).await)),
             status: Arc::new(RwLock::new(IndexingStatus::default())),
             config,
+            index,
+            writer: Arc::new(RwLock::new(index_writer))
         }
     }
 
@@ -112,7 +141,7 @@ impl DocumentIndex {
                 loaded.insert(cid.clone());
                 let Ok(document) = fetch_document(ipfs_rpc, &cid).await else {continue};
                 let Some(inspected) = inspect_document(document) else {continue};
-                self.add_document(&cid, inspected).await;
+                self.add_document(cid.to_owned(), inspected).await;
                 self.add_ancestor(&cid, name, false, &parent_cid).await;
             }
             
@@ -156,8 +185,10 @@ impl DocumentIndex {
         self.inner.read().await.document_count()
     }
 
-    pub async fn add_document(&self, cid: &String, doc: DocumentInspectionReport) {
-        self.inner.write().await.add_document(cid, doc);
+    pub async fn add_document(&self, cid: String, doc: DocumentInspectionReport) -> Result<Opstamp, TantivyError> {
+        let mut inner = self.inner.write().await;
+        let writer = self.writer.read().await;
+        inner.add_document(writer, cid, doc)
     }
 
     pub async fn add_ancestor(&self, cid: &String, name: String, is_folder: bool, folder_cid: &String) {
@@ -168,24 +199,213 @@ impl DocumentIndex {
         self.inner.read().await.build_path(cid)
     }
 
-    pub async fn update_filter(&self) {
-        self.inner.write().await.update_filter().await;
+    pub async fn update_filter(&self) -> Result<(), TantivyError> {
+        let mut reader = self.index.reader()?;
+        self.inner.write().await.update_filter(reader).await
     }
 }
 
+pub(super) struct DocumentIndexInner {
+    config: Arc<Args>,
+    cid_field: Field,
+    desc_field: Field,
+    content_field: Field,
+
+    pub(super) filter: Filter<FILTER_SIZE>,
+    filter_needs_update: bool,
+
+    pub(super) ancestors: HashMap<String, HashMap<String, String>>,
+    pub(super) folders: HashSet<String>,
+    pub(super) doc_ids: HashMap<String, DocId>,
+}
+
+impl DocumentIndexInner {
+    pub async fn new(config: Arc<Args>, cid_field: Field, desc_field: Field, content_field: Field) -> DocumentIndexInner {
+        DocumentIndexInner {
+            config,
+            cid_field,
+            desc_field,
+            content_field,
+
+            filter: Filter::new(),
+            filter_needs_update: false,
+
+            ancestors: HashMap::new(),
+            folders: HashSet::new(),
+            doc_ids: HashMap::new(),
+        }
+    }   
+    
+    #[allow(dead_code)]
+    pub(super) async fn sweep(&mut self) {}
+
+    pub fn documents(&self) -> HashSet<String> {
+        self.doc_ids
+            .keys()
+            .map(|cid| cid.to_owned())
+            .collect()
+    }
+
+    pub fn document_count(&self) -> usize {
+        self.doc_ids.len()
+    }
+
+    pub fn add_document(&mut self, index_writer: RwLockReadGuard<'_, IndexWriter>, cid: String, doc: DocumentInspectionReport) -> Result<Opstamp, TantivyError> {
+        let opstamp = index_writer.add_document(doc!(
+            self.cid_field => cid,
+            self.desc_field => doc.description.unwrap_or_default(),
+            self.content_field => doc.text_content,
+        ))?;
+
+        // TODO: tell we need to update our filter after commit
+
+        Ok(opstamp)
+    }
+
+    pub async fn update_filter(&mut self, index_reader: IndexReader) -> Result<(), TantivyError> {
+        if !self.filter_needs_update {
+            return Ok(());
+        }
+        let searcher = index_reader.searcher();
+        self.filter = Filter::new();
+        for segment_reader in searcher.segment_readers() {
+            let inverted_index = segment_reader.inverted_index(self.content_field)?; // TODO: also read title and description
+            let terms = inverted_index.terms();
+            let mut term_stream = terms.stream().unwrap();
+
+            while let Some((u, v)) = term_stream.next() {
+                self.filter.add_bytes::<DocumentIndex>(u);
+            }
+        }
+        self.filter_needs_update = false;
+        Ok(())
+    }
+
+    // TODO: switching self to static may improve performance by a lot
+    pub async fn search(&self, query: Arc<Query>) -> ResultStream<DocumentResult> {
+        let matching_docs = match query.match_score(&self.filter) > 0 {
+            true => query.matching_docs(&self.index, &HashMap::new()), // Restore filters
+            false => Vec::new(),
+        };
+
+        let futures = matching_docs
+            .into_iter()
+            .filter_map(|lcid| self.cids.get_by_left(&lcid))
+            .map(|cid| (cid, self.build_path(cid).unwrap_or_default()))
+            .map(|(cid, paths)| cid_to_result_wrapper(Arc::clone(&query), cid.to_owned(), paths, Arc::clone(&self.config)))
+            .collect();
+
+        Box::pin(DocumentResultStream { futures })
+    }
+
+    pub fn add_ancestor(&mut self, cid: &String, name: String, is_folder: bool, folder_cid: &String) {
+        let lcid = match self.cids.get_by_right(cid) {
+            Some(lcid) => lcid.to_owned(),
+            None => {
+                let lcid = LocalCid(self.cid_counter);
+                self.cid_counter += 1;
+                self.cids.insert(lcid, cid.clone());
+                lcid
+            }
+        };
+        if is_folder {
+            self.folders.insert(lcid);
+        }
+
+        let ancestor_lcid = match self.cids.get_by_right(folder_cid) {
+            Some(lcid) => lcid.to_owned(),
+            None => {
+                let lcid = LocalCid(self.cid_counter);
+                self.cid_counter += 1;
+                self.cids.insert(lcid, folder_cid.clone());
+                lcid
+            }
+        };
+        self.folders.insert(ancestor_lcid);
+
+        self.ancestors.entry(lcid).or_default().insert(ancestor_lcid, name);
+    }
+
+    pub fn build_path(&self, cid: &String) -> Option<Vec<Vec<String>>> {
+        let lcid = match self.cids.get_by_right(cid) {
+            Some(lcid) => lcid.to_owned(),
+            None => {
+                warn!("Tried to build path for unknown cid: {cid}");
+                return None;
+            },
+        };
+
+        // List initial paths that will be explored
+        let mut current_paths: Vec<(LocalCid, Vec<String>)> = Vec::new();
+        for (ancestor, name) in self.ancestors.get(&lcid)? {
+            current_paths.push((ancestor.to_owned(), vec![name.to_owned()]));
+        }
+
+        // Expand known paths and keep track of them all
+        let mut paths: Vec<(LocalCid, Vec<String>)> = Vec::new();
+        while let Some(current_path) = current_paths.pop() {
+            if let Some(ancestors) = self.ancestors.get(&current_path.0) {
+                for (ancestor, name) in ancestors {
+                    if name.is_empty() {
+                        continue;
+                    }
+                    let mut new_path = current_path.clone();
+                    ancestor.clone_into(&mut new_path.0);
+                    new_path.1.insert(0, name.to_owned());
+                    current_paths.push(new_path);
+                }
+            }
+            paths.push(current_path);
+        }
+
+        // Resolve the root cid to build final paths
+        let mut final_paths = Vec::new();
+        for (root, mut path) in paths {
+            if let Some(first) = path.first() {
+                if first.starts_with("dns-pin-") {
+                    let dns_pin_with_suffix = first.split_at(8).1;
+                    if let Some(i) = dns_pin_with_suffix.bytes().rposition(|c| c == b'-') {
+                        let dns_pin = dns_pin_with_suffix.split_at(i).0;
+                        let (domain, path_start) = dns_pin.split_once('/').unwrap_or((dns_pin, "/"));
+                        let (domain, path_start) = (domain.to_owned(), path_start.to_owned());
+                        path[0] = domain;
+                        for path_part in path_start.split('/').rev() {
+                            if !path_part.is_empty() {
+                                path.insert(1, path_part.to_owned());
+                            }
+                        }
+                        final_paths.push(path);
+                        continue;
+                    }
+                }
+            }
+            let root_cid = match self.cids.get_by_left(&root) {
+                Some(root_cid) => root_cid.to_owned(),
+                None => match self.cids.get_by_left(&root) {
+                    Some(root_cid) => root_cid.to_owned(),
+                    None => continue,
+                },
+            };
+            path.insert(0, root_cid);
+            final_paths.push(path);
+        }
+
+        Some(final_paths)
+    }
+}
 
 #[async_trait]
 impl Store<FILTER_SIZE> for DocumentIndex {
     type Result = DocumentResult;
     type Query = Query;
 
-    fn hash_word(word: &str) -> Vec<usize>  {
+    fn hash_bytes(word: &[u8]) -> Vec<usize>  {
         let mut result = 1usize;
         const RANDOM_SEED: [usize; 16] = [542587211452, 5242354514, 245421154, 4534542154, 542866467, 545245414, 7867569786914, 88797854597, 24542187316, 645785447, 434963879, 4234274, 55418648642, 69454242114688, 74539841, 454214578213];
-        for c in word.bytes() {
+        for c in word {
             for i in 0..8 {
-                result = result.overflowing_mul(c as usize + RANDOM_SEED[i*2]).0;
-                result = result.overflowing_add(c as usize + RANDOM_SEED[i*2+1]).0;
+                result = result.overflowing_mul(*c as usize + RANDOM_SEED[i*2]).0;
+                result = result.overflowing_add(*c as usize + RANDOM_SEED[i*2+1]).0;
             }
         }
         vec![result % (FILTER_SIZE * 8)]

@@ -1,6 +1,5 @@
 
 
-use bimap::BiHashMap;
 use std::hash::{Hash, Hasher};
 use crate::prelude::*;
 
@@ -9,28 +8,8 @@ const SWEEP_INTERVAL: u64 = 30;
 
 mod index;
 mod status;
-mod inner_common;
 pub use index::*;
 pub use status::*;
-
-#[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
-mod inner_db;
-#[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
-pub(self) use inner_db::*;
-
-#[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
-mod inner_im;
-#[cfg(not(any(feature = "database-lmdb", feature = "database-mdbx")))]
-use inner_im::*;
-
-
-#[derive(PartialEq, Eq, Clone, Copy, Debug)]
-pub struct LocalCid(pub u32);
-impl Hash for LocalCid {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        Hash::hash(&self.0, state)
-    }
-}
 
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub struct LocalDid(u32);

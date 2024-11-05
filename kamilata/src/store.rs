@@ -20,12 +20,21 @@ pub trait Store<const N: usize>: Send + Sync + 'static {
     type Result: SearchResult + Send + Sync;
     type Query: SearchQuery<N>;
     
+    /// Hash a byte word the way you like.
+    /// You can return multiple hashes for a single input (it's the idea behind Bloom filters).
+    /// 
+    /// Must return at least one value.
+    /// Must return values lower than `N*8` as they will be used as bit indices in filters.
+    fn hash_bytes(bytes: &[u8]) -> Vec<usize>;
+    
     /// Hash a word the way you like.
     /// You can return multiple hashes for a single input (it's the idea behind Bloom filters).
     /// 
     /// Must return at least one value.
     /// Must return values lower than `N*8` as they will be used as bit indices in filters.
-    fn hash_word(word: &str) -> Vec<usize>;
+    fn hash_word(word: &str) -> Vec<usize> {
+        Self::hash_bytes(word.as_bytes())
+    }
 
     /// Return a filter that has been filled with the words of the documents.
     /// This function is intented to return a cached value as the filter should have been generated earlier.

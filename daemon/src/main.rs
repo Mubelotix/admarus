@@ -15,9 +15,6 @@ mod swarm;
 mod query;
 mod dns_pins;
 
-#[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
-mod database;
-
 use crate::prelude::*;
 
 #[tokio::main]

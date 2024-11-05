@@ -77,7 +77,9 @@ impl Query {
                 candidates.extend(new_candidates.keys());
             }
         }
-        for (name, value) in positive_filters {
+        for (name, value) in p
+        #[cfg(any(feature = "database-lmdb", feature = "database-mdbx"))]
+        pub use crate::database::*;ositive_filters {
             if let Some(new_candidates) = filters.get(&(name.clone(), value.clone())) {
                 candidates.extend(new_candidates);
             }

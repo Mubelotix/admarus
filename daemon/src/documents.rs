@@ -2,8 +2,9 @@ use scraper::{Selector, Html, ElementRef};
 use crate::prelude::*;
 
 pub struct DocumentInspectionReport {
-    pub words: Vec<String>,
-    pub filters: HashMap<&'static str, String>,
+    pub text_content: String,
+    pub description: Option<String>,
+    // TODO: add structured data to documentinspectionreport
 }
 
 pub fn inspect_document(raw: Vec<u8>) -> Option<DocumentInspectionReport> {
@@ -34,7 +35,7 @@ fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
     let body_selector = Selector::parse("body").expect("Invalid body selector");
     let body_el = document.select(&body_selector).next();
 
-    fn list_words(el: ElementRef, words: &mut Vec<String>) {
+    fn list_words(el: ElementRef, text_content: &mut String) {
         if ["script", "style"].contains(&el.value().name()) {
             return;
         }
@@ -42,14 +43,11 @@ fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
             match child.value() {
                 scraper::node::Node::Element(_) => {
                     let child_ref = ElementRef::wrap(child).expect("Child isn't an element");
-                    list_words(child_ref, words)
+                    list_words(child_ref, text_content)
                 },
                 scraper::node::Node::Text(text) => {
-                    let text = text.to_lowercase();
-                    words.extend(text
-                        .split(|c: char| !c.is_ascii_alphanumeric())
-                        .filter(|w| w.len() >= 3)
-                        .map(|w| w.to_string()))
+                    text_content.push(' ');
+                    text_content.push_str(text.to_string().trim());
                 },
                 _ => (),
             }
@@ -57,10 +55,15 @@ fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
 
     }
 
-    let mut words = Vec::new();
+    let mut text_content = String::new();
     if let Some(body_el) = body_el {
-        list_words(body_el, &mut words);
+        list_words(body_el, &mut text_content);
     }
+
+    // Retrieve description
+    let description_selector = Selector::parse("meta[name=description]").expect("Invalid description selector");
+    let description_el = document.select(&description_selector).next();
+    let description = description_el.and_then(|el| el.value().attr("content").map(|c| c.to_string()));    
 
     // Get lang
     let html_selector = Selector::parse("html").expect("Invalid html selector");
@@ -72,7 +75,7 @@ fn inspect_document_html(raw: &str) -> Option<DocumentInspectionReport> {
         .unwrap_or(String::from("unknown"));
     filters.insert("lang", lang);
 
-    Some(DocumentInspectionReport { words, filters })
+    Some(DocumentInspectionReport { text_content, description })
 }
 
 #[allow(clippy::question_mark)]

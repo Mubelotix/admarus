@@ -49,6 +49,11 @@ impl<const N: usize> Filter<N> {
         S::hash_word(word).into_iter().for_each(|hash| self.set_bit(hash, true));
     }
 
+    /// Adds a byte word in the filter.
+    pub fn add_bytes<S: crate::store::Store<N>>(&mut self, word: &[u8]) {
+        S::hash_bytes(word).into_iter().for_each(|hash| self.set_bit(hash, true));
+    }
+
     /// Returns the number of bits set to 1 in the filter.
     pub fn count_set_bits(&self) -> usize {
         self.0.iter().map(|byte| byte.count_ones() as usize).sum()
