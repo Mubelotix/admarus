@@ -22,14 +22,14 @@ jobs:
       env:
         ANSIBLE_PASSWORD: ${{ secrets.ANSIBLE_PASSWORD }}
       run: |
-        response=$(curl -X POST -d "{\"auth\": \"ci\", \"password\": \"$ANSIBLE_PASSWORD\"}" -c cookies.txt -w "%{http_code}" -o /dev/null https://semaphore.mubelotix.xyz/api/auth/login)
+        response=$(curl -X POST -d "{\"auth\": \"ci\", \"password\": \"$ANSIBLE_PASSWORD\"}" -c cookies.txt -w "%{http_code}" -o /dev/null https://semaphore.mub.lol/api/auth/login)
         if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
           echo "Login to Semaphore failed with status code $response"
           exit 1
         fi
     - name: Launch Task on Semaphore
       run: |
-        response=$(curl -X POST -b cookies.txt -d '{"template_id": 39}' -w "%{http_code}" -o /dev/null https://semaphore.mubelotix.xyz/api/project/3/tasks)
+        response=$(curl -X POST -b cookies.txt -d '{"template_id": 39}' -w "%{http_code}" -o /dev/null https://semaphore.mub.lol/api/project/3/tasks)
         if [ "$response" -lt 200 ] || [ "$response" -ge 300 ]; then
           echo "Launching Task on Semaphore failed with status code $response"
           exit 1
